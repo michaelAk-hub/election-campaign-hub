@@ -55,6 +55,9 @@ import NotFoundVoters from './pages/NotFoundVoters';
 import PushMessages from './pages/PushMessages';
 import SavedQueries from './pages/SavedQueries';
 import CompareMerge from './pages/CompareMerge';
+import PortalLogin from './pages/PortalLogin';
+import Portal from './pages/Portal';
+import UserManagement from './pages/UserManagement';
 import __Layout from './Layout.jsx';
 
 
@@ -67,6 +70,9 @@ export const PAGES = {
     "PushMessages": PushMessages,
     "SavedQueries": SavedQueries,
     "CompareMerge": CompareMerge,
+    "PortalLogin": PortalLogin,
+    "Portal": Portal,
+    "UserManagement": UserManagement,
 }
 
 export const pagesConfig = {
