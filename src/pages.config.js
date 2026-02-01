@@ -48,17 +48,25 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import Dashboard from './pages/Dashboard';
-import DataGrid from './pages/DataGrid';
-import ChreosiPortal from './pages/ChreosiPortal';
-import KanaliPortal from './pages/KanaliPortal';
+import Records from './pages/Records';
+import ChreosiAccounts from './pages/ChreosiAccounts';
+import KanaliAccounts from './pages/KanaliAccounts';
+import NotFoundVoters from './pages/NotFoundVoters';
+import PushMessages from './pages/PushMessages';
+import SavedQueries from './pages/SavedQueries';
+import CompareMerge from './pages/CompareMerge';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "Dashboard": Dashboard,
-    "DataGrid": DataGrid,
-    "ChreosiPortal": ChreosiPortal,
-    "KanaliPortal": KanaliPortal,
+    "Records": Records,
+    "ChreosiAccounts": ChreosiAccounts,
+    "KanaliAccounts": KanaliAccounts,
+    "NotFoundVoters": NotFoundVoters,
+    "PushMessages": PushMessages,
+    "SavedQueries": SavedQueries,
+    "CompareMerge": CompareMerge,
 }
 
 export const pagesConfig = {

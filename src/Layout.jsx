@@ -2,147 +2,206 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { base44 } from '@/api/base44Client';
-import { 
-  LayoutGrid, 
-  Users, 
-  MessageSquare, 
-  Upload, 
+import {
+  LayoutDashboard,
+  Users,
+  UserPlus,
+  FileSpreadsheet,
+  MessageSquare,
   Settings,
-  Database,
-  UserCircle,
   LogOut,
   Menu,
-  X
+  X,
+  Database,
+  GitCompare,
+  Bell,
+  ChevronDown,
+  Vote,
+  UserCog,
+  Search as SearchIcon
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const adminNavItems = [
+  { name: 'Πίνακας Ελέγχου', icon: LayoutDashboard, page: 'Dashboard' },
+  { name: 'Εγγραφές', icon: Database, page: 'Records' },
+  { name: 'Αποθηκευμένα Ερωτήματα', icon: SearchIcon, page: 'SavedQueries' },
+  { name: 'Σύγκριση & Συγχώνευση', icon: GitCompare, page: 'CompareMerge' },
+  { name: 'Χρεωστικοί', icon: UserPlus, page: 'ChreosiAccounts' },
+  { name: 'Κανάλι', icon: Vote, page: 'KanaliAccounts' },
+  { name: 'Αποτυχημένες Ψήφοι', icon: FileSpreadsheet, page: 'NotFoundVoters' },
+  { name: 'Μηνύματα', icon: MessageSquare, page: 'PushMessages' },
+  { name: 'Χρήστες', icon: UserCog, page: 'UserManagement' },
+];
+
+const portalPages = ['Portal', 'PortalLogin'];
 
 export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
+    const loadUser = async () => {
+      try {
+        const userData = await base44.auth.me();
+        setUser(userData);
+      } catch (e) {
+        // Not logged in
+      }
+      setLoading(false);
+    };
+    loadUser();
   }, []);
 
-  const handleLogout = async () => {
-    await base44.auth.logout();
-  };
-
-  const isAdmin = user?.role === 'admin';
-  const isOrganotikos = isAdmin; // Admin has Organotikos access
-
-  // Don't show layout for portal pages
-  if (currentPageName?.includes('Portal') || currentPageName === 'Login') {
-    return <div className="min-h-screen bg-slate-50">{children}</div>;
+  // Portal pages have their own layout
+  if (portalPages.includes(currentPageName)) {
+    return <>{children}</>;
   }
 
-  const navigation = [
-    { name: 'Πίνακας Ελέγχου', page: 'Dashboard', icon: LayoutGrid, show: true },
-    { name: 'Δεδομένα', page: 'DataGrid', icon: Database, show: isOrganotikos },
-    { name: 'Εισαγωγή', page: 'BootImport', icon: Upload, show: isAdmin },
-    { name: 'Λογαριασμοί', page: 'Accounts', icon: Users, show: isOrganotikos },
-    { name: 'Μηνύματα', page: 'Messages', icon: MessageSquare, show: isOrganotikos },
-  ];
+  // Admin/Organotikos layout
+  const isAdmin = user?.role === 'admin';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 text-center max-w-md w-full border border-white/20">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Vote className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Εκλογική Πλατφόρμα</h1>
+          <p className="text-blue-200 mb-6">Παρακαλώ συνδεθείτε για να συνεχίσετε</p>
+          <Button 
+            onClick={() => base44.auth.redirectToLogin()}
+            className="w-full bg-blue-600 hover:bg-blue-700"
+          >
+            Σύνδεση
+          </Button>
+          <div className="mt-6 pt-6 border-t border-white/20">
+            <Link 
+              to={createPageUrl('PortalLogin')}
+              className="text-blue-300 hover:text-white text-sm transition-colors"
+            >
+              Είστε Χρεωστικός ή Κανάλι; Συνδεθείτε εδώ →
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Top Navigation */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-900 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
-                <Database className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-900">Εκλογική Πλατφόρμα</h1>
-                <p className="text-xs text-slate-500">Campaign Data Platform</p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-slate-50">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4">
+        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+          <Menu className="h-5 w-5" />
+        </Button>
+        <div className="flex items-center gap-2">
+          <Vote className="h-5 w-5 text-blue-600" />
+          <span className="font-semibold">Εκλογές</span>
+        </div>
+        <div className="w-10" />
+      </div>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-2">
-              {navigation.filter(item => item.show).map(item => {
-                const Icon = item.icon;
-                const isActive = currentPageName === item.page;
-                return (
-                  <Link key={item.page} to={createPageUrl(item.page)}>
-                    <Button
-                      variant={isActive ? "default" : "ghost"}
-                      className={isActive ? "bg-blue-900 text-white" : "text-slate-600 hover:text-slate-900"}
-                    >
-                      <Icon className="w-4 h-4 mr-2" />
-                      {item.name}
-                    </Button>
-                  </Link>
-                );
-              })}
-            </div>
+      {/* Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-            {/* User Menu */}
-            <div className="flex items-center gap-3">
-              {user && (
-                <>
-                  <div className="hidden sm:block text-right">
-                    <p className="text-sm font-medium text-slate-900">{user.full_name}</p>
-                    <p className="text-xs text-slate-500">{user.role === 'admin' ? 'Διαχειριστής' : 'Χρήστης'}</p>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={handleLogout}>
-                    <LogOut className="w-4 h-4" />
-                  </Button>
-                </>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </Button>
+      {/* Sidebar */}
+      <aside className={cn(
+        "fixed top-0 left-0 h-full w-64 bg-white border-r border-slate-200 z-50 transition-transform duration-300",
+        "lg:translate-x-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        {/* Logo */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+              <Vote className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-900">Εκλογές</span>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider">2026</p>
             </div>
           </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white">
-            <div className="px-4 py-3 space-y-1">
-              {navigation.filter(item => item.show).map(item => {
-                const Icon = item.icon;
-                const isActive = currentPageName === item.page;
-                return (
-                  <Link key={item.page} to={createPageUrl(item.page)}>
-                    <Button
-                      variant={isActive ? "default" : "ghost"}
-                      className={`w-full justify-start ${isActive ? "bg-blue-900 text-white" : ""}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Icon className="w-4 h-4 mr-2" />
-                      {item.name}
-                    </Button>
-                  </Link>
-                );
-              })}
+        {/* Navigation */}
+        <nav className="p-3 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
+          {adminNavItems.map(item => (
+            <Link
+              key={item.page}
+              to={createPageUrl(item.page)}
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                currentPageName === item.page
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.name}
+            </Link>
+          ))}
+        </nav>
+
+        {/* User */}
+        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-100 bg-white">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center">
+              <span className="text-sm font-medium text-slate-600">
+                {user.full_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+              </span>
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 truncate">
+                {user.full_name || user.email}
+              </p>
+              <p className="text-xs text-slate-500">
+                {isAdmin ? 'Διαχειριστής' : 'Οργανωτικός'}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => base44.auth.logout()}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
-        )}
-      </nav>
+        </div>
+      </aside>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-sm text-slate-500">
-            © 2026 Εκλογική Πλατφόρμα - Campaign Data Platform v1.0
-          </p>
+      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen">
+        <div className="p-4 sm:p-6 lg:p-8">
+          {children}
         </div>
-      </footer>
+      </main>
     </div>
   );
 }
