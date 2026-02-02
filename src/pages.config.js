@@ -50,6 +50,7 @@
 import ChreosiAccounts from './pages/ChreosiAccounts';
 import ChreosiPortal from './pages/ChreosiPortal';
 import CompareMerge from './pages/CompareMerge';
+import CreateTestUser from './pages/CreateTestUser';
 import Dashboard from './pages/Dashboard';
 import DataGrid from './pages/DataGrid';
 import KanaliAccounts from './pages/KanaliAccounts';
@@ -61,7 +62,6 @@ import PushMessages from './pages/PushMessages';
 import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import UserManagement from './pages/UserManagement';
-import CreateTestUser from './pages/CreateTestUser';
 import __Layout from './Layout.jsx';
 
 
@@ -69,6 +69,7 @@ export const PAGES = {
     "ChreosiAccounts": ChreosiAccounts,
     "ChreosiPortal": ChreosiPortal,
     "CompareMerge": CompareMerge,
+    "CreateTestUser": CreateTestUser,
     "Dashboard": Dashboard,
     "DataGrid": DataGrid,
     "KanaliAccounts": KanaliAccounts,
@@ -80,7 +81,6 @@ export const PAGES = {
     "Records": Records,
     "SavedQueries": SavedQueries,
     "UserManagement": UserManagement,
-    "CreateTestUser": CreateTestUser,
 }
 
 export const pagesConfig = {

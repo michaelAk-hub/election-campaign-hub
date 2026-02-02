@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../components/common/PageHeader';
-import DataGrid from '../components/ui/DataGrid';
+import EditableDataGrid from '../components/ui/EditableDataGrid';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,25 +38,19 @@ import { toast } from 'sonner';
 
 const COLUMNS = [
   { key: 'person_id', label: 'ΑΤ (ID)' },
+  { key: 'ucid', label: 'UCID' },
   { key: 'last_name', label: 'Επίθετο' },
   { key: 'first_name', label: 'Όνομα' },
   { key: 'department', label: 'Τμήμα' },
   { key: 'admission_year', label: 'Εισδοχή' },
-  { key: 'mobile_phone', label: 'Κινητό', render: (val) => val ? (
-    <a href={`tel:${val}`} className="text-blue-600 hover:underline flex items-center gap-1">
-      <Phone className="h-3 w-3" /> {val}
-    </a>
-  ) : '-' },
+  { key: 'academic_level', label: 'Επίπεδο' },
+  { key: 'mobile_phone', label: 'Κινητό' },
   { key: 'contact_person_1', label: 'Άτομο 1' },
   { key: 'contact_person_2', label: 'Άτομο 2' },
-  { key: 'voted', label: 'Ψήφισε', render: (val) => (
-    <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 text-emerald-700' : ''}>
-      {val ? 'ΝΑΙ' : 'ΟΧΙ'}
-    </Badge>
-  )},
-  { key: 'notes', label: 'Σημειώσεις', render: (val) => (
-    <span className="truncate max-w-[150px] block">{val || '-'}</span>
-  )}
+  { key: 'member', label: 'Μέλος' },
+  { key: 'election_cycle', label: 'Σύμβολο Πρόβλεψης' },
+  { key: 'voted', label: 'Ψήφισε', type: 'boolean' },
+  { key: 'notes', label: 'Σημειώσεις', type: 'textarea' }
 ];
 
 export default function Records() {
@@ -88,6 +82,16 @@ export default function Records() {
       toast.success('Η εγγραφή ενημερώθηκε');
     }
   });
+
+  const handleCellUpdate = async (id, field, value) => {
+    try {
+      await base44.entities.Person.update(id, { [field]: value });
+      queryClient.invalidateQueries(['people']);
+      toast.success('Ενημερώθηκε');
+    } catch (error) {
+      toast.error('Σφάλμα κατά την ενημέρωση');
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Person.delete(id),
@@ -146,36 +150,11 @@ export default function Records() {
         }
       />
 
-      <DataGrid
+      <EditableDataGrid
         data={people}
         columns={COLUMNS}
-        pageSize={25}
-        actions={(row) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openEditDialog(row)}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Επεξεργασία
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => {
-                  if (confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτή την εγγραφή;')) {
-                    deleteMutation.mutate(row.id);
-                  }
-                }}
-                className="text-red-600"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Διαγραφή
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        onCellUpdate={handleCellUpdate}
+        pageSize={50}
       />
 
       {/* Add/Edit Dialog */}
@@ -272,7 +251,7 @@ export default function Records() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Εκλογικός Κύκλος</Label>
+              <Label>Σύμβολο Πρόβλεψης</Label>
               <Input
                 value={formData.election_cycle || ''}
                 onChange={(e) => setFormData({...formData, election_cycle: e.target.value})}
