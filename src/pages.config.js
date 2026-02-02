@@ -47,32 +47,40 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import Dashboard from './pages/Dashboard';
-import Records from './pages/Records';
 import ChreosiAccounts from './pages/ChreosiAccounts';
-import KanaliAccounts from './pages/KanaliAccounts';
-import NotFoundVoters from './pages/NotFoundVoters';
-import PushMessages from './pages/PushMessages';
-import SavedQueries from './pages/SavedQueries';
+import ChreosiPortal from './pages/ChreosiPortal';
 import CompareMerge from './pages/CompareMerge';
-import PortalLogin from './pages/PortalLogin';
+import Dashboard from './pages/Dashboard';
+import DataGrid from './pages/DataGrid';
+import KanaliAccounts from './pages/KanaliAccounts';
+import KanaliPortal from './pages/KanaliPortal';
+import NotFoundVoters from './pages/NotFoundVoters';
 import Portal from './pages/Portal';
+import PortalLogin from './pages/PortalLogin';
+import PushMessages from './pages/PushMessages';
+import Records from './pages/Records';
+import SavedQueries from './pages/SavedQueries';
 import UserManagement from './pages/UserManagement';
+import CreateTestUser from './pages/CreateTestUser';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "Dashboard": Dashboard,
-    "Records": Records,
     "ChreosiAccounts": ChreosiAccounts,
-    "KanaliAccounts": KanaliAccounts,
-    "NotFoundVoters": NotFoundVoters,
-    "PushMessages": PushMessages,
-    "SavedQueries": SavedQueries,
+    "ChreosiPortal": ChreosiPortal,
     "CompareMerge": CompareMerge,
-    "PortalLogin": PortalLogin,
+    "Dashboard": Dashboard,
+    "DataGrid": DataGrid,
+    "KanaliAccounts": KanaliAccounts,
+    "KanaliPortal": KanaliPortal,
+    "NotFoundVoters": NotFoundVoters,
     "Portal": Portal,
+    "PortalLogin": PortalLogin,
+    "PushMessages": PushMessages,
+    "Records": Records,
+    "SavedQueries": SavedQueries,
     "UserManagement": UserManagement,
+    "CreateTestUser": CreateTestUser,
 }
 
 export const pagesConfig = {
