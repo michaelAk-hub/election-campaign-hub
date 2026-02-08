@@ -15,8 +15,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription
+  DialogFooter
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -33,13 +32,9 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  Phone,
-  Sheet,
-  Upload,
-  ExternalLink
+  Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const COLUMNS = [
   { key: 'person_id', label: 'ΑΤ (ID)' },
@@ -73,12 +68,6 @@ export default function Records() {
   const [editDialog, setEditDialog] = useState({ open: false, person: null });
   const [addDialog, setAddDialog] = useState(false);
   const [formData, setFormData] = useState({});
-  const [sheetsDialog, setSheetsDialog] = useState(false);
-  const [spreadsheetId, setSpreadsheetId] = useState('');
-  const [sheetName, setSheetName] = useState('Voters');
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const [lastExportUrl, setLastExportUrl] = useState('');
 
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['people'],
@@ -137,51 +126,6 @@ export default function Records() {
     setEditDialog({ open: true, person });
   };
 
-  const handleExportToSheets = async (createNew = false) => {
-    setIsExporting(true);
-    try {
-      const payload = createNew ? {} : { spreadsheetId, sheetName };
-      const response = await base44.functions.invoke('exportToGoogleSheets', payload);
-      
-      setLastExportUrl(response.data.url);
-      toast.success(`Εξαγωγή ολοκληρώθηκε! ${response.data.recordsExported} εγγραφές`);
-      
-      if (createNew) {
-        setSpreadsheetId(response.data.spreadsheetId);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Σφάλμα κατά την εξαγωγή');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleImportFromSheets = async () => {
-    if (!spreadsheetId) {
-      toast.error('Παρακαλώ εισάγετε Spreadsheet ID');
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      const response = await base44.functions.invoke('importFromGoogleSheets', {
-        spreadsheetId,
-        sheetName
-      });
-      
-      queryClient.invalidateQueries(['people']);
-      toast.success(`Εισαγωγή ολοκληρώθηκε! Δημιουργήθηκαν: ${response.data.created}, Ενημερώθηκαν: ${response.data.updated}`);
-      
-      if (response.data.errors && response.data.errors.length > 0) {
-        toast.warning(`${response.data.errors.length} σφάλματα κατά την εισαγωγή`);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Σφάλμα κατά την εισαγωγή');
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -196,11 +140,7 @@ export default function Records() {
           <>
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
-              Εξαγωγή CSV
-            </Button>
-            <Button variant="outline" onClick={() => setSheetsDialog(true)}>
-              <Sheet className="h-4 w-4 mr-2" />
-              Google Sheets
+              Εξαγωγή
             </Button>
             <Button onClick={() => { setFormData({}); setAddDialog(true); }}>
               <Plus className="h-4 w-4 mr-2" />
@@ -241,138 +181,6 @@ export default function Records() {
           </DropdownMenu>
         )}
       />
-
-      {/* Google Sheets Dialog */}
-      <Dialog open={sheetsDialog} onOpenChange={setSheetsDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Συγχρονισμός με Google Sheets</DialogTitle>
-            <DialogDescription>
-              Εξάγετε ή εισάγετε δεδομένα από Google Sheets
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            {/* Export Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  Εξαγωγή σε Google Sheets
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button 
-                  onClick={() => handleExportToSheets(true)} 
-                  disabled={isExporting}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Δημιουργία Νέου Spreadsheet
-                </Button>
-                
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-slate-500">Ή</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>Spreadsheet ID</Label>
-                    <Input
-                      placeholder="1ABC...xyz"
-                      value={spreadsheetId}
-                      onChange={(e) => setSpreadsheetId(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Όνομα Sheet</Label>
-                    <Input
-                      placeholder="Voters"
-                      value={sheetName}
-                      onChange={(e) => setSheetName(e.target.value)}
-                    />
-                  </div>
-                  <Button 
-                    onClick={() => handleExportToSheets(false)} 
-                    disabled={isExporting || !spreadsheetId}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Ενημέρωση Υπάρχοντος Spreadsheet
-                  </Button>
-                </div>
-
-                {lastExportUrl && (
-                  <a 
-                    href={lastExportUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Άνοιγμα Spreadsheet
-                  </a>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Import Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  Εισαγωγή από Google Sheets
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>Spreadsheet ID *</Label>
-                    <Input
-                      placeholder="1ABC...xyz"
-                      value={spreadsheetId}
-                      onChange={(e) => setSpreadsheetId(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Όνομα Sheet</Label>
-                    <Input
-                      placeholder="Voters"
-                      value={sheetName}
-                      onChange={(e) => setSheetName(e.target.value)}
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleImportFromSheets} 
-                    disabled={isImporting || !spreadsheetId}
-                    className="w-full"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Εισαγωγή Δεδομένων
-                  </Button>
-                </div>
-
-                <div className="text-xs text-slate-500 space-y-1">
-                  <p>💡 Το spreadsheet πρέπει να έχει τις ίδιες στήλες με την εξαγωγή</p>
-                  <p>⚠️ Οι υπάρχουσες εγγραφές θα ενημερωθούν βάσει του ΑΤ (ID)</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSheetsDialog(false)}>
-              Κλείσιμο
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Add/Edit Dialog */}
       <Dialog open={addDialog || editDialog.open} onOpenChange={(open) => {
