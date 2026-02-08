@@ -20,8 +20,10 @@ import {
   RefreshCw,
   ArrowRight,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Download
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
@@ -76,6 +78,35 @@ export default function Dashboard() {
       .slice(0, 5);
   }, [people]);
 
+  const downloadTemplate = () => {
+    const headers = [
+      'department',
+      'admission_year',
+      'academic_level',
+      'person_id',
+      'ucid',
+      'mobile_phone',
+      'first_name',
+      'last_name',
+      'contact_person_1',
+      'contact_person_2',
+      'member',
+      'prediction_symbol',
+      'voted',
+      'notes'
+    ];
+    
+    const csv = '\uFEFF' + headers.join(',') + '\n';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `template_person_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Το πρότυπο κατέβηκε');
+  };
+
   if (loadingPeople) {
     return <LoadingSpinner />;
   }
@@ -87,10 +118,16 @@ export default function Dashboard() {
         subtitle="Επισκόπηση της εκλογικής διαδικασίας"
         icon={LayoutDashboard}
         actions={
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Ανανέωση
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={downloadTemplate}>
+              <Download className="h-4 w-4 mr-2" />
+              Πρότυπο CSV
+            </Button>
+            <Button variant="outline" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Ανανέωση
+            </Button>
+          </div>
         }
       />
 
