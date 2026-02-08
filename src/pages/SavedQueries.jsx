@@ -49,7 +49,8 @@ export default function SavedQueries() {
     name: '',
     description: '',
     columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
-    filters: {}
+    filters: {},
+    logicalExpression: ''
   });
 
   const { data: savedQueries = [], isLoading } = useQuery({
@@ -71,7 +72,8 @@ export default function SavedQueries() {
         name: '',
         description: '',
         columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
-        filters: {}
+        filters: {},
+        logicalExpression: ''
       });
       toast.success('Το ερώτημα αποθηκεύτηκε');
     }
@@ -84,6 +86,37 @@ export default function SavedQueries() {
       toast.success('Το ερώτημα διαγράφηκε');
     }
   });
+
+  const evaluateExpression = (person, expression) => {
+    if (!expression || !expression.trim()) return true;
+    
+    try {
+      // Replace field names with actual values
+      let expr = expression;
+      
+      // Replace field references with values
+      const fieldPattern = /\b(person_id|last_name|first_name|department|admission_year|mobile_phone|contact_person_1|contact_person_2|voted|member|notes)\b/g;
+      expr = expr.replace(fieldPattern, (match) => {
+        const value = person[match];
+        if (match === 'voted') return value ? 'true' : 'false';
+        return typeof value === 'string' ? `"${value}"` : (value || '""');
+      });
+      
+      // Replace operators
+      expr = expr.replace(/\bAND\b/gi, '&&');
+      expr = expr.replace(/\bOR\b/gi, '||');
+      expr = expr.replace(/\bNOT\b/gi, '!');
+      expr = expr.replace(/=/g, '==');
+      expr = expr.replace(/!===/g, '!==');
+      expr = expr.replace(/====/g, '===');
+      
+      // Evaluate the expression
+      return eval(expr);
+    } catch (e) {
+      console.error('Expression evaluation error:', e);
+      return true; // If error, include the record
+    }
+  };
 
   const runQuery = (query) => {
     let results = [...people];
@@ -101,6 +134,11 @@ export default function SavedQueries() {
           }
         }
       });
+    }
+
+    // Apply logical expression
+    if (query.logicalExpression && query.logicalExpression.trim()) {
+      results = results.filter(person => evaluateExpression(person, query.logicalExpression));
     }
 
     setQueryResults(results);
@@ -186,7 +224,12 @@ export default function SavedQueries() {
                   <p className="text-sm text-slate-500 mb-4">{query.description}</p>
                 )}
                 <div className="text-xs text-slate-400 mb-4">
-                  {(query.columns || []).length} στήλες
+                  <div>{(query.columns || []).length} στήλες</div>
+                  {query.logicalExpression && (
+                    <div className="mt-1 font-mono text-[10px] text-blue-600 truncate" title={query.logicalExpression}>
+                      {query.logicalExpression}
+                    </div>
+                  )}
                 </div>
                 <Button 
                   className="w-full" 
@@ -276,6 +319,19 @@ export default function SavedQueries() {
                   </select>
                 </div>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Λογική Έκφραση (Προχωρημένο)</Label>
+              <Textarea
+                value={formData.logicalExpression}
+                onChange={(e) => setFormData({...formData, logicalExpression: e.target.value})}
+                placeholder='π.χ. department = "CS" AND (voted = true OR member = "Ναι")'
+                rows={3}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-slate-500">
+                Χρησιμοποιήστε: AND, OR, NOT, =, !=, &gt;, &lt; και ονόματα πεδίων (department, voted, member, κλπ)
+              </p>
             </div>
           </div>
 
