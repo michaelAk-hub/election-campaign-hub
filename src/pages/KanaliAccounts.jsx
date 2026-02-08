@@ -34,7 +34,8 @@ import {
   Download,
   Copy,
   CheckCircle2,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -73,6 +74,14 @@ export default function KanaliAccounts() {
     onSuccess: () => {
       queryClient.invalidateQueries(['kanali-accounts']);
       toast.success('Ο λογαριασμός ενημερώθηκε');
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.KanaliAccount.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['kanali-accounts']);
+      toast.success('Ο λογαριασμός διαγράφηκε');
     }
   });
 
@@ -233,6 +242,17 @@ export default function KanaliAccounts() {
                 ) : (
                   <><UserCheck className="h-4 w-4 mr-2" />Ενεργοποίηση</>
                 )}
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => {
+                  if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον λογαριασμό ${row.username}?`)) {
+                    deleteMutation.mutate(row.id);
+                  }
+                }}
+                className="text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Διαγραφή
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

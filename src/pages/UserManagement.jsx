@@ -17,7 +17,13 @@ import {
   DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog";
-import { UserCog, UserPlus, Mail, Shield, Copy } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { UserCog, UserPlus, Mail, Shield, Copy, Trash2, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
@@ -32,6 +38,14 @@ export default function UserManagement() {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => base44.entities.User.list()
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.User.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['users']);
+      toast.success('Ο χρήστης διαγράφηκε');
+    }
   });
 
   const handleInvite = async () => {
@@ -107,6 +121,28 @@ export default function UserManagement() {
         columns={columns}
         pageSize={20}
         emptyMessage="Δεν υπάρχουν χρήστες"
+        actions={(row) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={() => {
+                  if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον χρήστη ${row.email}?`)) {
+                    deleteMutation.mutate(row.id);
+                  }
+                }}
+                className="text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Διαγραφή
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       />
 
       {/* Invite Dialog */}
