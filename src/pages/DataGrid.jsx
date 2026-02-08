@@ -17,10 +17,10 @@ import {
   Download, 
   Filter,
   RefreshCw,
+  X,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown,
-  X
+  ArrowDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import EditableDataGrid from '../components/ui/EditableDataGrid';
@@ -30,8 +30,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 export default function DataGrid() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({});
-  const [sortField, setSortField] = useState('person_id');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [updatingRowId, setUpdatingRowId] = useState(null);
 
   const queryClient = useQueryClient();
@@ -57,69 +56,75 @@ export default function DataGrid() {
 
   const filteredAndSortedPeople = useMemo(() => {
     let result = [...people];
-    
-    // Search
+
+    // Search across all fields
     if (search) {
       const searchLower = search.toLowerCase();
       result = result.filter(person => 
-        person.first_name?.toLowerCase().includes(searchLower) ||
-        person.last_name?.toLowerCase().includes(searchLower) ||
-        person.person_id?.toLowerCase().includes(searchLower) ||
-        person.mobile_phone?.includes(search)
+        Object.values(person).some(val => 
+          val && String(val).toLowerCase().includes(searchLower)
+        )
       );
     }
-    
-    // Column filters
+
+    // Apply column filters
     Object.entries(filters).forEach(([key, value]) => {
       if (value && value !== 'all') {
         if (key === 'voted') {
-          result = result.filter(p => value === 'voted' ? p.voted : !p.voted);
+          result = result.filter(p => 
+            value === 'voted' ? p.voted === true : p.voted === false
+          );
         } else {
           result = result.filter(p => String(p[key]) === value);
         }
       }
     });
-    
-    // Sort
-    if (sortField) {
+
+    // Apply sorting
+    if (sortConfig.key) {
       result.sort((a, b) => {
-        const aVal = a[sortField] ?? '';
-        const bVal = b[sortField] ?? '';
+        const aVal = a[sortConfig.key] ?? '';
+        const bVal = b[sortConfig.key] ?? '';
         
-        if (sortField === 'voted') {
-          return sortDir === 'asc' ? (aVal === bVal ? 0 : aVal ? 1 : -1) : (aVal === bVal ? 0 : aVal ? -1 : 1);
+        if (typeof aVal === 'boolean') {
+          return sortConfig.direction === 'asc' 
+            ? (aVal === bVal ? 0 : aVal ? 1 : -1)
+            : (aVal === bVal ? 0 : aVal ? -1 : 1);
         }
         
         const cmp = String(aVal).localeCompare(String(bVal), 'el');
-        return sortDir === 'asc' ? cmp : -cmp;
+        return sortConfig.direction === 'asc' ? cmp : -cmp;
       });
     }
-    
+
     return result;
-  }, [people, search, filters, sortField, sortDir]);
+  }, [people, search, filters, sortConfig]);
 
   const getUniqueValues = (key) => {
-    return [...new Set(people.map(p => p[key]).filter(Boolean))].sort((a, b) => 
-      String(a).localeCompare(String(b), 'el')
-    );
-  };
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDir('asc');
-    }
-  };
-
-  const handleFilterChange = (key, value) => {
-    setFilters({ ...filters, [key]: value });
+    const values = [...new Set(people.map(p => p[key]).filter(Boolean))];
+    return values.sort((a, b) => String(a).localeCompare(String(b), 'el'));
   };
 
   const handleCellUpdate = async (rowId, data) => {
     setUpdatingRowId(rowId);
     updateMutation.mutate({ id: rowId, data });
+  };
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({});
+    setSearch('');
+    setSortConfig({ key: null, direction: 'asc' });
   };
 
   const handleExport = () => {
@@ -179,6 +184,12 @@ export default function DataGrid() {
         subtitle={`${people.length.toLocaleString('el-GR')} εγγραφές - Επεξεργάσιμο σαν Google Sheets`}
         actions={
           <>
+            {(Object.keys(filters).length > 0 || search || sortConfig.key) && (
+              <Button variant="outline" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-2" />
+                Καθαρισμός Φίλτρων
+              </Button>
+            )}
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Ανανέωση
@@ -191,150 +202,98 @@ export default function DataGrid() {
         }
       />
 
-      {/* Filters and Sorting */}
+      {/* Filters */}
       <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[250px]">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                placeholder="Αναζήτηση (όνομα, επίθετο, ΑΤ, τηλέφωνο)..."
+                placeholder="Αναζήτηση σε όλες τις στήλες..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
               />
             </div>
-            
-            {/* Sort controls */}
-            <Select value={sortField} onValueChange={(v) => setSortField(v)}>
-              <SelectTrigger className="w-[200px]">
-                {sortDir === 'asc' ? <ArrowUp className="w-4 h-4 mr-2" /> : <ArrowDown className="w-4 h-4 mr-2" />}
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {COLUMNS.map(col => (
-                  <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
-            >
-              {sortDir === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-            </Button>
+
+            {/* Column Filters */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {COLUMNS.slice(0, 12).map(col => {
+                if (col.type === 'textarea') return null;
+                
+                const uniqueValues = col.type === 'boolean' 
+                  ? ['voted', 'not_voted']
+                  : getUniqueValues(col.key);
+                
+                if (uniqueValues.length === 0) return null;
+
+                return (
+                  <div key={col.key} className="space-y-1">
+                    <label className="text-xs text-slate-600 font-medium">{col.label}</label>
+                    <Select 
+                      value={filters[col.key] || 'all'} 
+                      onValueChange={(v) => handleFilterChange(col.key, v)}
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Όλα</SelectItem>
+                        {col.type === 'boolean' ? (
+                          <>
+                            <SelectItem value="voted">ΝΑΙ</SelectItem>
+                            <SelectItem value="not_voted">ΟΧΙ</SelectItem>
+                          </>
+                        ) : (
+                          uniqueValues.map(v => (
+                            <SelectItem key={v} value={String(v)}>{String(v)}</SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Sort Controls */}
+            <div className="flex items-center gap-2 pt-2 border-t">
+              <span className="text-sm text-slate-600 font-medium">Ταξινόμηση:</span>
+              <Select 
+                value={sortConfig.key || 'none'} 
+                onValueChange={(v) => v === 'none' ? setSortConfig({ key: null, direction: 'asc' }) : handleSort(v)}
+              >
+                <SelectTrigger className="w-[200px] h-9">
+                  <SelectValue placeholder="Επιλέξτε στήλη" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Χωρίς Ταξινόμηση</SelectItem>
+                  {COLUMNS.map(col => (
+                    <SelectItem key={col.key} value={col.key}>
+                      {col.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {sortConfig.key && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortConfig(prev => ({ ...prev, direction: prev.direction === 'asc' ? 'desc' : 'asc' }))}
+                  className="h-9"
+                >
+                  {sortConfig.direction === 'asc' ? (
+                    <><ArrowUp className="h-4 w-4 mr-1" /> Αύξουσα</>
+                  ) : (
+                    <><ArrowDown className="h-4 w-4 mr-1" /> Φθίνουσα</>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* Column Filters */}
-          <div className="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-lg">
-            {/* Department Filter */}
-            <div className="min-w-[150px]">
-              <label className="text-xs text-slate-500 mb-1 block">Τμήμα</label>
-              <Select value={filters.department || 'all'} onValueChange={(v) => handleFilterChange('department', v)}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Όλα</SelectItem>
-                  {getUniqueValues('department').map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Admission Year Filter */}
-            <div className="min-w-[150px]">
-              <label className="text-xs text-slate-500 mb-1 block">Εισδοχή</label>
-              <Select value={filters.admission_year || 'all'} onValueChange={(v) => handleFilterChange('admission_year', v)}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Όλα</SelectItem>
-                  {getUniqueValues('admission_year').map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Academic Level Filter */}
-            <div className="min-w-[150px]">
-              <label className="text-xs text-slate-500 mb-1 block">Επίπεδο</label>
-              <Select value={filters.academic_level || 'all'} onValueChange={(v) => handleFilterChange('academic_level', v)}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Όλα</SelectItem>
-                  {getUniqueValues('academic_level').map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Member Filter */}
-            <div className="min-w-[150px]">
-              <label className="text-xs text-slate-500 mb-1 block">Μέλος</label>
-              <Select value={filters.member || 'all'} onValueChange={(v) => handleFilterChange('member', v)}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Όλα</SelectItem>
-                  {getUniqueValues('member').map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Voted Filter */}
-            <div className="min-w-[150px]">
-              <label className="text-xs text-slate-500 mb-1 block">Ψήφισε</label>
-              <Select value={filters.voted || 'all'} onValueChange={(v) => handleFilterChange('voted', v)}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Όλα</SelectItem>
-                  <SelectItem value="voted">ΝΑΙ</SelectItem>
-                  <SelectItem value="not_voted">ΟΧΙ</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Prediction Symbol Filter */}
-            <div className="min-w-[150px]">
-              <label className="text-xs text-slate-500 mb-1 block">Σύμβολο Πρόβλεψης</label>
-              <Select value={filters.prediction_symbol || 'all'} onValueChange={(v) => handleFilterChange('prediction_symbol', v)}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Όλα</SelectItem>
-                  {getUniqueValues('prediction_symbol').map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setFilters({})}
-              className="self-end"
-            >
-              <X className="h-4 w-4 mr-1" />
-              Καθαρισμός
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-between text-sm text-slate-600">
+          <div className="mt-4 flex items-center justify-between text-sm text-slate-600 pt-4 border-t">
             <p>Εμφάνιση {filteredAndSortedPeople.length} από {people.length} εγγραφές</p>
             <p className="text-xs text-slate-500">💡 Κάντε κλικ σε οποιοδήποτε κελί για επεξεργασία</p>
           </div>
