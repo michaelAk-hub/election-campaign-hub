@@ -417,23 +417,41 @@ export default function Portal() {
       setLoading(false);
 
       // Check for push messages
-      const targetGroups = portalType === 'chreosi' ? ['chreosi', 'both'] : ['kanali', 'both'];
-      const messages = await base44.entities.PushMessage.filter({ is_active: true });
-      const relevantMessages = messages.filter(m => targetGroups.includes(m.target_group));
-      
-      for (const msg of relevantMessages) {
-        const acks = await base44.entities.PushMessageAck.filter({
-          message_id: msg.id,
-          username
-        });
-        if (acks.length === 0) {
-          setPushMessage(msg);
-          break;
+      const checkMessages = async () => {
+        const targetGroups = portalType === 'chreosi' ? ['chreosi', 'both'] : ['kanali', 'both'];
+        const messages = await base44.entities.PushMessage.filter({ is_active: true });
+        const relevantMessages = messages.filter(m => targetGroups.includes(m.target_group));
+        
+        for (const msg of relevantMessages) {
+          const acks = await base44.entities.PushMessageAck.filter({
+            message_id: msg.id,
+            username
+          });
+          if (acks.length === 0) {
+            setPushMessage(msg);
+            break;
+          }
         }
-      }
+      };
+
+      await checkMessages();
+
+      // Subscribe to new push messages in real-time
+      const unsubscribe = base44.entities.PushMessage.subscribe((event) => {
+        if (event.type === 'create' || event.type === 'update') {
+          checkMessages();
+        }
+      });
+
+      return unsubscribe;
     };
 
-    checkSession();
+    const cleanup = checkSession();
+    return () => {
+      if (cleanup instanceof Promise) {
+        cleanup.then(fn => fn && fn());
+      }
+    };
   }, [navigate]);
 
   const handleLogout = () => {
