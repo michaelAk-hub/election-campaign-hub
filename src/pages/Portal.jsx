@@ -31,6 +31,7 @@ import {
   X,
   Loader2
 } from 'lucide-react';
+import NotificationCenter from '../components/notifications/NotificationCenter';
 import { toast } from 'sonner';
 
 function normalizeUsername(str) {
@@ -501,10 +502,16 @@ export default function Portal() {
               <p className="text-xs text-slate-500">{session.username}</p>
             </div>
           </div>
-          <Button variant="ghost" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Αποσύνδεση
-          </Button>
+          <div className="flex items-center gap-2">
+            <NotificationCenter 
+              userType={session.portalType} 
+              username={session.username}
+            />
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Αποσύνδεση
+            </Button>
+          </div>
         </div>
       </header>
 

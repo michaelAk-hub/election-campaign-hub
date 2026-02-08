@@ -198,12 +198,23 @@ export default function ChreosiAccounts() {
                 <Pencil className="h-4 w-4 mr-2" />
                 Επεξεργασία
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
+              <DropdownMenuItem onClick={async () => {
                 const newPassword = generatePassword();
-                updateMutation.mutate({
+                await updateMutation.mutateAsync({
                   id: row.id,
                   data: { ...row, password_hash: newPassword }
                 });
+                
+                // Send notification
+                await base44.entities.Notification.create({
+                  recipient_type: 'chreosi',
+                  recipient_username: row.username,
+                  type: 'warning',
+                  category: 'password_change',
+                  title: 'Ο κωδικός σας άλλαξε',
+                  message: `Ο κωδικός πρόσβασής σας επαναφέρθηκε. Νέος κωδικός: ${newPassword}`
+                });
+                
                 toast.success(`Νέος κωδικός: ${newPassword}`);
                 navigator.clipboard.writeText(newPassword);
               }}>

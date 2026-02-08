@@ -47,40 +47,42 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import ChreosiAccounts from './pages/ChreosiAccounts';
 import ChreosiPortal from './pages/ChreosiPortal';
 import CompareMerge from './pages/CompareMerge';
 import CreateTestUser from './pages/CreateTestUser';
 import Dashboard from './pages/Dashboard';
 import DataGrid from './pages/DataGrid';
+import KanaliAccounts from './pages/KanaliAccounts';
 import KanaliPortal from './pages/KanaliPortal';
 import NotFoundVoters from './pages/NotFoundVoters';
 import Portal from './pages/Portal';
 import PortalLogin from './pages/PortalLogin';
 import PushMessages from './pages/PushMessages';
+import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import UserManagement from './pages/UserManagement';
-import Records from './pages/Records';
-import ChreosiAccounts from './pages/ChreosiAccounts';
-import KanaliAccounts from './pages/KanaliAccounts';
+import NotificationPreferences from './pages/NotificationPreferences';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "ChreosiAccounts": ChreosiAccounts,
     "ChreosiPortal": ChreosiPortal,
     "CompareMerge": CompareMerge,
     "CreateTestUser": CreateTestUser,
     "Dashboard": Dashboard,
     "DataGrid": DataGrid,
+    "KanaliAccounts": KanaliAccounts,
     "KanaliPortal": KanaliPortal,
     "NotFoundVoters": NotFoundVoters,
     "Portal": Portal,
     "PortalLogin": PortalLogin,
     "PushMessages": PushMessages,
+    "Records": Records,
     "SavedQueries": SavedQueries,
     "UserManagement": UserManagement,
-    "Records": Records,
-    "ChreosiAccounts": ChreosiAccounts,
-    "KanaliAccounts": KanaliAccounts,
+    "NotificationPreferences": NotificationPreferences,
 }
 
 export const pagesConfig = {

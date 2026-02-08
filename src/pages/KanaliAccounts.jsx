@@ -199,12 +199,23 @@ export default function KanaliAccounts() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {
+              <DropdownMenuItem onClick={async () => {
                 const newPassword = generatePassword();
-                updateMutation.mutate({
+                await updateMutation.mutateAsync({
                   id: row.id,
                   data: { ...row, password_hash: newPassword }
                 });
+                
+                // Send notification
+                await base44.entities.Notification.create({
+                  recipient_type: 'kanali',
+                  recipient_username: row.username,
+                  type: 'warning',
+                  category: 'password_change',
+                  title: 'Ο κωδικός σας άλλαξε',
+                  message: `Ο κωδικός πρόσβασής σας επαναφέρθηκε. Νέος κωδικός: ${newPassword}`
+                });
+                
                 toast.success(`Νέος κωδικός: ${newPassword}`);
                 navigator.clipboard.writeText(newPassword);
               }}>

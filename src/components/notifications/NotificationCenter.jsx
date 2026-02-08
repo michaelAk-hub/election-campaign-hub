@@ -1,0 +1,210 @@
+import React, { useState, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Bell,
+  BellOff,
+  Check,
+  CheckCheck,
+  Info,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Settings,
+  Trash2
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { el } from 'date-fns/locale';
+
+export default function NotificationCenter({ userType, username }) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('all');
+
+  const { data: notifications = [], isLoading } = useQuery({
+    queryKey: ['notifications', userType, username],
+    queryFn: async () => {
+      if (username) {
+        return base44.entities.Notification.filter({ recipient_username: username });
+      } else {
+        return base44.entities.Notification.filter({ recipient_type: userType });
+      }
+    },
+    refetchInterval: 30000
+  });
+
+  // Real-time subscription
+  useEffect(() => {
+    const unsubscribe = base44.entities.Notification.subscribe((event) => {
+      if (event.type === 'create') {
+        queryClient.invalidateQueries(['notifications']);
+      }
+    });
+    return unsubscribe;
+  }, [queryClient]);
+
+  const markAsReadMutation = useMutation({
+    mutationFn: (id) => base44.entities.Notification.update(id, { 
+      read: true, 
+      read_at: new Date().toISOString() 
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications']);
+    }
+  });
+
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => {
+      const unreadNotifs = notifications.filter(n => !n.read);
+      for (const notif of unreadNotifs) {
+        await base44.entities.Notification.update(notif.id, { 
+          read: true, 
+          read_at: new Date().toISOString() 
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications']);
+      toast.success('Όλες οι ειδοποιήσεις σημειώθηκαν ως αναγνωσμένες');
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.Notification.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications']);
+      toast.success('Η ειδοποίηση διαγράφηκε');
+    }
+  });
+
+  const filteredNotifications = notifications.filter(n => {
+    if (filter === 'unread') return !n.read;
+    if (filter === 'read') return n.read;
+    return true;
+  }).sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const getIcon = (type) => {
+    switch (type) {
+      case 'success': return <CheckCircle2 className="h-5 w-5 text-green-600" />;
+      case 'warning': return <AlertCircle className="h-5 w-5 text-amber-600" />;
+      case 'error': return <XCircle className="h-5 w-5 text-red-600" />;
+      default: return <Info className="h-5 w-5 text-blue-600" />;
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <Badge 
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-600"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="w-full sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle className="flex items-center justify-between">
+            <span>Ειδοποιήσεις</span>
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => markAllAsReadMutation.mutate()}
+              >
+                <CheckCheck className="h-4 w-4 mr-2" />
+                Όλα αναγνωσμένα
+              </Button>
+            )}
+          </SheetTitle>
+        </SheetHeader>
+
+        <Tabs value={filter} onValueChange={setFilter} className="mt-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="all">Όλα</TabsTrigger>
+            <TabsTrigger value="unread">
+              Μη αναγνωσμένα
+              {unreadCount > 0 && (
+                <Badge variant="secondary" className="ml-2 h-5">
+                  {unreadCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="read">Αναγνωσμένα</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <ScrollArea className="h-[calc(100vh-200px)] mt-4">
+          <div className="space-y-3">
+            {filteredNotifications.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <BellOff className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                <p>Δεν υπάρχουν ειδοποιήσεις</p>
+              </div>
+            ) : (
+              filteredNotifications.map((notif) => (
+                <Card 
+                  key={notif.id}
+                  className={`${!notif.read ? 'bg-blue-50 border-blue-200' : ''} hover:shadow-md transition-shadow cursor-pointer`}
+                  onClick={() => !notif.read && markAsReadMutation.mutate(notif.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex gap-3">
+                      {getIcon(notif.type)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className={`font-semibold text-sm ${!notif.read ? 'text-slate-900' : 'text-slate-600'}`}>
+                            {notif.title}
+                          </h4>
+                          {!notif.read && (
+                            <div className="h-2 w-2 rounded-full bg-blue-600 flex-shrink-0 mt-1" />
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-600 mt-1">{notif.message}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-slate-500">
+                            {format(new Date(notif.created_date), 'dd MMM yyyy, HH:mm', { locale: el })}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteMutation.mutate(notif.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+}
