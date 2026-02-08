@@ -68,6 +68,12 @@ export default function Records() {
   const [editDialog, setEditDialog] = useState({ open: false, person: null });
   const [addDialog, setAddDialog] = useState(false);
   const [formData, setFormData] = useState({});
+  const [sheetsDialog, setSheetsDialog] = useState(false);
+  const [spreadsheetId, setSpreadsheetId] = useState('');
+  const [sheetName, setSheetName] = useState('Voters');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [lastExportUrl, setLastExportUrl] = useState('');
 
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['people'],
@@ -138,9 +144,13 @@ export default function Records() {
         icon={Database}
         actions={
           <>
+            <Button variant="outline" onClick={() => setSheetsDialog(true)}>
+              <Sheet className="h-4 w-4 mr-2" />
+              Google Sheets
+            </Button>
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
-              Εξαγωγή
+              Εξαγωγή CSV
             </Button>
             <Button onClick={() => { setFormData({}); setAddDialog(true); }}>
               <Plus className="h-4 w-4 mr-2" />
