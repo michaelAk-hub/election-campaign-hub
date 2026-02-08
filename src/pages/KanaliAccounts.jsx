@@ -113,6 +113,25 @@ export default function KanaliAccounts() {
 
   const columns = [
     { key: 'username', label: 'Όνομα Χρήστη' },
+    { key: 'password_hash', label: 'Κωδικός', render: (val) => (
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-sm">{val || '-'}</span>
+        {val && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(val);
+              toast.success('Αντιγράφηκε');
+            }}
+          >
+            <Copy className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    )},
     { key: 'user_type', label: 'Τύπος', render: (val) => (
       <Badge variant="outline" className={val === 'A' ? 'border-blue-300 text-blue-700' : 'border-purple-300 text-purple-700'}>
         Τύπος {val}

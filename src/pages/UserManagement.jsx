@@ -17,7 +17,7 @@ import {
   DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog";
-import { UserCog, UserPlus, Mail, Shield } from 'lucide-react';
+import { UserCog, UserPlus, Mail, Shield, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
@@ -55,6 +55,25 @@ export default function UserManagement() {
   const columns = [
     { key: 'full_name', label: 'Όνομα', render: (val) => val || '-' },
     { key: 'email', label: 'Email' },
+    { key: 'password', label: 'Κωδικός', render: (val) => (
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-sm">{val || '-'}</span>
+        {val && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(val);
+              toast.success('Αντιγράφηκε');
+            }}
+          >
+            <Copy className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    )},
     { key: 'role', label: 'Ρόλος', render: (val) => (
       <Badge variant={val === 'admin' ? 'default' : 'secondary'} className={val === 'admin' ? 'bg-purple-100 text-purple-700' : ''}>
         {val === 'admin' ? 'Διαχειριστής' : 'Οργανωτικός'}

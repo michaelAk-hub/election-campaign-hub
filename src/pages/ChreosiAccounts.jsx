@@ -133,6 +133,25 @@ export default function ChreosiAccounts() {
 
   const columns = [
     { key: 'username', label: 'Όνομα Χρήστη' },
+    { key: 'password_hash', label: 'Κωδικός', render: (val) => (
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-sm">{val || '-'}</span>
+        {val && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(val);
+              toast.success('Αντιγράφηκε');
+            }}
+          >
+            <Copy className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    )},
     { key: 'display_name', label: 'Εμφανιζόμενο Όνομα' },
     { key: 'phone', label: 'Τηλέφωνο' },
     { key: 'is_active', label: 'Κατάσταση', render: (val) => (
