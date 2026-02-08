@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { base44 } from '@/api/base44Client';
+import NotificationCenter from './components/notifications/NotificationCenter';
 import {
   LayoutDashboard,
   Users,
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
 const adminNavItems = [
   { name: 'Πίνακας Ελέγχου', icon: LayoutDashboard, page: 'Dashboard' },
   { name: 'Εγγραφές', icon: Database, page: 'Records' },
+  { name: 'Πλέγμα Δεδομένων', icon: Database, page: 'DataGrid' },
   { name: 'Αποθηκευμένα Ερωτήματα', icon: SearchIcon, page: 'SavedQueries' },
   { name: 'Σύγκριση & Συγχώνευση', icon: GitCompare, page: 'CompareMerge' },
   { name: 'Χρεωστικοί', icon: UserPlus, page: 'ChreosiAccounts' },
@@ -33,6 +35,7 @@ const adminNavItems = [
   { name: 'Αποτυχημένες Ψήφοι', icon: FileSpreadsheet, page: 'NotFoundVoters' },
   { name: 'Μηνύματα', icon: MessageSquare, page: 'PushMessages' },
   { name: 'Χρήστες', icon: UserCog, page: 'UserManagement' },
+  { name: 'Προτιμήσεις Ειδοποιήσεων', icon: Settings, page: 'NotificationPreferences' },
 ];
 
 const portalPages = ['Portal', 'PortalLogin'];
@@ -110,7 +113,7 @@ export default function Layout({ children, currentPageName }) {
           <Vote className="h-5 w-5 text-blue-600" />
           <span className="font-semibold">Εκλογές</span>
         </div>
-        <div className="w-10" />
+        <NotificationCenter userType={user?.role === 'admin' ? 'admin' : 'organotikos'} />
       </div>
 
       {/* Sidebar Overlay */}
