@@ -74,8 +74,11 @@ export default function SavedQueries() {
     description: '',
     columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
     filters: {},
-    logicalExpression: ''
+    logicalExpression: '',
+    conditions: []
   });
+  const [testCount, setTestCount] = useState(null);
+  const [isTestLoading, setIsTestLoading] = useState(false);
   const [conditions, setConditions] = useState([
     { field: 'department', operator: '=', value: '', connector: 'AND' }
   ]);
@@ -114,8 +117,10 @@ export default function SavedQueries() {
         description: '',
         columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
         filters: {},
-        logicalExpression: ''
+        logicalExpression: '',
+        conditions: []
       });
+      setTestCount(null);
       setConditions([{ field: 'department', operator: '=', value: '', connector: 'AND' }]);
       setUseVisualBuilder(true);
       toast.success('Το ερώτημα αποθηκεύτηκε');
@@ -192,8 +197,14 @@ export default function SavedQueries() {
   const runQuery = (query) => {
     let results = [...people];
     
-    // Apply filters
-    if (query.filters) {
+    // Build expression from conditions or use direct expression
+    const expr = buildExpressionFromConditions(query.conditions) || query.logicalExpression;
+    
+    // Apply logical expression
+    if (expr && expr.trim()) {
+      results = results.filter(person => evaluateExpression(person, expr));
+    } else if (query.filters) {
+      // Fallback to old filters
       Object.entries(query.filters).forEach(([key, value]) => {
         if (value !== undefined && value !== '' && value !== 'all') {
           if (key === 'voted') {
@@ -205,11 +216,6 @@ export default function SavedQueries() {
           }
         }
       });
-    }
-
-    // Apply logical expression
-    if (query.logicalExpression && query.logicalExpression.trim()) {
-      results = results.filter(person => evaluateExpression(person, query.logicalExpression));
     }
 
     setQueryResults(results);
