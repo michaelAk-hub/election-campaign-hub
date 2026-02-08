@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Check, X, Loader2 } from 'lucide-react';
+import { Check, X, Loader2, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function EditableDataGrid({ 
   data, 
   columns, 
   onUpdate,
-  isUpdating 
+  isUpdating,
+  onColumnReorder
 }) {
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -59,21 +61,52 @@ export default function EditableDataGrid({
     }
   };
 
+  const handleDragEnd = (result) => {
+    if (!result.destination || !onColumnReorder) return;
+    onColumnReorder(result.source.index, result.destination.index);
+  };
+
   return (
     <div className="overflow-x-auto border rounded-lg bg-white">
       <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-slate-50 border-b">
-            {columns.map((col) => (
-              <th 
-                key={col.key}
-                className="px-3 py-3 text-left text-xs font-semibold text-slate-700 border-r last:border-r-0 sticky top-0 bg-slate-50 z-10"
-              >
-                {col.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <thead>
+            <tr className="bg-slate-50 border-b">
+              <Droppable droppableId="columns" direction="horizontal">
+                {(provided) => (
+                  <th 
+                    ref={provided.innerRef} 
+                    {...provided.droppableProps}
+                    className="contents"
+                  >
+                    {columns.map((col, index) => (
+                      <Draggable key={col.key} draggableId={col.key} index={index}>
+                        {(provided, snapshot) => (
+                          <th
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={cn(
+                              "px-3 py-3 text-left text-xs font-semibold text-slate-700 border-r last:border-r-0 sticky top-0 bg-slate-50 z-10",
+                              snapshot.isDragging && "bg-slate-200 shadow-lg"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                <GripVertical className="h-4 w-4 text-slate-400" />
+                              </span>
+                              {col.label}
+                            </div>
+                          </th>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </th>
+                )}
+              </Droppable>
+            </tr>
+          </thead>
+        </DragDropContext>
         <tbody>
           {data.map((row) => (
             <tr key={row.id} className="border-b hover:bg-slate-50/50">

@@ -33,6 +33,7 @@ export default function DataGrid() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [updatingRowId, setUpdatingRowId] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [columnOrder, setColumnOrder] = useState([]);
 
   const queryClient = useQueryClient();
 
@@ -111,6 +112,14 @@ export default function DataGrid() {
     updateMutation.mutate({ id: rowId, data });
   };
 
+  const handleColumnReorder = (sourceIndex, destinationIndex) => {
+    const newOrder = [...columnOrder];
+    const [removed] = newOrder.splice(sourceIndex, 1);
+    newOrder.splice(destinationIndex, 0, removed);
+    setColumnOrder(newOrder);
+    toast.success('Η σειρά των στηλών ενημερώθηκε');
+  };
+
   const handleSort = (key) => {
     setSortConfig(prev => ({
       key,
@@ -148,7 +157,7 @@ export default function DataGrid() {
     toast.success('Εξαγωγή ολοκληρώθηκε');
   };
 
-  const COLUMNS = [
+  const DEFAULT_COLUMNS = [
     { key: 'person_id', label: 'ΑΤ (ID)' },
     { key: 'ucid', label: 'UCID' },
     { key: 'last_name', label: 'Επίθετο' },
@@ -173,6 +182,17 @@ export default function DataGrid() {
     },
     { key: 'notes', label: 'Σημειώσεις', type: 'textarea' }
   ];
+
+  const COLUMNS = useMemo(() => {
+    if (columnOrder.length === 0) return DEFAULT_COLUMNS;
+    return columnOrder.map(key => DEFAULT_COLUMNS.find(col => col.key === key)).filter(Boolean);
+  }, [columnOrder]);
+
+  useEffect(() => {
+    if (columnOrder.length === 0) {
+      setColumnOrder(DEFAULT_COLUMNS.map(col => col.key));
+    }
+  }, []);
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -316,6 +336,7 @@ export default function DataGrid() {
         columns={COLUMNS}
         onUpdate={handleCellUpdate}
         isUpdating={updatingRowId}
+        onColumnReorder={handleColumnReorder}
       />
     </div>
   );

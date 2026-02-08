@@ -56,13 +56,13 @@ import DataGrid from './pages/DataGrid';
 import KanaliAccounts from './pages/KanaliAccounts';
 import KanaliPortal from './pages/KanaliPortal';
 import NotFoundVoters from './pages/NotFoundVoters';
+import NotificationPreferences from './pages/NotificationPreferences';
 import Portal from './pages/Portal';
 import PortalLogin from './pages/PortalLogin';
 import PushMessages from './pages/PushMessages';
 import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import UserManagement from './pages/UserManagement';
-import NotificationPreferences from './pages/NotificationPreferences';
 import __Layout from './Layout.jsx';
 
 
@@ -76,13 +76,13 @@ export const PAGES = {
     "KanaliAccounts": KanaliAccounts,
     "KanaliPortal": KanaliPortal,
     "NotFoundVoters": NotFoundVoters,
+    "NotificationPreferences": NotificationPreferences,
     "Portal": Portal,
     "PortalLogin": PortalLogin,
     "PushMessages": PushMessages,
     "Records": Records,
     "SavedQueries": SavedQueries,
     "UserManagement": UserManagement,
-    "NotificationPreferences": NotificationPreferences,
 }
 
 export const pagesConfig = {
