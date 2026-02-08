@@ -113,6 +113,9 @@ export default function KanaliAccounts() {
 
   const columns = [
     { key: 'username', label: 'Όνομα Χρήστη' },
+    { key: 'password_hash', label: 'Κωδικός', render: (val) => (
+      <code className="text-xs bg-slate-100 px-2 py-1 rounded">{val}</code>
+    )},
     { key: 'user_type', label: 'Τύπος', render: (val) => (
       <Badge variant="outline" className={val === 'A' ? 'border-blue-300 text-blue-700' : 'border-purple-300 text-purple-700'}>
         Τύπος {val}

@@ -134,6 +134,9 @@ export default function ChreosiAccounts() {
   const columns = [
     { key: 'username', label: 'Όνομα Χρήστη' },
     { key: 'display_name', label: 'Εμφανιζόμενο Όνομα' },
+    { key: 'password_hash', label: 'Κωδικός', render: (val) => (
+      <code className="text-xs bg-slate-100 px-2 py-1 rounded">{val}</code>
+    )},
     { key: 'phone', label: 'Τηλέφωνο' },
     { key: 'is_active', label: 'Κατάσταση', render: (val) => (
       <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 text-emerald-700' : ''}>
