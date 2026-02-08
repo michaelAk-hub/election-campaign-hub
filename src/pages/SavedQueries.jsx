@@ -94,47 +94,6 @@ export default function SavedQueries() {
     queryFn: () => base44.entities.Person.list('-created_date', 10000)
   });
 
-  // Real-time count preview
-  const previewCount = useMemo(() => {
-    if (!people.length) return 0;
-    
-    const expression = useVisualBuilder 
-      ? buildExpressionFromConditions(conditions)
-      : formData.logicalExpression;
-    
-    if (!expression || !expression.trim()) return people.length;
-    
-    return people.filter(person => evaluateExpression(person, expression)).length;
-  }, [people, conditions, formData.logicalExpression, useVisualBuilder]);
-
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.SavedQuery.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['saved-queries']);
-      setCreateDialog(false);
-      setFormData({
-        name: '',
-        description: '',
-        columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
-        filters: {},
-        logicalExpression: '',
-        conditions: []
-      });
-      setTestCount(null);
-      setConditions([{ field: 'department', operator: '=', value: '', connector: 'AND' }]);
-      setUseVisualBuilder(true);
-      toast.success('Το ερώτημα αποθηκεύτηκε');
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.SavedQuery.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['saved-queries']);
-      toast.success('Το ερώτημα διαγράφηκε');
-    }
-  });
-
   const buildExpressionFromConditions = (conditionsList) => {
     if (conditionsList.length === 0) return '';
     
@@ -193,6 +152,62 @@ export default function SavedQueries() {
       return true;
     }
   };
+
+  const testQuery = () => {
+    setIsTestLoading(true);
+    setTimeout(() => {
+      const expr = buildExpressionFromConditions(formData.conditions) || formData.logicalExpression;
+      let results = [...people];
+      
+      if (expr && expr.trim()) {
+        results = results.filter(person => evaluateExpression(person, expr));
+      }
+      
+      setTestCount(results.length);
+      setIsTestLoading(false);
+    }, 300);
+  };
+
+  // Real-time count preview
+  const previewCount = useMemo(() => {
+    if (!people.length) return 0;
+    
+    const expression = useVisualBuilder 
+      ? buildExpressionFromConditions(conditions)
+      : formData.logicalExpression;
+    
+    if (!expression || !expression.trim()) return people.length;
+    
+    return people.filter(person => evaluateExpression(person, expression)).length;
+  }, [people, conditions, formData.logicalExpression, useVisualBuilder]);
+
+  const createMutation = useMutation({
+    mutationFn: (data) => base44.entities.SavedQuery.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['saved-queries']);
+      setCreateDialog(false);
+      setFormData({
+        name: '',
+        description: '',
+        columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
+        filters: {},
+        logicalExpression: '',
+        conditions: []
+      });
+      setTestCount(null);
+      setConditions([{ field: 'department', operator: '=', value: '', connector: 'AND' }]);
+      setUseVisualBuilder(true);
+      toast.success('Το ερώτημα αποθηκεύτηκε');
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.SavedQuery.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['saved-queries']);
+      toast.success('Το ερώτημα διαγράφηκε');
+    }
+  });
 
   const runQuery = (query) => {
     let results = [...people];
