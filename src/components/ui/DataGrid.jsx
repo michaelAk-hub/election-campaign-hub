@@ -20,6 +20,7 @@ export default function DataGrid({
   selectedIds = [],
   onSelectionChange,
   actions,
+  bulkActions,
   emptyMessage = "Δεν βρέθηκαν εγγραφές",
   className
 }) {
@@ -109,9 +110,18 @@ export default function DataGrid({
           </Button>
         )}
         
-        <div className="text-sm text-slate-500 ml-auto">
-          {filteredData.length} εγγραφές
-        </div>
+        {bulkActions && selectedIds.length > 0 && (
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm text-slate-600">{selectedIds.length} επιλεγμένα</span>
+            {bulkActions}
+          </div>
+        )}
+        
+        {(!bulkActions || selectedIds.length === 0) && (
+          <div className="text-sm text-slate-500 ml-auto">
+            {filteredData.length} εγγραφές
+          </div>
+        )}
       </div>
 
       {/* Filters */}

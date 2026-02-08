@@ -57,6 +57,7 @@ export default function ChreosiAccounts() {
   const [createDialog, setCreateDialog] = useState(false);
   const [createdAccounts, setCreatedAccounts] = useState([]);
   const [formData, setFormData] = useState({});
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['chreosi-accounts'],
@@ -86,7 +87,35 @@ export default function ChreosiAccounts() {
     mutationFn: (id) => base44.entities.ChreosiAccount.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['chreosi-accounts']);
+      setSelectedIds([]);
       toast.success('Ο λογαριασμός διαγράφηκε');
+    }
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids) => {
+      for (const id of ids) {
+        await base44.entities.ChreosiAccount.delete(id);
+      }
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries(['chreosi-accounts']);
+      setSelectedIds([]);
+      toast.success(`Διαγράφηκαν ${ids.length} λογαριασμοί`);
+    }
+  });
+
+  const bulkActivateMutation = useMutation({
+    mutationFn: async ({ ids, active }) => {
+      for (const id of ids) {
+        const account = accounts.find(a => a.id === id);
+        await base44.entities.ChreosiAccount.update(id, { ...account, is_active: active });
+      }
+    },
+    onSuccess: (_, { ids, active }) => {
+      queryClient.invalidateQueries(['chreosi-accounts']);
+      setSelectedIds([]);
+      toast.success(`${ids.length} λογαριασμοί ${active ? 'ενεργοποιήθηκαν' : 'απενεργοποιήθηκαν'}`);
     }
   });
 
@@ -192,6 +221,41 @@ export default function ChreosiAccounts() {
         data={accounts}
         columns={columns}
         pageSize={20}
+        selectable={true}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        bulkActions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => bulkActivateMutation.mutate({ ids: selectedIds, active: true })}
+            >
+              <UserCheck className="h-4 w-4 mr-2" />
+              Ενεργοποίηση
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => bulkActivateMutation.mutate({ ids: selectedIds, active: false })}
+            >
+              <UserX className="h-4 w-4 mr-2" />
+              Απενεργοποίηση
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε ${selectedIds.length} λογαριασμούς;`)) {
+                  bulkDeleteMutation.mutate(selectedIds);
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Διαγραφή
+            </Button>
+          </>
+        }
         actions={(row) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

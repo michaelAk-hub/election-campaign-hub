@@ -34,6 +34,7 @@ export default function UserManagement() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('user');
   const [inviting, setInviting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
@@ -44,7 +45,21 @@ export default function UserManagement() {
     mutationFn: (id) => base44.entities.User.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['users']);
+      setSelectedIds([]);
       toast.success('Ο χρήστης διαγράφηκε');
+    }
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids) => {
+      for (const id of ids) {
+        await base44.entities.User.delete(id);
+      }
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries(['users']);
+      setSelectedIds([]);
+      toast.success(`Διαγράφηκαν ${ids.length} χρήστες`);
     }
   });
 
@@ -121,6 +136,25 @@ export default function UserManagement() {
         columns={columns}
         pageSize={20}
         emptyMessage="Δεν υπάρχουν χρήστες"
+        selectable={true}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        bulkActions={
+          <>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε ${selectedIds.length} χρήστες;`)) {
+                  bulkDeleteMutation.mutate(selectedIds);
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Διαγραφή ({selectedIds.length})
+            </Button>
+          </>
+        }
         actions={(row) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
