@@ -32,6 +32,7 @@ export default function DataGrid() {
   const [filters, setFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [updatingRowId, setUpdatingRowId] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -184,10 +185,18 @@ export default function DataGrid() {
         subtitle={`${people.length.toLocaleString('el-GR')} εγγραφές - Επεξεργάσιμο σαν Google Sheets`}
         actions={
           <>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFilters(!showFilters)}
+              className={showFilters ? 'bg-slate-100' : ''}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Φίλτρα
+            </Button>
             {(Object.keys(filters).length > 0 || search || sortConfig.key) && (
               <Button variant="outline" onClick={clearFilters}>
                 <X className="h-4 w-4 mr-2" />
-                Καθαρισμός Φίλτρων
+                Καθαρισμός
               </Button>
             )}
             <Button variant="outline" onClick={() => refetch()}>
@@ -203,9 +212,10 @@ export default function DataGrid() {
       />
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
+      {showFilters && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
             {/* Search Bar */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -293,12 +303,13 @@ export default function DataGrid() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-slate-600 pt-4 border-t">
-            <p>Εμφάνιση {filteredAndSortedPeople.length} από {people.length} εγγραφές</p>
-            <p className="text-xs text-slate-500">💡 Κάντε κλικ σε οποιοδήποτε κελί για επεξεργασία</p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="mt-4 flex items-center justify-between text-sm text-slate-600 pt-4 border-t">
+              <p>Εμφάνιση {filteredAndSortedPeople.length} από {people.length} εγγραφές</p>
+              <p className="text-xs text-slate-500">💡 Κάντε κλικ σε οποιοδήποτε κελί για επεξεργασία</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <EditableDataGrid
         data={filteredAndSortedPeople}
