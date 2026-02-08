@@ -113,7 +113,7 @@ export default function Layout({ children, currentPageName }) {
           <Vote className="h-5 w-5 text-blue-600" />
           <span className="font-semibold">Εκλογές</span>
         </div>
-        <NotificationCenter userType={user?.role === 'admin' ? 'admin' : 'organotikos'} />
+        {user && <NotificationCenter userType={user.role === 'admin' ? 'admin' : 'organotikos'} />}
       </div>
 
       {/* Sidebar Overlay */}
@@ -187,14 +187,17 @@ export default function Layout({ children, currentPageName }) {
                 {isAdmin ? 'Διαχειριστής' : 'Οργανωτικός'}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => base44.auth.logout()}
-              className="text-slate-400 hover:text-slate-600"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => base44.auth.logout()}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </aside>
