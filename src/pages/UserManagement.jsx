@@ -30,15 +30,21 @@ import { el } from 'date-fns/locale';
 
 export default function UserManagement() {
   const queryClient = useQueryClient();
+  const [currentUser, setCurrentUser] = useState(null);
   const [inviteDialog, setInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('user');
   const [inviting, setInviting] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
+  React.useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, []);
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
-    queryFn: () => base44.entities.User.list()
+    queryFn: () => base44.entities.User.list(),
+    enabled: currentUser?.role === 'admin'
   });
 
   const deleteMutation = useMutation({
@@ -113,8 +119,20 @@ export default function UserManagement() {
     }
   ];
 
-  if (isLoading) {
+  if (!currentUser || isLoading) {
     return <LoadingSpinner />;
+  }
+
+  if (currentUser.role !== 'admin') {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Shield className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">Δεν Επιτρέπεται η Πρόσβαση</h2>
+          <p className="text-slate-500">Μόνο οι διαχειριστές μπορούν να διαχειριστούν χρήστες</p>
+        </div>
+      </div>
+    );
   }
 
   return (
