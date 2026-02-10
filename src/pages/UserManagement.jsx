@@ -76,20 +76,21 @@ export default function UserManagement() {
     }
     setInviting(true);
     try {
-      const response = await base44.functions.invoke('createInvitation', {
+      const response = await base44.functions.invoke('sendInvitation', {
         email: inviteEmail,
         role: inviteRole
       });
-      
+
       if (response.data.success) {
-        toast.success('Η πρόσκληση στάλθηκε με email');
+        toast.success('Η πρόσκληση εστάλη με επιτυχία - λήγει σε 5 λεπτά');
         setInviteDialog(false);
         setInviteEmail('');
+        setInviteRole('user');
       } else {
-        toast.error(response.data.error || 'Σφάλμα κατά την αποστολή');
+        toast.error(response.data.error || 'Αποτυχία αποστολής πρόσκλησης');
       }
     } catch (error) {
-      toast.error('Σφάλμα κατά την αποστολή');
+      toast.error(error.response?.data?.error || 'Αποτυχία αποστολής πρόσκλησης');
     }
     setInviting(false);
   };
@@ -210,7 +211,7 @@ export default function UserManagement() {
           <DialogHeader>
             <DialogTitle>Πρόσκληση Χρήστη</DialogTitle>
             <DialogDescription>
-              Στείλτε πρόσκληση σε νέο χρήστη για πρόσβαση στο σύστημα
+              Στείλτε πρόσκληση σε νέο χρήστη. Ο σύνδεσμος λήγει σε 5 λεπτά.
             </DialogDescription>
           </DialogHeader>
           
