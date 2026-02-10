@@ -30,21 +30,15 @@ import { el } from 'date-fns/locale';
 
 export default function UserManagement() {
   const queryClient = useQueryClient();
-  const [currentUser, setCurrentUser] = useState(null);
   const [inviteDialog, setInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('user');
   const [inviting, setInviting] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
-  React.useEffect(() => {
-    base44.auth.me().then(setCurrentUser).catch(() => {});
-  }, []);
-
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
-    queryFn: () => base44.entities.User.list(),
-    enabled: currentUser?.role === 'admin'
+    queryFn: () => base44.entities.User.list()
   });
 
   const deleteMutation = useMutation({
@@ -76,21 +70,13 @@ export default function UserManagement() {
     }
     setInviting(true);
     try {
-      const response = await base44.functions.invoke('sendInvitation', {
-        email: inviteEmail,
-        role: inviteRole
-      });
-
-      if (response.data.success) {
-        toast.success('Η πρόσκληση εστάλη με επιτυχία - λήγει σε 5 λεπτά');
-        setInviteDialog(false);
-        setInviteEmail('');
-        setInviteRole('user');
-      } else {
-        toast.error(response.data.error || 'Αποτυχία αποστολής πρόσκλησης');
-      }
+      await base44.users.inviteUser(inviteEmail, inviteRole);
+      toast.success('Η πρόσκληση στάλθηκε');
+      setInviteDialog(false);
+      setInviteEmail('');
+      queryClient.invalidateQueries(['users']);
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Αποτυχία αποστολής πρόσκλησης');
+      toast.error('Σφάλμα κατά την αποστολή');
     }
     setInviting(false);
   };
@@ -127,20 +113,8 @@ export default function UserManagement() {
     }
   ];
 
-  if (!currentUser || isLoading) {
+  if (isLoading) {
     return <LoadingSpinner />;
-  }
-
-  if (currentUser.role !== 'admin') {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Shield className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">Δεν Επιτρέπεται η Πρόσβαση</h2>
-          <p className="text-slate-500">Μόνο οι διαχειριστές μπορούν να διαχειριστούν χρήστες</p>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -211,7 +185,7 @@ export default function UserManagement() {
           <DialogHeader>
             <DialogTitle>Πρόσκληση Χρήστη</DialogTitle>
             <DialogDescription>
-              Στείλτε πρόσκληση σε νέο χρήστη. Ο σύνδεσμος λήγει σε 5 λεπτά.
+              Στείλτε πρόσκληση σε νέο χρήστη για πρόσβαση στο σύστημα
             </DialogDescription>
           </DialogHeader>
           

@@ -89,16 +89,13 @@ export default function Layout({ children, currentPageName }) {
           >
             Σύνδεση
           </Button>
-          <div className="mt-6 pt-6 border-t border-white/20 space-y-2">
+          <div className="mt-6 pt-6 border-t border-white/20">
             <Link 
               to={createPageUrl('PortalLogin')}
-              className="block text-blue-300 hover:text-white text-sm transition-colors text-center"
+              className="text-blue-300 hover:text-white text-sm transition-colors"
             >
               Είστε Χρεωστικός ή Κανάλι; Συνδεθείτε εδώ →
             </Link>
-            <p className="text-blue-300/60 text-xs text-center">
-              Δεν έχετε λογαριασμό; Επικοινωνήστε με τον διαχειριστή για πρόσκληση
-            </p>
           </div>
         </div>
       </div>
@@ -156,24 +153,22 @@ export default function Layout({ children, currentPageName }) {
 
         {/* Navigation */}
         <nav className="p-3 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
-          {adminNavItems
-            .filter(item => isAdmin || item.page !== 'UserManagement')
-            .map(item => (
-              <Link
-                key={item.page}
-                to={createPageUrl(item.page)}
-                onClick={() => setSidebarOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                  currentPageName === item.page
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            ))}
+          {adminNavItems.map(item => (
+            <Link
+              key={item.page}
+              to={createPageUrl(item.page)}
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                currentPageName === item.page
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.name}
+            </Link>
+          ))}
         </nav>
 
         {/* User */}

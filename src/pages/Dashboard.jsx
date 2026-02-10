@@ -9,14 +9,6 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   LayoutDashboard,
   Users,
@@ -29,17 +21,11 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  Download,
-  Upload
+  Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const [uploadDialog, setUploadDialog] = useState(false);
-  const [uploadFile, setUploadFile] = useState(null);
-  const [importMode, setImportMode] = useState('append');
-  const [isUploading, setIsUploading] = useState(false);
-
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
     queryKey: ['people'],
     queryFn: () => base44.entities.Person.list('-created_date', 10000)
@@ -121,73 +107,6 @@ export default function Dashboard() {
     toast.success('Το πρότυπο κατέβηκε');
   };
 
-  const handleUpload = async () => {
-    if (!uploadFile) {
-      toast.error('Επιλέξτε αρχείο');
-      return;
-    }
-
-    setIsUploading(true);
-
-    try {
-      // Upload file first
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
-
-      // Extract data from file
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: 'object',
-          properties: {
-            department: { type: 'string' },
-            admission_year: { type: 'string' },
-            academic_level: { type: 'string' },
-            person_id: { type: 'string' },
-            ucid: { type: 'string' },
-            mobile_phone: { type: 'string' },
-            first_name: { type: 'string' },
-            last_name: { type: 'string' },
-            contact_person_1: { type: 'string' },
-            contact_person_2: { type: 'string' },
-            member: { type: 'string' },
-            prediction_symbol: { type: 'string' },
-            voted: { type: 'boolean' },
-            notes: { type: 'string' }
-          }
-        }
-      });
-
-      if (result.status === 'error') {
-        toast.error('Σφάλμα ανάλυσης αρχείου: ' + result.details);
-        setIsUploading(false);
-        return;
-      }
-
-      const records = Array.isArray(result.output) ? result.output : [result.output];
-
-      // Delete all if replace mode
-      if (importMode === 'replace') {
-        const allPeople = await base44.entities.Person.list('-created_date', 50000);
-        for (const person of allPeople) {
-          await base44.entities.Person.delete(person.id);
-        }
-        toast.success(`Διαγράφηκαν ${allPeople.length} εγγραφές`);
-      }
-
-      // Import new records
-      await base44.entities.Person.bulkCreate(records);
-      
-      toast.success(`Εισήχθησαν ${records.length} εγγραφές επιτυχώς`);
-      setUploadDialog(false);
-      setUploadFile(null);
-      refetch();
-    } catch (error) {
-      toast.error('Σφάλμα: ' + error.message);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   if (loadingPeople) {
     return <LoadingSpinner />;
   }
@@ -202,11 +121,7 @@ export default function Dashboard() {
           <div className="flex gap-2">
             <Button variant="outline" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-2" />
-              Πρότυπο
-            </Button>
-            <Button variant="default" onClick={() => setUploadDialog(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Εισαγωγή
+              Πρότυπο CSV
             </Button>
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -385,87 +300,6 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
-
-      {/* Upload Dialog */}
-      <Dialog open={uploadDialog} onOpenChange={setUploadDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Εισαγωγή Δεδομένων από Excel/CSV</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Επιλογή Αρχείου</Label>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => setUploadFile(e.target.files[0])}
-                className="block w-full text-sm text-slate-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-md file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
-              />
-              <p className="text-xs text-slate-500">
-                Η πρώτη γραμμή του αρχείου πρέπει να περιέχει τα ονόματα των πεδίων
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Τρόπος Εισαγωγής</Label>
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    value="append"
-                    checked={importMode === 'append'}
-                    onChange={(e) => setImportMode(e.target.value)}
-                    className="text-blue-600"
-                  />
-                  <div>
-                    <p className="font-medium text-sm">Προσθήκη</p>
-                    <p className="text-xs text-slate-500">Προσθήκη νέων εγγραφών στις υπάρχουσες</p>
-                  </div>
-                </label>
-                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    value="replace"
-                    checked={importMode === 'replace'}
-                    onChange={(e) => setImportMode(e.target.value)}
-                    className="text-red-600"
-                  />
-                  <div>
-                    <p className="font-medium text-sm text-red-600">Αντικατάσταση</p>
-                    <p className="text-xs text-slate-500">Διαγραφή όλων και εισαγωγή νέων</p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {importMode === 'replace' && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700 font-medium">⚠️ Προσοχή!</p>
-                <p className="text-xs text-red-600 mt-1">
-                  Όλες οι υπάρχουσες εγγραφές θα διαγραφούν πριν την εισαγωγή των νέων.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialog(false)} disabled={isUploading}>
-              Ακύρωση
-            </Button>
-            <Button onClick={handleUpload} disabled={!uploadFile || isUploading}>
-              {isUploading ? 'Εισαγωγή...' : 'Εισαγωγή'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
