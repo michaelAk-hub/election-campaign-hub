@@ -89,15 +89,15 @@ export default function Layout({ children, currentPageName }) {
           >
             Σύνδεση
           </Button>
-          <div className="mt-6 pt-6 border-t border-white/20">
+          <div className="mt-6 pt-6 border-t border-white/20 space-y-2">
             <Link 
               to={createPageUrl('PortalLogin')}
-              className="text-blue-300 hover:text-white text-sm transition-colors"
+              className="block text-blue-300 hover:text-white text-sm transition-colors text-center"
             >
               Είστε Χρεωστικός ή Κανάλι; Συνδεθείτε εδώ →
             </Link>
-            <p className="text-xs text-blue-200 mt-4">
-              Η πρόσβαση επιτρέπεται μόνο με πρόσκληση
+            <p className="text-blue-300/60 text-xs text-center">
+              Δεν έχετε λογαριασμό; Επικοινωνήστε με τον διαχειριστή για πρόσκληση
             </p>
           </div>
         </div>
