@@ -36,6 +36,7 @@ const adminNavItems = [
   { name: 'Μηνύματα', icon: MessageSquare, page: 'PushMessages' },
   { name: 'Χρήστες', icon: UserCog, page: 'UserManagement' },
   { name: 'Προτιμήσεις Ειδοποιήσεων', icon: Settings, page: 'NotificationPreferences' },
+  { name: '🔐 Πύλη Χρηστών', icon: Users, page: 'PortalLogin', divider: true },
 ];
 
 const portalPages = ['Portal', 'PortalLogin'];
@@ -154,20 +155,22 @@ export default function Layout({ children, currentPageName }) {
         {/* Navigation */}
         <nav className="p-3 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
           {adminNavItems.map(item => (
-            <Link
-              key={item.page}
-              to={createPageUrl(item.page)}
-              onClick={() => setSidebarOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                currentPageName === item.page
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </Link>
+            <React.Fragment key={item.page}>
+              {item.divider && <div className="border-t border-slate-200 my-2" />}
+              <Link
+                to={createPageUrl(item.page)}
+                onClick={() => setSidebarOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  currentPageName === item.page
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                {item.name}
+              </Link>
+            </React.Fragment>
           ))}
         </nav>
 
