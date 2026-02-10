@@ -167,7 +167,10 @@ export default function PortalLogin() {
         <p className="text-center text-blue-200 text-sm mt-6">
           Είστε διαχειριστής;{' '}
           <button 
-            onClick={() => base44.auth.redirectToLogin()}
+            onClick={() => {
+              const dashboardUrl = window.location.origin + createPageUrl('Dashboard');
+              base44.auth.redirectToLogin(dashboardUrl);
+            }}
             className="text-white hover:underline"
           >
             Συνδεθείτε εδώ
