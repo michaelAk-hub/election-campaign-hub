@@ -76,31 +76,12 @@ export default function Layout({ children, currentPageName }) {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 text-center max-w-md w-full border border-white/20">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Vote className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Εκλογική Πλατφόρμα</h1>
-          <p className="text-blue-200 mb-6">Παρακαλώ συνδεθείτε για να συνεχίσετε</p>
-          <Button 
-            onClick={() => base44.auth.redirectToLogin()}
-            className="w-full bg-blue-600 hover:bg-blue-700"
-          >
-            Σύνδεση
-          </Button>
-          <div className="mt-6 pt-6 border-t border-white/20">
-            <Link 
-              to={createPageUrl('PortalLogin')}
-              className="text-blue-300 hover:text-white text-sm transition-colors"
-            >
-              Είστε Χρεωστικός ή Κανάλι; Συνδεθείτε εδώ →
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    // Redirect to PortalLogin for unauthenticated users
+    if (currentPageName !== 'PortalLogin') {
+      window.location.href = createPageUrl('PortalLogin');
+      return null;
+    }
+    return <>{children}</>;
   }
 
   return (
