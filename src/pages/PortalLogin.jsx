@@ -166,9 +166,12 @@ export default function PortalLogin() {
 
         <p className="text-center text-blue-200 text-sm mt-6">
           Είστε διαχειριστής;{' '}
-          <a href="/" className="text-white hover:underline">
+          <button 
+            onClick={() => base44.auth.redirectToLogin()}
+            className="text-white hover:underline"
+          >
             Συνδεθείτε εδώ
-          </a>
+          </button>
         </p>
       </div>
     </div>
