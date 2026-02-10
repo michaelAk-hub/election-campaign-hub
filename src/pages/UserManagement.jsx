@@ -76,11 +76,18 @@ export default function UserManagement() {
     }
     setInviting(true);
     try {
-      await base44.users.inviteUser(inviteEmail, inviteRole);
-      toast.success('Η πρόσκληση στάλθηκε');
-      setInviteDialog(false);
-      setInviteEmail('');
-      queryClient.invalidateQueries(['users']);
+      const response = await base44.functions.invoke('createInvitation', {
+        email: inviteEmail,
+        role: inviteRole
+      });
+      
+      if (response.data.success) {
+        toast.success('Η πρόσκληση στάλθηκε με email');
+        setInviteDialog(false);
+        setInviteEmail('');
+      } else {
+        toast.error(response.data.error || 'Σφάλμα κατά την αποστολή');
+      }
     } catch (error) {
       toast.error('Σφάλμα κατά την αποστολή');
     }

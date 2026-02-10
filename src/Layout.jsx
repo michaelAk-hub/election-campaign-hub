@@ -96,6 +96,9 @@ export default function Layout({ children, currentPageName }) {
             >
               Είστε Χρεωστικός ή Κανάλι; Συνδεθείτε εδώ →
             </Link>
+            <p className="text-xs text-blue-200 mt-4">
+              Η πρόσβαση επιτρέπεται μόνο με πρόσκληση
+            </p>
           </div>
         </div>
       </div>
