@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { hashSync } from 'npm:bcrypt@5.1.1';
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
 
 Deno.serve(async (req) => {
     try {
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
         }
 
         // Hash password
-        const password_hash = hashSync(password, 10);
+        const password_hash = await bcrypt.hash(password);
 
         // Create Organotiki user
         const newUser = await base44.asServiceRole.entities.AppUser.create({

@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { hashSync } from 'npm:bcrypt@5.1.1';
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
 
 Deno.serve(async (req) => {
     try {
@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
         }
 
         // Hash new password
-        const password_hash = hashSync(new_password, 10);
+        const password_hash = await bcrypt.hash(new_password);
 
         // Increment session version to invalidate all sessions
         const newSessionVersion = (user.session_version || 1) + 1;
