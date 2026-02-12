@@ -15,8 +15,6 @@ import {
   X,
   Database,
   GitCompare,
-  Bell,
-  ChevronDown,
   Vote,
   UserCog,
   Search as SearchIcon
@@ -34,7 +32,7 @@ const adminNavItems = [
   { name: 'Κανάλι', icon: Vote, page: 'KanaliAccounts' },
   { name: 'Αποτυχημένες Ψήφοι', icon: FileSpreadsheet, page: 'NotFoundVoters' },
   { name: 'Μηνύματα', icon: MessageSquare, page: 'PushMessages' },
-  { name: 'Χρήστες', icon: UserCog, page: 'UserManagement' },
+  { name: 'Χρήστες Organotiki', icon: UserCog, page: 'UserManagement' },
   { name: 'Προτιμήσεις Ειδοποιήσεων', icon: Settings, page: 'NotificationPreferences' },
   { name: '🔐 Πύλη Χρηστών', icon: Users, page: 'PortalLogin', divider: true },
 ];
@@ -49,7 +47,6 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Check for App session
         const sessionToken = localStorage.getItem('app_session_token');
         if (sessionToken) {
           const { data } = await base44.functions.invoke('validateAppSession', {
@@ -57,17 +54,16 @@ export default function Layout({ children, currentPageName }) {
           });
 
           if (data.valid) {
-            localStorage.setItem('app_user', JSON.stringify(data.user));
             setUser({ 
               ...data.user, 
               full_name: `${data.user.name} ${data.user.surname}`,
+              email: data.user.email,
               role: data.user.role === 'ADMIN' ? 'admin' : 'user',
               isAppUser: true
             });
             setLoading(false);
             return;
           } else {
-            // Session invalid, clear storage
             localStorage.removeItem('app_session_token');
             localStorage.removeItem('app_user');
             if (data.force_logout) {
@@ -204,17 +200,13 @@ export default function Layout({ children, currentPageName }) {
                 variant="ghost"
                 size="icon"
                 onClick={async () => {
-                  if (user.isAppUser) {
-                    const sessionToken = localStorage.getItem('app_session_token');
-                    if (sessionToken) {
-                      await base44.functions.invoke('appLogout', { session_token: sessionToken });
-                    }
-                    localStorage.removeItem('app_session_token');
-                    localStorage.removeItem('app_user');
-                    window.location.href = createPageUrl('AdminLogin');
-                  } else {
-                    base44.auth.logout();
+                  const sessionToken = localStorage.getItem('app_session_token');
+                  if (sessionToken) {
+                    await base44.functions.invoke('appLogout', { session_token: sessionToken });
                   }
+                  localStorage.removeItem('app_session_token');
+                  localStorage.removeItem('app_user');
+                  window.location.href = createPageUrl('AdminLogin');
                 }}
                 className="text-slate-400 hover:text-slate-600"
               >
