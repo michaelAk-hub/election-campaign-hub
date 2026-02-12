@@ -166,15 +166,12 @@ export default function PortalLogin() {
 
         <p className="text-center text-blue-200 text-sm mt-6">
           Είστε διαχειριστής;{' '}
-          <button 
-            onClick={() => {
-              const dashboardUrl = window.location.origin + createPageUrl('Dashboard');
-              base44.auth.redirectToLogin(dashboardUrl);
-            }}
+          <a 
+            href={createPageUrl('AdminLogin')}
             className="text-white hover:underline"
           >
             Συνδεθείτε εδώ
-          </button>
+          </a>
         </p>
       </div>
     </div>

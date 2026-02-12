@@ -39,7 +39,7 @@ const adminNavItems = [
   { name: '🔐 Πύλη Χρηστών', icon: Users, page: 'PortalLogin', divider: true },
 ];
 
-const portalPages = ['Portal', 'PortalLogin'];
+const portalPages = ['Portal', 'PortalLogin', 'AdminLogin'];
 
 export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
@@ -49,10 +49,37 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const userData = await base44.auth.me();
-        setUser(userData);
+        // Check for Organotiki session
+        const sessionToken = localStorage.getItem('organotiki_session_token');
+        if (sessionToken) {
+          const { data } = await base44.functions.invoke('organotikiValidateSession', {
+            session_token: sessionToken
+          });
+
+          if (data.valid) {
+            localStorage.setItem('organotiki_user', JSON.stringify(data.user));
+            setUser({ 
+              ...data.user, 
+              full_name: `${data.user.name} ${data.user.surname}`,
+              role: data.user.role === 'ADMIN' ? 'admin' : 'user',
+              isOrganotiki: true
+            });
+            setLoading(false);
+            return;
+          } else {
+            // Session invalid, clear storage
+            localStorage.removeItem('organotiki_session_token');
+            localStorage.removeItem('organotiki_user');
+            if (data.force_logout) {
+              window.location.href = createPageUrl('AdminLogin');
+              return;
+            }
+          }
+        }
       } catch (e) {
-        // Not logged in
+        console.error('Session validation error:', e);
+        localStorage.removeItem('organotiki_session_token');
+        localStorage.removeItem('organotiki_user');
       }
       setLoading(false);
     };
@@ -76,9 +103,9 @@ export default function Layout({ children, currentPageName }) {
   }
 
   if (!user) {
-    // Redirect to PortalLogin for unauthenticated users
-    if (currentPageName !== 'PortalLogin') {
-      window.location.href = createPageUrl('PortalLogin');
+    // Redirect to AdminLogin for unauthenticated users
+    if (currentPageName !== 'AdminLogin') {
+      window.location.href = createPageUrl('AdminLogin');
       return null;
     }
     return <>{children}</>;
@@ -176,7 +203,19 @@ export default function Layout({ children, currentPageName }) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => base44.auth.logout()}
+                onClick={async () => {
+                  if (user.isOrganotiki) {
+                    const sessionToken = localStorage.getItem('organotiki_session_token');
+                    if (sessionToken) {
+                      await base44.functions.invoke('organotikiLogout', { session_token: sessionToken });
+                    }
+                    localStorage.removeItem('organotiki_session_token');
+                    localStorage.removeItem('organotiki_user');
+                    window.location.href = createPageUrl('AdminLogin');
+                  } else {
+                    base44.auth.logout();
+                  }
+                }}
                 className="text-slate-400 hover:text-slate-600"
               >
                 <LogOut className="h-4 w-4" />
