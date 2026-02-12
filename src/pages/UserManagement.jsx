@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { createPageUrl } from '../utils';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'sonner';
@@ -22,6 +22,8 @@ export default function UserManagement() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [deleteUserId, setDeleteUserId] = useState(null);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         surname: '',
@@ -118,6 +120,26 @@ export default function UserManagement() {
         },
         onError: (error) => {
             toast.error(error.response?.data?.error || 'Σφάλμα αλλαγής κατάστασης');
+        }
+    });
+
+    const deleteOrganotikiMutation = useMutation({
+        mutationFn: async (userId) => {
+            const sessionToken = localStorage.getItem('app_session_token');
+            const { data } = await base44.functions.invoke('deleteOrganotiki', {
+                session_token: sessionToken,
+                target_user_id: userId
+            });
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminOrganotikiUsers'] });
+            setShowDeleteDialog(false);
+            setDeleteUserId(null);
+            toast.success('Ο χρήστης διαγράφηκε επιτυχώς');
+        },
+        onError: (error) => {
+            toast.error(error.response?.data?.error || 'Σφάλμα διαγραφής χρήστη');
         }
     });
 
@@ -288,33 +310,47 @@ export default function UserManagement() {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3">
-                                                {canToggleStatus(user.role) ? (
-                                                    <Button
-                                                        size="sm"
-                                                        variant={user.is_active ? "outline" : "default"}
-                                                        onClick={() => {
-                                                            activateDeactivateMutation.mutate({
-                                                                userId: user.id,
-                                                                role: user.role,
-                                                                newStatus: !user.is_active
-                                                            });
-                                                        }}
-                                                        disabled={activateDeactivateMutation.isPending}
-                                                    >
-                                                        {activateDeactivateMutation.isPending ? (
-                                                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                                        ) : user.is_active ? (
-                                                            <XCircle className="h-3 w-3 mr-1" />
-                                                        ) : (
-                                                            <CheckCircle className="h-3 w-3 mr-1" />
-                                                        )}
-                                                        {user.is_active ? 'Απενεργοποίηση' : 'Ενεργοποίηση'}
-                                                    </Button>
-                                                ) : (
-                                                    <span className="text-xs text-slate-400">
-                                                        {user.role === 'ADMIN' ? 'Πάντα ενεργός' : 'Μη διαθέσιμο'}
-                                                    </span>
-                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    {canToggleStatus(user.role) ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant={user.is_active ? "outline" : "default"}
+                                                            onClick={() => {
+                                                                activateDeactivateMutation.mutate({
+                                                                    userId: user.id,
+                                                                    role: user.role,
+                                                                    newStatus: !user.is_active
+                                                                });
+                                                            }}
+                                                            disabled={activateDeactivateMutation.isPending}
+                                                        >
+                                                            {activateDeactivateMutation.isPending ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                                            ) : user.is_active ? (
+                                                                <XCircle className="h-3 w-3 mr-1" />
+                                                            ) : (
+                                                                <CheckCircle className="h-3 w-3 mr-1" />
+                                                            )}
+                                                            {user.is_active ? 'Απενεργοποίηση' : 'Ενεργοποίηση'}
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">
+                                                            {user.role === 'ADMIN' ? 'Πάντα ενεργός' : 'Μη διαθέσιμο'}
+                                                        </span>
+                                                    )}
+                                                    {isAdmin && user.role === 'ORGANOTIKI' && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            onClick={() => {
+                                                                setDeleteUserId(user.id);
+                                                                setShowDeleteDialog(true);
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -330,6 +366,44 @@ export default function UserManagement() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-slate-600">
+                        Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον χρήστη Organotiki; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowDeleteDialog(false);
+                                setDeleteUserId(null);
+                            }}
+                            disabled={deleteOrganotikiMutation.isPending}
+                        >
+                            Ακύρωση
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => deleteOrganotikiMutation.mutate(deleteUserId)}
+                            disabled={deleteOrganotikiMutation.isPending}
+                        >
+                            {deleteOrganotikiMutation.isPending ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    Διαγραφή...
+                                </>
+                            ) : (
+                                'Διαγραφή'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Create ORGANOTIKI Dialog */}
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
