@@ -1,5 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
+
+async function verifyPassword(password, hash) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return passwordHash === hash;
+}
 
 Deno.serve(async (req) => {
     try {
@@ -30,7 +38,7 @@ Deno.serve(async (req) => {
         }
 
         // Verify password
-        const passwordMatch = await bcrypt.compare(password, user.password_hash);
+        const passwordMatch = await verifyPassword(password, user.password_hash);
         if (!passwordMatch) {
             return Response.json({ error: 'Λάθος email ή κωδικός' }, { status: 401 });
         }

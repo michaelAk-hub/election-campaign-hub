@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
 
 // This function creates the initial ADMIN user
 // Call it once to set up the first admin account
@@ -28,8 +27,12 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Το email υπάρχει ήδη' }, { status: 400 });
         }
 
-        // Hash password
-        const password_hash = await bcrypt.hash(password);
+        // Hash password using Web Crypto API
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const password_hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
         // Create admin user
         const admin = await base44.asServiceRole.entities.AppUser.create({
@@ -39,7 +42,7 @@ Deno.serve(async (req) => {
             name,
             surname,
             phone,
-            is_active: true, // Admin is always active
+            is_active: true,
             session_version: 1,
             password_changed_at: new Date().toISOString()
         });
