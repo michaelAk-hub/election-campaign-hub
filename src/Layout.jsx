@@ -49,27 +49,27 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Check for Organotiki session
-        const sessionToken = localStorage.getItem('organotiki_session_token');
+        // Check for App session
+        const sessionToken = localStorage.getItem('app_session_token');
         if (sessionToken) {
-          const { data } = await base44.functions.invoke('organotikiValidateSession', {
+          const { data } = await base44.functions.invoke('validateAppSession', {
             session_token: sessionToken
           });
 
           if (data.valid) {
-            localStorage.setItem('organotiki_user', JSON.stringify(data.user));
+            localStorage.setItem('app_user', JSON.stringify(data.user));
             setUser({ 
               ...data.user, 
               full_name: `${data.user.name} ${data.user.surname}`,
               role: data.user.role === 'ADMIN' ? 'admin' : 'user',
-              isOrganotiki: true
+              isAppUser: true
             });
             setLoading(false);
             return;
           } else {
             // Session invalid, clear storage
-            localStorage.removeItem('organotiki_session_token');
-            localStorage.removeItem('organotiki_user');
+            localStorage.removeItem('app_session_token');
+            localStorage.removeItem('app_user');
             if (data.force_logout) {
               window.location.href = createPageUrl('AdminLogin');
               return;
@@ -78,8 +78,8 @@ export default function Layout({ children, currentPageName }) {
         }
       } catch (e) {
         console.error('Session validation error:', e);
-        localStorage.removeItem('organotiki_session_token');
-        localStorage.removeItem('organotiki_user');
+        localStorage.removeItem('app_session_token');
+        localStorage.removeItem('app_user');
       }
       setLoading(false);
     };
@@ -204,13 +204,13 @@ export default function Layout({ children, currentPageName }) {
                 variant="ghost"
                 size="icon"
                 onClick={async () => {
-                  if (user.isOrganotiki) {
-                    const sessionToken = localStorage.getItem('organotiki_session_token');
+                  if (user.isAppUser) {
+                    const sessionToken = localStorage.getItem('app_session_token');
                     if (sessionToken) {
-                      await base44.functions.invoke('organotikiLogout', { session_token: sessionToken });
+                      await base44.functions.invoke('appLogout', { session_token: sessionToken });
                     }
-                    localStorage.removeItem('organotiki_session_token');
-                    localStorage.removeItem('organotiki_user');
+                    localStorage.removeItem('app_session_token');
+                    localStorage.removeItem('app_user');
                     window.location.href = createPageUrl('AdminLogin');
                   } else {
                     base44.auth.logout();
