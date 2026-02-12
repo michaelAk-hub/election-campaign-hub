@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
         }
 
         // Verify password
-        const passwordMatch = compareSync(password, user.password_hash);
+        const passwordMatch = await bcrypt.compare(password, user.password_hash);
         if (!passwordMatch) {
             return Response.json({ error: 'Λάθος email ή κωδικός' }, { status: 401 });
         }
