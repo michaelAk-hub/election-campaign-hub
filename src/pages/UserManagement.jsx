@@ -116,7 +116,7 @@ export default function UserManagement() {
     const activateDeactivateMutation = useMutation({
         mutationFn: async ({ userId, role, newStatus }) => {
             const sessionToken = localStorage.getItem('app_session_token');
-            const { data } = await base44.functions.invoke('activateDeactivateUser', {
+            const { data } = await base44.functions.invoke('toggleUserActivation', {
                 session_token: sessionToken,
                 target_user_id: userId,
                 target_role: role,
@@ -126,6 +126,9 @@ export default function UserManagement() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+        },
+        onError: (error) => {
+            console.error('Toggle activation error:', error);
         }
     });
 

@@ -84,7 +84,26 @@ export default function Layout({ children, currentPageName }) {
 
   // Portal pages have their own layout
   if (portalPages.includes(currentPageName)) {
-    return <>{children}</>;
+      return <>{children}</>;
+  }
+
+  // Block KANALI and CHREOSI from accessing UserManagement
+  if (currentPageName === 'UserManagement') {
+      // Check if the user is trying to access from a portal session (not admin session)
+      const portalToken = localStorage.getItem('portal_session_token');
+      if (portalToken && !user) {
+          return (
+              <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                  <div className="text-center">
+                      <h1 className="text-2xl font-bold text-slate-900 mb-2">Δεν επιτρέπεται η πρόσβαση</h1>
+                      <p className="text-slate-600 mb-4">Μόνο διαχειριστές και οργανωτικοί έχουν πρόσβαση σε αυτή τη σελίδα.</p>
+                      <Button onClick={() => window.location.href = createPageUrl('Portal')}>
+                          Επιστροφή
+                      </Button>
+                  </div>
+              </div>
+          );
+      }
   }
 
   // Admin/Organotikos layout
