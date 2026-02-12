@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Search, UserPlus, CheckCircle, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { createPageUrl } from '../utils';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'sonner';
@@ -20,10 +20,8 @@ export default function UserManagement() {
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    
-    // Form state for creating new ORGANOTIKI user
     const [formData, setFormData] = useState({
         name: '',
         surname: '',
@@ -53,12 +51,6 @@ export default function UserManagement() {
                     return;
                 }
 
-                // Only ADMIN and ORGANOTIKI can access this page
-                if (data.user.role !== 'ADMIN' && data.user.role !== 'ORGANOTIKI') {
-                    window.location.href = createPageUrl('Portal');
-                    return;
-                }
-
                 setCurrentUser(data.user);
                 setLoading(false);
             } catch (e) {
@@ -69,18 +61,26 @@ export default function UserManagement() {
         loadUser();
     }, []);
 
-    // Fetch ONLY ADMIN and ORGANOTIKI users
-    const { data: users = [], isLoading: usersLoading, error } = useQuery({
+    // Fetch only ADMIN and ORGANOTIKI users
+    const { data: allUsers = [], isLoading: usersLoading, error } = useQuery({
         queryKey: ['adminOrganotikiUsers'],
         queryFn: async () => {
             const appUsers = await base44.entities.AppUser.list();
-            // Filter to show only ADMIN and ORGANOTIKI
-            return appUsers.filter(user => user.role === 'ADMIN' || user.role === 'ORGANOTIKI');
+            
+            return appUsers.map(user => ({
+                id: user.id,
+                role: user.role,
+                name: user.name || '-',
+                surname: user.surname || '-',
+                email: user.email || '-',
+                phone: user.phone || '-',
+                is_active: user.is_active !== false,
+                created_date: user.created_date
+            }));
         },
         enabled: !!currentUser
     });
 
-    // Create ORGANOTIKI mutation
     const createOrganotikiMutation = useMutation({
         mutationFn: async (userData) => {
             const sessionToken = localStorage.getItem('app_session_token');
@@ -92,17 +92,16 @@ export default function UserManagement() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminOrganotikiUsers'] });
-            setCreateDialogOpen(false);
+            setShowCreateDialog(false);
             setFormData({ name: '', surname: '', phone: '', email: '', password: '' });
-            toast.success('Ο χρήστης ORGANOTIKI δημιουργήθηκε επιτυχώς');
+            toast.success('Ο χρήστης Organotiki δημιουργήθηκε επιτυχώς');
         },
         onError: (error) => {
             toast.error(error.response?.data?.error || 'Σφάλμα δημιουργίας χρήστη');
         }
     });
 
-    // Toggle activation mutation
-    const toggleActivationMutation = useMutation({
+    const activateDeactivateMutation = useMutation({
         mutationFn: async ({ userId, role, newStatus }) => {
             const sessionToken = localStorage.getItem('app_session_token');
             const { data } = await base44.functions.invoke('toggleUserActivation', {
@@ -115,48 +114,41 @@ export default function UserManagement() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminOrganotikiUsers'] });
-            toast.success('Η κατάσταση του χρήστη ενημερώθηκε');
+            toast.success('Η κατάσταση του χρήστη άλλαξε επιτυχώς');
         },
         onError: (error) => {
-            toast.error(error.response?.data?.error || 'Σφάλμα ενημέρωσης κατάστασης');
+            toast.error(error.response?.data?.error || 'Σφάλμα αλλαγής κατάστασης');
         }
     });
 
     const handleCreateSubmit = (e) => {
         e.preventDefault();
-        
-        // Validation
         if (!formData.name || !formData.surname || !formData.phone || !formData.email || !formData.password) {
             toast.error('Όλα τα πεδία είναι υποχρεωτικά');
             return;
         }
-
-        if (formData.password.length < 6) {
-            toast.error('Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες');
-            return;
-        }
-
         createOrganotikiMutation.mutate(formData);
     };
 
-    // Check if current user can toggle target user
+    // Check if current user can activate/deactivate target user
     const canToggleStatus = (targetRole) => {
         if (!currentUser) return false;
         
-        if (targetRole === 'ADMIN') {
-            return false; // ADMIN cannot be deactivated
-        }
+        // ADMIN users cannot be deactivated
+        if (targetRole === 'ADMIN') return false;
         
         if (currentUser.role === 'ADMIN') {
+            // ADMIN can activate/deactivate ORGANOTIKI
             return targetRole === 'ORGANOTIKI';
         } else if (currentUser.role === 'ORGANOTIKI') {
+            // ORGANOTIKI can only activate/deactivate other ORGANOTIKI
             return targetRole === 'ORGANOTIKI';
         }
         return false;
     };
 
     // Filter users
-    const filteredUsers = users.filter(user => {
+    const filteredUsers = allUsers.filter(user => {
         const matchesSearch = 
             searchQuery === '' ||
             user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -191,6 +183,8 @@ export default function UserManagement() {
         ORGANOTIKI: 'bg-blue-100 text-blue-800'
     };
 
+    const isAdmin = currentUser?.role === 'ADMIN';
+
     return (
         <div className="space-y-6">
             <Card>
@@ -199,111 +193,20 @@ export default function UserManagement() {
                         <div className="flex items-center gap-3">
                             <Users className="h-6 w-6 text-blue-600" />
                             <div>
-                                <CardTitle>Διαχείριση Χρηστών</CardTitle>
+                                <CardTitle>Διαχείριση Χρηστών - ADMIN & ORGANOTIKI</CardTitle>
                                 <p className="text-sm text-slate-500 mt-1">
-                                    Διαχειριστές και Οργανωτικοί ({filteredUsers.length} από {users.length})
+                                    {filteredUsers.length} από {allUsers.length} χρήστες
                                 </p>
                             </div>
                         </div>
-                        
-                        {/* Create New ORGANOTIKI button - ADMIN only */}
-                        {currentUser?.role === 'ADMIN' && (
-                            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button className="bg-blue-600 hover:bg-blue-700">
-                                        <UserPlus className="h-4 w-4 mr-2" />
-                                        Νέος Οργανωτικός
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                    <DialogHeader>
-                                        <DialogTitle>Δημιουργία Νέου Οργανωτικού Χρήστη</DialogTitle>
-                                    </DialogHeader>
-                                    <form onSubmit={handleCreateSubmit} className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="name">Όνομα *</Label>
-                                            <Input
-                                                id="name"
-                                                value={formData.name}
-                                                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="surname">Επώνυμο *</Label>
-                                            <Input
-                                                id="surname"
-                                                value={formData.surname}
-                                                onChange={(e) => setFormData({...formData, surname: e.target.value})}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="phone">Τηλέφωνο *</Label>
-                                            <Input
-                                                id="phone"
-                                                value={formData.phone}
-                                                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="email">Email *</Label>
-                                            <Input
-                                                id="email"
-                                                type="email"
-                                                value={formData.email}
-                                                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="password">Κωδικός *</Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id="password"
-                                                    type={showPassword ? "text" : "password"}
-                                                    value={formData.password}
-                                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                                    required
-                                                    minLength={6}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                                >
-                                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                                </button>
-                                            </div>
-                                            <p className="text-xs text-slate-500">Τουλάχιστον 6 χαρακτήρες</p>
-                                        </div>
-                                        <div className="flex justify-end gap-3 pt-4">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => setCreateDialogOpen(false)}
-                                            >
-                                                Ακύρωση
-                                            </Button>
-                                            <Button
-                                                type="submit"
-                                                disabled={createOrganotikiMutation.isPending}
-                                                className="bg-blue-600 hover:bg-blue-700"
-                                            >
-                                                {createOrganotikiMutation.isPending ? (
-                                                    <>
-                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                        Δημιουργία...
-                                                    </>
-                                                ) : (
-                                                    'Δημιουργία'
-                                                )}
-                                            </Button>
-                                        </div>
-                                    </form>
-                                </DialogContent>
-                            </Dialog>
+                        {isAdmin && (
+                            <Button
+                                onClick={() => setShowCreateDialog(true)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Νέος Οργανωτικός
+                            </Button>
                         )}
                     </div>
                 </CardHeader>
@@ -355,6 +258,7 @@ export default function UserManagement() {
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">EMAIL</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΚΩΔΙΚΟΣ</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΚΑΤΑΣΤΑΣΗ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΕΝΕΡΓΕΙΕΣ</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -371,47 +275,45 @@ export default function UserManagement() {
                                             <td className="px-4 py-3 text-sm">{user.email}</td>
                                             <td className="px-4 py-3 text-sm text-slate-400">••••••••</td>
                                             <td className="px-4 py-3">
+                                                {user.is_active ? (
+                                                    <Badge className="bg-green-100 text-green-800">
+                                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                                        Ενεργός
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge className="bg-red-100 text-red-800">
+                                                        <XCircle className="h-3 w-3 mr-1" />
+                                                        Ανενεργός
+                                                    </Badge>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
                                                 {canToggleStatus(user.role) ? (
                                                     <Button
                                                         size="sm"
                                                         variant={user.is_active ? "outline" : "default"}
                                                         onClick={() => {
-                                                            toggleActivationMutation.mutate({
+                                                            activateDeactivateMutation.mutate({
                                                                 userId: user.id,
                                                                 role: user.role,
                                                                 newStatus: !user.is_active
                                                             });
                                                         }}
-                                                        disabled={toggleActivationMutation.isPending}
+                                                        disabled={activateDeactivateMutation.isPending}
                                                     >
-                                                        {toggleActivationMutation.isPending ? (
+                                                        {activateDeactivateMutation.isPending ? (
                                                             <Loader2 className="h-3 w-3 animate-spin mr-1" />
                                                         ) : user.is_active ? (
-                                                            <>
-                                                                <CheckCircle className="h-3 w-3 mr-1" />
-                                                                Ενεργός
-                                                            </>
+                                                            <XCircle className="h-3 w-3 mr-1" />
                                                         ) : (
-                                                            <>
-                                                                <XCircle className="h-3 w-3 mr-1" />
-                                                                Ανενεργός
-                                                            </>
+                                                            <CheckCircle className="h-3 w-3 mr-1" />
                                                         )}
+                                                        {user.is_active ? 'Απενεργοποίηση' : 'Ενεργοποίηση'}
                                                     </Button>
                                                 ) : (
-                                                    <Badge className={user.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                                                        {user.is_active ? (
-                                                            <>
-                                                                <CheckCircle className="h-3 w-3 mr-1" />
-                                                                Ενεργός
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <XCircle className="h-3 w-3 mr-1" />
-                                                                Ανενεργός
-                                                            </>
-                                                        )}
-                                                    </Badge>
+                                                    <span className="text-xs text-slate-400">
+                                                        {user.role === 'ADMIN' ? 'Πάντα ενεργός' : 'Μη διαθέσιμο'}
+                                                    </span>
                                                 )}
                                             </td>
                                         </tr>
@@ -428,6 +330,99 @@ export default function UserManagement() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Create ORGANOTIKI Dialog */}
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Δημιουργία Νέου Οργανωτικού</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Όνομα *</Label>
+                            <Input
+                                id="name"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="surname">Επώνυμο *</Label>
+                            <Input
+                                id="surname"
+                                value={formData.surname}
+                                onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="phone">Τηλέφωνο *</Label>
+                            <Input
+                                id="phone"
+                                value={formData.phone}
+                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email *</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Κωδικός *</Label>
+                            <div className="relative">
+                                <Input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    required
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-0 top-0 h-full"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowCreateDialog(false)}
+                                disabled={createOrganotikiMutation.isPending}
+                            >
+                                Άκυρο
+                            </Button>
+                            <Button
+                                type="submit"
+                                className="bg-blue-600 hover:bg-blue-700"
+                                disabled={createOrganotikiMutation.isPending}
+                            >
+                                {createOrganotikiMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Δημιουργία...
+                                    </>
+                                ) : (
+                                    'Δημιουργία'
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
