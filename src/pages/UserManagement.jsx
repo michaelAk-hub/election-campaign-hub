@@ -1,243 +1,334 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import PageHeader from '../components/common/PageHeader';
-import DataGrid from '../components/ui/DataGrid';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { UserCog, UserPlus, Mail, Shield, Copy, Trash2, MoreHorizontal } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { UserPlus, Pencil, Key, Loader2, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { el } from 'date-fns/locale';
+
+function generatePassword() {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 export default function UserManagement() {
   const queryClient = useQueryClient();
-  const [inviteDialog, setInviteDialog] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('user');
-  const [inviting, setInviting] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
+  const [formData, setFormData] = useState({
+    name: '',
+    surname: '',
+    phone: '',
+    email: '',
+    password: '',
+  });
+
+  const [newPassword, setNewPassword] = useState('');
+
+  const sessionToken = localStorage.getItem('app_session_token');
+
+  // Fetch users
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => base44.entities.User.list()
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.User.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['users']);
-      setSelectedIds([]);
-      toast.success('Ο χρήστης διαγράφηκε');
-    }
-  });
-
-  const bulkDeleteMutation = useMutation({
-    mutationFn: async (ids) => {
-      for (const id of ids) {
-        await base44.entities.User.delete(id);
-      }
+    queryKey: ['appUsers'],
+    queryFn: async () => {
+      const allUsers = await base44.asServiceRole.entities.AppUser.filter({});
+      return allUsers.filter(u => u.role === 'ORGANOTIKI');
     },
-    onSuccess: (_, ids) => {
-      queryClient.invalidateQueries(['users']);
-      setSelectedIds([]);
-      toast.success(`Διαγράφηκαν ${ids.length} χρήστες`);
+  });
+
+  // Create user mutation
+  const createMutation = useMutation({
+    mutationFn: async (userData) => {
+      const { data } = await base44.functions.invoke('createOrganotiki', {
+        session_token: sessionToken,
+        ...userData
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['appUsers']);
+      setCreateDialogOpen(false);
+      setFormData({ name: '', surname: '', phone: '', email: '', password: '' });
+      toast.success('Ο χρήστης δημιουργήθηκε επιτυχώς');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Σφάλμα κατά τη δημιουργία');
     }
   });
 
-  const handleInvite = async () => {
-    if (!inviteEmail) {
-      toast.error('Εισάγετε email');
-      return;
+  // Update user mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ user_id, updates }) => {
+      const { data } = await base44.functions.invoke('updateOrganotiki', {
+        session_token: sessionToken,
+        user_id,
+        updates
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['appUsers']);
+      setEditDialogOpen(false);
+      toast.success('Ο χρήστης ενημερώθηκε επιτυχώς');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Σφάλμα κατά την ενημέρωση');
     }
-    setInviting(true);
-    try {
-      await base44.users.inviteUser(inviteEmail, inviteRole);
-      toast.success('Η πρόσκληση στάλθηκε');
-      setInviteDialog(false);
-      setInviteEmail('');
-      queryClient.invalidateQueries(['users']);
-    } catch (error) {
-      toast.error('Σφάλμα κατά την αποστολή');
+  });
+
+  // Change password mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async ({ user_id, new_password }) => {
+      const { data } = await base44.functions.invoke('changeOrganotikiPassword', {
+        session_token: sessionToken,
+        user_id,
+        new_password
+      });
+      return data;
+    },
+    onSuccess: () => {
+      setPasswordDialogOpen(false);
+      setNewPassword('');
+      toast.success('Ο κωδικός άλλαξε - όλες οι συνεδρίες ακυρώθηκαν');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Σφάλμα κατά την αλλαγή κωδικού');
     }
-    setInviting(false);
+  });
+
+  const handleCreate = () => {
+    createMutation.mutate(formData);
   };
 
-  const columns = [
-    { key: 'full_name', label: 'Όνομα', render: (val) => val || '-' },
-    { key: 'email', label: 'Email' },
-    { key: 'password', label: 'Κωδικός', render: (val) => (
-      <div className="flex items-center gap-2">
-        <span className="font-mono text-sm">{val || '-'}</span>
-        {val && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(val);
-              toast.success('Αντιγράφηκε');
-            }}
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
-        )}
-      </div>
-    )},
-    { key: 'role', label: 'Ρόλος', render: (val) => (
-      <Badge variant={val === 'admin' ? 'default' : 'secondary'} className={val === 'admin' ? 'bg-purple-100 text-purple-700' : ''}>
-        {val === 'admin' ? 'Διαχειριστής' : 'Οργανωτικός'}
-      </Badge>
-    )},
-    { key: 'created_date', label: 'Εγγραφή', render: (val) => 
-      val ? format(new Date(val), 'dd/MM/yyyy', { locale: el }) : '-'
+  const handleToggleActive = (user) => {
+    updateMutation.mutate({
+      user_id: user.id,
+      updates: { is_active: !user.is_active }
+    });
+  };
+
+  const handleChangePassword = () => {
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες');
+      return;
     }
-  ];
+    changePasswordMutation.mutate({
+      user_id: selectedUser.id,
+      new_password: newPassword
+    });
+  };
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Διαχείριση Χρηστών"
-        subtitle={`${users.length} χρήστες συστήματος`}
-        icon={UserCog}
-        actions={
-          <Button onClick={() => setInviteDialog(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Πρόσκληση Χρήστη
-          </Button>
-        }
-      />
-
-      <DataGrid
-        data={users}
-        columns={columns}
-        pageSize={20}
-        emptyMessage="Δεν υπάρχουν χρήστες"
-        selectable={true}
-        selectedIds={selectedIds}
-        onSelectionChange={setSelectedIds}
-        bulkActions={
-          <>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε ${selectedIds.length} χρήστες;`)) {
-                  bulkDeleteMutation.mutate(selectedIds);
-                }
-              }}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Διαγραφή ({selectedIds.length})
+    <div className="max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Διαχείριση Χρηστών Organotiki</h1>
+          <p className="text-slate-600 mt-1">Δημιουργία και διαχείριση λογαριασμών οργανωτικού</p>
+        </div>
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Νέος Χρήστης
             </Button>
-          </>
-        }
-        actions={(row) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem 
-                onClick={() => {
-                  if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον χρήστη ${row.email}?`)) {
-                    deleteMutation.mutate(row.id);
-                  }
-                }}
-                className="text-red-600"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Διαγραφή
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      />
-
-      {/* Invite Dialog */}
-      <Dialog open={inviteDialog} onOpenChange={setInviteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Πρόσκληση Χρήστη</DialogTitle>
-            <DialogDescription>
-              Στείλτε πρόσκληση σε νέο χρήστη για πρόσβαση στο σύστημα
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Δημιουργία Νέου Organotiki Χρήστη</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Όνομα</Label>
                 <Input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="user@example.com"
-                  className="pl-10"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Όνομα"
                 />
               </div>
+              <div>
+                <Label>Επώνυμο</Label>
+                <Input
+                  value={formData.surname}
+                  onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+                  placeholder="Επώνυμο"
+                />
+              </div>
+              <div>
+                <Label>Τηλέφωνο</Label>
+                <Input
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="Τηλέφωνο"
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="email@example.com"
+                />
+              </div>
+              <div>
+                <Label>Κωδικός</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Κωδικός"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setFormData({ ...formData, password: generatePassword() })}
+                  >
+                    Αυτόματο
+                  </Button>
+                </div>
+              </div>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Ο χρήστης θα δημιουργηθεί ως ανενεργός. Ενεργοποιήστε τον για να μπορεί να συνδεθεί.
+                </AlertDescription>
+              </Alert>
+              <Button
+                onClick={handleCreate}
+                className="w-full"
+                disabled={createMutation.isPending}
+              >
+                {createMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Δημιουργία...
+                  </>
+                ) : (
+                  'Δημιουργία Χρήστη'
+                )}
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label>Ρόλος</Label>
-              <Select value={inviteRole} onValueChange={setInviteRole}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-slate-400" />
-                      Οργανωτικός
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="admin">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-purple-600" />
-                      Διαχειριστής
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-slate-500">
-                Οι διαχειριστές έχουν πλήρη πρόσβαση. Οι οργανωτικοί έχουν πρόσβαση στα δεδομένα χωρίς διαχείριση χρηστών.
-              </p>
-            </div>
-          </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteDialog(false)}>
-              Ακύρωση
+      <div className="grid gap-4">
+        {users.map((user) => (
+          <Card key={user.id}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-lg font-semibold text-blue-600">
+                        {user.name.charAt(0)}{user.surname.charAt(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {user.name} {user.surname}
+                      </h3>
+                      <p className="text-sm text-slate-600">{user.email}</p>
+                      <p className="text-sm text-slate-500">{user.phone}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">
+                      {user.is_active ? 'Ενεργός' : 'Ανενεργός'}
+                    </Label>
+                    <Switch
+                      checked={user.is_active}
+                      onCheckedChange={() => handleToggleActive(user)}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setNewPassword('');
+                      setPasswordDialogOpen(true);
+                    }}
+                  >
+                    <Key className="h-4 w-4 mr-2" />
+                    Αλλαγή Κωδικού
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Password Change Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Αλλαγή Κωδικού</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Η αλλαγή κωδικού θα αποσυνδέσει αυτόματα τον χρήστη από όλες τις συσκευές.
+              </AlertDescription>
+            </Alert>
+            <div>
+              <Label>Νέος Κωδικός</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Νέος κωδικός"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setNewPassword(generatePassword())}
+                >
+                  Αυτόματο
+                </Button>
+              </div>
+            </div>
+            <Button
+              onClick={handleChangePassword}
+              className="w-full"
+              disabled={changePasswordMutation.isPending}
+            >
+              {changePasswordMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Αλλαγή...
+                </>
+              ) : (
+                'Αλλαγή Κωδικού'
+              )}
             </Button>
-            <Button onClick={handleInvite} disabled={inviting}>
-              {inviting ? 'Αποστολή...' : 'Αποστολή Πρόσκλησης'}
-            </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
