@@ -38,12 +38,43 @@ export default function DataGrid() {
     const [savingCells, setSavingCells] = useState(new Set());
     const [activeFilters, setActiveFilters] = useState({});
 
-    // Custom set filter for Access-like behavior
-    const AccessLikeSetFilter = useCallback((props) => {
+    // Custom set filter component for Access-like behavior
+    const AccessLikeSetFilter = React.forwardRef((props, ref) => {
         const [filterValues, setFilterValues] = React.useState([]);
         const [distinctValues, setDistinctValues] = React.useState([]);
         const [hasBlanks, setHasBlanks] = React.useState(false);
         const [loading, setLoading] = React.useState(true);
+
+        React.useImperativeHandle(ref, () => ({
+            isFilterActive: () => {
+                return filterValues.length > 0;
+            },
+            doesFilterPass: (params) => {
+                if (filterValues.length === 0) return true;
+                
+                const value = params.data[props.colDef.field];
+                
+                for (const filterValue of filterValues) {
+                    if (filterValue === '__BLANKS__') {
+                        if (value === null || value === undefined || value === '') {
+                            return true;
+                        }
+                    } else {
+                        if (value === filterValue) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            },
+            getModel: () => {
+                if (filterValues.length === 0) return null;
+                return { values: filterValues };
+            },
+            setModel: (model) => {
+                setFilterValues(model?.values || []);
+            }
+        }));
 
         React.useEffect(() => {
             loadDistinctValues();
@@ -78,10 +109,12 @@ export default function DataGrid() {
 
         const handleSelectAll = () => {
             setFilterValues([]);
+            handleApply();
         };
 
         const handleClearAll = () => {
             setFilterValues([]);
+            handleApply();
         };
 
         const toggleValue = (value) => {
@@ -169,7 +202,7 @@ export default function DataGrid() {
                 )}
             </div>
         );
-    }, [activeFilters]);
+    });
 
     // Load grid preferences
     const { data: preferences } = useQuery({
