@@ -53,6 +53,12 @@ export default function DataGrid() {
             headerName: 'ΑΤ (ID)',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             pinned: 'left',
             width: 120
         },
@@ -61,6 +67,12 @@ export default function DataGrid() {
             headerName: 'Όνομα',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 150
         },
         {
@@ -68,6 +80,12 @@ export default function DataGrid() {
             headerName: 'Επώνυμο',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 150
         },
         {
@@ -75,6 +93,12 @@ export default function DataGrid() {
             headerName: 'Κινητό',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 140
         },
         {
@@ -82,6 +106,12 @@ export default function DataGrid() {
             headerName: 'Τμήμα',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 200
         },
         {
@@ -89,6 +119,12 @@ export default function DataGrid() {
             headerName: 'Έτος Εισδοχής',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 140
         },
         {
@@ -96,6 +132,12 @@ export default function DataGrid() {
             headerName: 'Επίπεδο',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 150
         },
         {
@@ -103,6 +145,12 @@ export default function DataGrid() {
             headerName: 'UCID',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 120
         },
         {
@@ -110,6 +158,12 @@ export default function DataGrid() {
             headerName: 'Άτομο 1',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 150
         },
         {
@@ -117,6 +171,12 @@ export default function DataGrid() {
             headerName: 'Άτομο 2',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 150
         },
         {
@@ -124,6 +184,12 @@ export default function DataGrid() {
             headerName: 'Μέλος',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 120
         },
         {
@@ -131,6 +197,12 @@ export default function DataGrid() {
             headerName: 'Σύμβολο Πρόβλεψης',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 160
         },
         {
@@ -138,6 +210,10 @@ export default function DataGrid() {
             headerName: 'Ψήφισε',
             editable: true,
             filter: 'agSetColumnFilter',
+            filterParams: {
+                values: ['Ναι', 'Όχι'],
+                valueFormatter: (params) => params.value ? 'Ναι' : 'Όχι'
+            },
             cellRenderer: (params) => params.value ? 'Ναι' : 'Όχι',
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: {
@@ -152,6 +228,12 @@ export default function DataGrid() {
             headerName: 'Σημειώσεις',
             editable: true,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             cellEditor: 'agLargeTextCellEditor',
             width: 200
         },
@@ -160,6 +242,12 @@ export default function DataGrid() {
             headerName: 'Dataset ID',
             editable: false,
             filter: 'agTextColumnFilter',
+            filterParams: {
+                filterOptions: ['contains', 'notContains', 'equals', 'notEqual', 'startsWith', 'endsWith'],
+                defaultOption: 'contains',
+                trimInput: true,
+                debounceMs: 500
+            },
             width: 150,
             cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' }
         },
@@ -168,6 +256,16 @@ export default function DataGrid() {
             headerName: 'Δημιουργήθηκε',
             editable: false,
             filter: 'agDateColumnFilter',
+            filterParams: {
+                comparator: (filterDate, cellValue) => {
+                    if (!cellValue) return -1;
+                    const cellDate = new Date(cellValue);
+                    cellDate.setHours(0, 0, 0, 0);
+                    if (cellDate < filterDate) return -1;
+                    if (cellDate > filterDate) return 1;
+                    return 0;
+                }
+            },
             valueFormatter: (params) => {
                 if (!params.value) return '-';
                 return new Date(params.value).toLocaleString('el-GR');
