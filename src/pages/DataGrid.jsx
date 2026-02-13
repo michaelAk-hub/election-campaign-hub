@@ -30,180 +30,12 @@ export default function DataGrid() {
     const queryClient = useQueryClient();
     
     const [searchQuery, setSearchQuery] = useState('');
-    const [showFilters, setShowFilters] = useState(true);
+    const [showFilters, setShowFilters] = useState(false);
     const [lastSync, setLastSync] = useState(null);
     const [gridStatus, setGridStatus] = useState('idle');
     const [rowData, setRowData] = useState([]);
     const [conflictDialog, setConflictDialog] = useState(null);
     const [savingCells, setSavingCells] = useState(new Set());
-    const [activeFilters, setActiveFilters] = useState({});
-
-    // Custom set filter component for Access-like behavior
-    const AccessLikeSetFilter = React.forwardRef((props, ref) => {
-        const [filterValues, setFilterValues] = React.useState([]);
-        const [distinctValues, setDistinctValues] = React.useState([]);
-        const [hasBlanks, setHasBlanks] = React.useState(false);
-        const [loading, setLoading] = React.useState(true);
-
-        React.useImperativeHandle(ref, () => ({
-            isFilterActive: () => {
-                return filterValues.length > 0;
-            },
-            doesFilterPass: (params) => {
-                if (filterValues.length === 0) return true;
-                
-                const value = params.data[props.colDef.field];
-                
-                for (const filterValue of filterValues) {
-                    if (filterValue === '__BLANKS__') {
-                        if (value === null || value === undefined || value === '') {
-                            return true;
-                        }
-                    } else {
-                        if (value === filterValue) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            },
-            getModel: () => {
-                if (filterValues.length === 0) return null;
-                return { values: filterValues };
-            },
-            setModel: (model) => {
-                setFilterValues(model?.values || []);
-            }
-        }));
-
-        React.useEffect(() => {
-            loadDistinctValues();
-        }, [activeFilters]);
-
-        const loadDistinctValues = async () => {
-            setLoading(true);
-            try {
-                const { data } = await base44.functions.invoke('personGridGetDistinct', {
-                    columnName: props.colDef.field,
-                    activeFilters: { ...activeFilters }
-                });
-                setDistinctValues(data.values || []);
-                setHasBlanks(data.hasBlanks || false);
-            } catch (error) {
-                console.error('Failed to load distinct values:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        const handleApply = () => {
-            const newFilters = { ...activeFilters };
-            if (filterValues.length === 0) {
-                delete newFilters[props.colDef.field];
-            } else {
-                newFilters[props.colDef.field] = filterValues;
-            }
-            setActiveFilters(newFilters);
-            
-            if (props.filterChangedCallback && typeof props.filterChangedCallback === 'function') {
-                props.filterChangedCallback();
-            }
-        };
-
-        const handleSelectAll = () => {
-            setFilterValues([]);
-        };
-
-        const handleClearAll = () => {
-            setFilterValues([]);
-        };
-
-        const toggleValue = (value) => {
-            setFilterValues(prev => 
-                prev.includes(value) 
-                    ? prev.filter(v => v !== value)
-                    : [...prev, value]
-            );
-        };
-
-        const isAllSelected = filterValues.length === 0;
-
-        return (
-            <div style={{ padding: '8px', width: '200px', maxHeight: '400px', overflow: 'auto' }}>
-                {loading ? (
-                    <div style={{ textAlign: 'center', padding: '20px' }}>Φόρτωση...</div>
-                ) : (
-                    <>
-                        <div style={{ marginBottom: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '4px' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={isAllSelected}
-                                    onChange={handleSelectAll}
-                                    style={{ marginRight: '8px' }}
-                                />
-                                <strong>(Select All)</strong>
-                            </label>
-                        </div>
-
-                        {hasBlanks && (
-                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '4px' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={filterValues.includes('__BLANKS__')}
-                                    onChange={() => toggleValue('__BLANKS__')}
-                                    style={{ marginRight: '8px' }}
-                                />
-                                <em>(Blanks)</em>
-                            </label>
-                        )}
-
-                        {distinctValues.map(value => (
-                            <label key={value} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '4px' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={isAllSelected || filterValues.includes(value)}
-                                    onChange={() => toggleValue(value)}
-                                    style={{ marginRight: '8px' }}
-                                />
-                                {String(value)}
-                            </label>
-                        ))}
-
-                        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '4px' }}>
-                            <button
-                                onClick={handleApply}
-                                style={{
-                                    flex: 1,
-                                    padding: '4px 8px',
-                                    backgroundColor: '#3b82f6',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Apply
-                            </button>
-                            <button
-                                onClick={handleClearAll}
-                                style={{
-                                    flex: 1,
-                                    padding: '4px 8px',
-                                    backgroundColor: '#e2e8f0',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Clear
-                            </button>
-                        </div>
-                    </>
-                )}
-            </div>
-        );
-    });
 
     // Load grid preferences
     const { data: preferences } = useQuery({
@@ -220,7 +52,7 @@ export default function DataGrid() {
             field: 'person_id',
             headerName: 'ΑΤ (ID)',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             pinned: 'left',
             width: 120
         },
@@ -228,84 +60,84 @@ export default function DataGrid() {
             field: 'first_name',
             headerName: 'Όνομα',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 150
         },
         {
             field: 'last_name',
             headerName: 'Επώνυμο',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 150
         },
         {
             field: 'mobile_phone',
             headerName: 'Κινητό',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 140
         },
         {
             field: 'department',
             headerName: 'Τμήμα',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 200
         },
         {
             field: 'admission_year',
             headerName: 'Έτος Εισδοχής',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 140
         },
         {
             field: 'academic_level',
             headerName: 'Επίπεδο',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 150
         },
         {
             field: 'ucid',
             headerName: 'UCID',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 120
         },
         {
             field: 'contact_person_1',
             headerName: 'Άτομο 1',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 150
         },
         {
             field: 'contact_person_2',
             headerName: 'Άτομο 2',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 150
         },
         {
             field: 'member',
             headerName: 'Μέλος',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 120
         },
         {
             field: 'prediction_symbol',
             headerName: 'Σύμβολο Πρόβλεψης',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 160
         },
         {
             field: 'voted',
             headerName: 'Ψήφισε',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agSetColumnFilter',
             cellRenderer: (params) => params.value ? 'Ναι' : 'Όχι',
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: {
@@ -319,7 +151,7 @@ export default function DataGrid() {
             field: 'notes',
             headerName: 'Σημειώσεις',
             editable: true,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             cellEditor: 'agLargeTextCellEditor',
             width: 200
         },
@@ -327,7 +159,7 @@ export default function DataGrid() {
             field: 'dataset_id',
             headerName: 'Dataset ID',
             editable: false,
-            filter: AccessLikeSetFilter,
+            filter: 'agTextColumnFilter',
             width: 150,
             cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' }
         },
@@ -336,16 +168,6 @@ export default function DataGrid() {
             headerName: 'Δημιουργήθηκε',
             editable: false,
             filter: 'agDateColumnFilter',
-            filterParams: {
-                comparator: (filterDate, cellValue) => {
-                    if (!cellValue) return -1;
-                    const cellDate = new Date(cellValue);
-                    cellDate.setHours(0, 0, 0, 0);
-                    if (cellDate < filterDate) return -1;
-                    if (cellDate > filterDate) return 1;
-                    return 0;
-                }
-            },
             valueFormatter: (params) => {
                 if (!params.value) return '-';
                 return new Date(params.value).toLocaleString('el-GR');
@@ -367,7 +189,7 @@ export default function DataGrid() {
 
     // Fetch data
     const { data: gridData, isLoading, refetch } = useQuery({
-        queryKey: ['personGrid', searchQuery, activeFilters],
+        queryKey: ['personGrid', searchQuery],
         queryFn: async () => {
             const params = {
                 page: 1,
@@ -375,7 +197,7 @@ export default function DataGrid() {
                 sortField: 'created_date',
                 sortDirection: 'desc',
                 search: searchQuery,
-                filters: JSON.stringify(activeFilters)
+                filters: '{}'
             };
 
             const { data } = await base44.functions.invoke('personGridFetch', params);
