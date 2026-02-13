@@ -352,7 +352,7 @@ export default function DataGrid() {
             width: 180,
             cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' }
         }
-    ], [AccessLikeSetFilter]);
+    ], []);
 
     // Default grid options
     const defaultColDef = useMemo(() => ({
