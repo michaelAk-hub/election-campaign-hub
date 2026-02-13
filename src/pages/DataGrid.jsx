@@ -242,13 +242,15 @@ export default function DataGrid() {
             setTimeout(() => setGridStatus('idle'), 2000);
             
             // Update the row data with new version
-            setRowData(prevData => 
-                prevData.map(row => 
-                    row.id === variables.id 
-                        ? { ...row, [variables.field]: data.updated_person[variables.field], row_version: data.updated_person.row_version }
-                        : row
-                )
-            );
+            if (data.data) {
+                setRowData(prevData => 
+                    prevData.map(row => 
+                        row.id === variables.id 
+                            ? { ...row, ...data.data }
+                            : row
+                    )
+                );
+            }
         },
         onError: (error, variables) => {
             const cellKey = `${variables.id}_${variables.field}`;
