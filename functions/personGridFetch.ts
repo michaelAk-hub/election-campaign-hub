@@ -31,26 +31,35 @@ Deno.serve(async (req) => {
             );
         }
 
-        // Column filters
-        if (filtersParam) {
+        // Column filters (Access-like IN filters)
+        if (filtersParam && filtersParam !== '{}') {
             const filters = JSON.parse(filtersParam);
             allPersons = allPersons.filter(person => {
-                return Object.entries(filters).every(([field, filterValue]) => {
-                    if (!filterValue) return true;
-                    const value = person[field];
-                    if (value === null || value === undefined) return false;
-                    
-                    if (typeof filterValue === 'object' && filterValue.operator) {
-                        // Advanced filtering
-                        const { operator, value: filterVal } = filterValue;
-                        if (operator === 'contains') return String(value).toLowerCase().includes(String(filterVal).toLowerCase());
-                        if (operator === 'startsWith') return String(value).toLowerCase().startsWith(String(filterVal).toLowerCase());
-                        if (operator === 'equals') return value === filterVal;
-                        if (operator === 'gt') return Number(value) > Number(filterVal);
-                        if (operator === 'lt') return Number(value) < Number(filterVal);
+                for (const [field, values] of Object.entries(filters)) {
+                    if (!values || values.length === 0) continue;
+
+                    const cellValue = person[field];
+                    let matches = false;
+
+                    for (const filterValue of values) {
+                        if (filterValue === '__BLANKS__') {
+                            // Check for blanks (NULL or empty string)
+                            if (cellValue === null || cellValue === undefined || cellValue === '') {
+                                matches = true;
+                                break;
+                            }
+                        } else {
+                            // Exact match
+                            if (cellValue === filterValue) {
+                                matches = true;
+                                break;
+                            }
+                        }
                     }
-                    return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
-                });
+
+                    if (!matches) return false;
+                }
+                return true;
             });
         }
 
