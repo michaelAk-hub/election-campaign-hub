@@ -78,7 +78,9 @@
     "vaul": "^1.1.2",
     "zod": "^3.24.2",
     "bcrypt": "^5.1.1",
-    "@tanstack/react-table": "^8.20.0"
+    "@tanstack/react-table": "^8.20.0",
+    "ag-grid-react": "^32.3.3",
+    "ag-grid-community": "^32.3.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
