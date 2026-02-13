@@ -104,17 +104,18 @@ export default function DataGrid() {
                 newFilters[props.colDef.field] = filterValues;
             }
             setActiveFilters(newFilters);
-            props.filterChangedCallback();
+            
+            if (props.filterChangedCallback && typeof props.filterChangedCallback === 'function') {
+                props.filterChangedCallback();
+            }
         };
 
         const handleSelectAll = () => {
             setFilterValues([]);
-            handleApply();
         };
 
         const handleClearAll = () => {
             setFilterValues([]);
-            handleApply();
         };
 
         const toggleValue = (value) => {
