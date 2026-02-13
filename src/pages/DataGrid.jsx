@@ -1,343 +1,320 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { 
-  Search, 
-  Download, 
-  Filter,
-  RefreshCw,
-  X,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown
-} from 'lucide-react';
+import AccessLikeGrid from '../components/datagrid/AccessLikeGrid';
+import DataGridToolbar from '../components/datagrid/DataGridToolbar';
+import DataGridStatusBar from '../components/datagrid/DataGridStatusBar';
+import ConflictResolutionDialog from '../components/datagrid/ConflictResolutionDialog';
+import { Card } from "@/components/ui/card";
 import { toast } from 'sonner';
-import EditableDataGrid from '../components/ui/EditableDataGrid';
-import PageHeader from '../components/common/PageHeader';
-import LoadingSpinner from '../components/common/LoadingSpinner';
+import { debounce } from 'lodash';
+
+const GRID_KEY = 'data_grid_person';
+const POLL_INTERVAL = 8000; // 8 seconds
 
 export default function DataGrid() {
-  const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({});
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [updatingRowId, setUpdatingRowId] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [columnOrder, setColumnOrder] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+    const [columnFilters, setColumnFilters] = useState({});
+    const [sortField, setSortField] = useState('created_date');
+    const [sortDirection, setSortDirection] = useState('desc');
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(50);
+    const [savingCells, setSavingCells] = useState({});
+    const [errorCells, setErrorCells] = useState({});
+    const [conflictCells, setConflictCells] = useState({});
+    const [conflictDialog, setConflictDialog] = useState(null);
+    const [lastSync, setLastSync] = useState(null);
+    const [gridStatus, setGridStatus] = useState('idle');
 
-  const queryClient = useQueryClient();
+    // Grid preferences state
+    const [columnOrder, setColumnOrder] = useState([]);
+    const [columnSizing, setColumnSizing] = useState({});
+    const [columnVisibility, setColumnVisibility] = useState({});
 
-  const { data: people = [], isLoading, refetch } = useQuery({
-    queryKey: ['people'],
-    queryFn: () => base44.entities.Person.list('-updated_date', 10000),
-    initialData: [],
-  });
+    const queryClient = useQueryClient();
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Person.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['people']);
-      setUpdatingRowId(null);
-      toast.success('Αποθηκεύτηκε');
-    },
-    onError: () => {
-      setUpdatingRowId(null);
-      toast.error('Σφάλμα αποθήκευσης');
-    }
-  });
+    // Define columns based on Person schema
+    const columns = useMemo(() => [
+        { id: 'person_id', header: 'ΑΤ (ID)', accessorKey: 'person_id', editable: true, type: 'text' },
+        { id: 'first_name', header: 'Όνομα', accessorKey: 'first_name', editable: true, type: 'text' },
+        { id: 'last_name', header: 'Επώνυμο', accessorKey: 'last_name', editable: true, type: 'text' },
+        { id: 'mobile_phone', header: 'Κινητό', accessorKey: 'mobile_phone', editable: true, type: 'text' },
+        { id: 'department', header: 'Τμήμα', accessorKey: 'department', editable: true, type: 'text' },
+        { id: 'admission_year', header: 'Έτος Εισδοχής', accessorKey: 'admission_year', editable: true, type: 'text' },
+        { id: 'academic_level', header: 'Επίπεδο', accessorKey: 'academic_level', editable: true, type: 'text' },
+        { id: 'ucid', header: 'UCID', accessorKey: 'ucid', editable: true, type: 'text' },
+        { id: 'contact_person_1', header: 'Άτομο 1', accessorKey: 'contact_person_1', editable: true, type: 'text' },
+        { id: 'contact_person_2', header: 'Άτομο 2', accessorKey: 'contact_person_2', editable: true, type: 'text' },
+        { id: 'member', header: 'Μέλος', accessorKey: 'member', editable: true, type: 'text' },
+        { id: 'prediction_symbol', header: 'Σύμβολο Πρόβλεψης', accessorKey: 'prediction_symbol', editable: true, type: 'text' },
+        { id: 'voted', header: 'Ψήφισε', accessorKey: 'voted', editable: true, type: 'boolean', cell: ({ getValue }) => getValue() ? 'Ναι' : 'Όχι' },
+        { id: 'notes', header: 'Σημειώσεις', accessorKey: 'notes', editable: true, type: 'text' },
+        { id: 'dataset_id', header: 'Dataset ID', accessorKey: 'dataset_id', editable: false, type: 'text' },
+        { id: 'created_date', header: 'Δημιουργήθηκε', accessorKey: 'created_date', editable: false, type: 'text', cell: ({ getValue }) => getValue() ? new Date(getValue()).toLocaleString('el-GR') : '-' }
+    ], []);
 
-  const filteredAndSortedPeople = useMemo(() => {
-    let result = [...people];
-
-    // Search across all fields
-    if (search) {
-      const searchLower = search.toLowerCase();
-      result = result.filter(person => 
-        Object.values(person).some(val => 
-          val && String(val).toLowerCase().includes(searchLower)
-        )
-      );
-    }
-
-    // Apply column filters
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value && value !== 'all') {
-        if (key === 'voted') {
-          result = result.filter(p => 
-            value === 'voted' ? p.voted === true : p.voted === false
-          );
-        } else {
-          result = result.filter(p => String(p[key]) === value);
+    // Load grid preferences
+    const { data: preferences } = useQuery({
+        queryKey: ['gridPreferences', GRID_KEY],
+        queryFn: async () => {
+            const { data } = await base44.functions.invoke('gridPreferencesLoad', { grid_key: GRID_KEY });
+            return data.preference;
         }
-      }
     });
 
-    // Apply sorting
-    if (sortConfig.key) {
-      result.sort((a, b) => {
-        const aVal = a[sortConfig.key] ?? '';
-        const bVal = b[sortConfig.key] ?? '';
-        
-        if (typeof aVal === 'boolean') {
-          return sortConfig.direction === 'asc' 
-            ? (aVal === bVal ? 0 : aVal ? 1 : -1)
-            : (aVal === bVal ? 0 : aVal ? -1 : 1);
+    useEffect(() => {
+        if (preferences?.state_json) {
+            const state = preferences.state_json;
+            if (state.columnOrder) setColumnOrder(state.columnOrder);
+            if (state.columnSizing) setColumnSizing(state.columnSizing);
+            if (state.columnVisibility) setColumnVisibility(state.columnVisibility);
         }
-        
-        const cmp = String(aVal).localeCompare(String(bVal), 'el');
-        return sortConfig.direction === 'asc' ? cmp : -cmp;
-      });
-    }
+    }, [preferences]);
 
-    return result;
-  }, [people, search, filters, sortConfig]);
+    // Save grid preferences (debounced)
+    const savePreferences = useMemo(
+        () => debounce(async (state) => {
+            try {
+                await base44.functions.invoke('gridPreferencesSave', {
+                    grid_key: GRID_KEY,
+                    state_json: state
+                });
+            } catch (error) {
+                console.error('Failed to save preferences:', error);
+            }
+        }, 1000),
+        []
+    );
 
-  const getUniqueValues = (key) => {
-    const values = [...new Set(people.map(p => p[key]).filter(Boolean))];
-    return values.sort((a, b) => String(a).localeCompare(String(b), 'el'));
-  };
-
-  const handleCellUpdate = async (rowId, data) => {
-    setUpdatingRowId(rowId);
-    updateMutation.mutate({ id: rowId, data });
-  };
-
-  const handleColumnReorder = (sourceIndex, destinationIndex) => {
-    const newOrder = [...columnOrder];
-    const [removed] = newOrder.splice(sourceIndex, 1);
-    newOrder.splice(destinationIndex, 0, removed);
-    setColumnOrder(newOrder);
-    toast.success('Η σειρά των στηλών ενημερώθηκε');
-  };
-
-  const handleSort = (key) => {
-    setSortConfig(prev => ({
-      key,
-      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-    }));
-  };
-
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const clearFilters = () => {
-    setFilters({});
-    setSearch('');
-    setSortConfig({ key: null, direction: 'asc' });
-  };
-
-  const handleExport = () => {
-    const headers = COLUMNS.map(c => c.label).join(',');
-    const rows = filteredAndSortedPeople.map(p => 
-      COLUMNS.map(c => {
-        let val = p[c.key];
-        if (c.type === 'boolean') val = val ? 'ΝΑΙ' : 'ΟΧΙ';
-        return `"${String(val || '').replace(/"/g, '""')}"`;
-      }).join(',')
-    ).join('\n');
-    
-    const csv = '\uFEFF' + headers + '\n' + rows;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `δεδομενα_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    toast.success('Εξαγωγή ολοκληρώθηκε');
-  };
-
-  const DEFAULT_COLUMNS = [
-    { key: 'person_id', label: 'ΑΤ (ID)' },
-    { key: 'ucid', label: 'UCID' },
-    { key: 'last_name', label: 'Επίθετο' },
-    { key: 'first_name', label: 'Όνομα' },
-    { key: 'department', label: 'Τμήμα' },
-    { key: 'admission_year', label: 'Εισδοχή' },
-    { key: 'academic_level', label: 'Επίπεδο' },
-    { key: 'mobile_phone', label: 'Κινητό' },
-    { key: 'contact_person_1', label: 'Άτομο 1' },
-    { key: 'contact_person_2', label: 'Άτομο 2' },
-    { key: 'member', label: 'Μέλος' },
-    { key: 'prediction_symbol', label: 'Σύμβολο Πρόβλεψης' },
-    { 
-      key: 'voted', 
-      label: 'Ψήφισε', 
-      type: 'boolean',
-      render: (val) => (
-        <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 text-emerald-700' : ''}>
-          {val ? 'ΝΑΙ' : 'ΟΧΙ'}
-        </Badge>
-      )
-    },
-    { key: 'notes', label: 'Σημειώσεις', type: 'textarea' }
-  ];
-
-  const COLUMNS = useMemo(() => {
-    if (columnOrder.length === 0) return DEFAULT_COLUMNS;
-    return columnOrder.map(key => DEFAULT_COLUMNS.find(col => col.key === key)).filter(Boolean);
-  }, [columnOrder]);
-
-  useEffect(() => {
-    if (columnOrder.length === 0) {
-      setColumnOrder(DEFAULT_COLUMNS.map(col => col.key));
-    }
-  }, []);
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Πλέγμα Δεδομένων"
-        subtitle={`${people.length.toLocaleString('el-GR')} εγγραφές - Επεξεργάσιμο σαν Google Sheets`}
-        actions={
-          <>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowFilters(!showFilters)}
-              className={showFilters ? 'bg-slate-100' : ''}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Φίλτρα
-            </Button>
-            {(Object.keys(filters).length > 0 || search || sortConfig.key) && (
-              <Button variant="outline" onClick={clearFilters}>
-                <X className="h-4 w-4 mr-2" />
-                Καθαρισμός
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Ανανέωση
-            </Button>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Εξαγωγή CSV
-            </Button>
-          </>
+    useEffect(() => {
+        if (columnOrder.length > 0 || Object.keys(columnSizing).length > 0 || Object.keys(columnVisibility).length > 0) {
+            savePreferences({
+                columnOrder,
+                columnSizing,
+                columnVisibility
+            });
         }
-      />
+    }, [columnOrder, columnSizing, columnVisibility, savePreferences]);
 
-      {/* Filters */}
-      {showFilters && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Αναζήτηση σε όλες τις στήλες..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+    // Fetch data
+    const { data: gridData, isLoading, refetch } = useQuery({
+        queryKey: ['personGrid', page, pageSize, sortField, sortDirection, searchQuery, columnFilters],
+        queryFn: async () => {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                pageSize: pageSize.toString(),
+                sortField,
+                sortDirection,
+                search: searchQuery,
+                filters: JSON.stringify(columnFilters)
+            });
 
-            {/* Column Filters */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {COLUMNS.slice(0, 12).map(col => {
-                if (col.type === 'textarea') return null;
-                
-                const uniqueValues = col.type === 'boolean' 
-                  ? ['voted', 'not_voted']
-                  : getUniqueValues(col.key);
-                
-                if (uniqueValues.length === 0) return null;
+            const { data } = await base44.functions.invoke('personGridFetch', {}, `?${params}`);
+            setLastSync(new Date().toISOString());
+            return data;
+        },
+        refetchInterval: POLL_INTERVAL
+    });
 
-                return (
-                  <div key={col.key} className="space-y-1">
-                    <label className="text-xs text-slate-600 font-medium">{col.label}</label>
-                    <Select 
-                      value={filters[col.key] || 'all'} 
-                      onValueChange={(v) => handleFilterChange(col.key, v)}
-                    >
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Όλα</SelectItem>
-                        {col.type === 'boolean' ? (
-                          <>
-                            <SelectItem value="voted">ΝΑΙ</SelectItem>
-                            <SelectItem value="not_voted">ΟΧΙ</SelectItem>
-                          </>
-                        ) : (
-                          uniqueValues.map(v => (
-                            <SelectItem key={v} value={String(v)}>{String(v)}</SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              })}
-            </div>
+    // Polling for changes
+    useEffect(() => {
+        if (!lastSync) return;
 
-            {/* Sort Controls */}
-            <div className="flex items-center gap-2 pt-2 border-t">
-              <span className="text-sm text-slate-600 font-medium">Ταξινόμηση:</span>
-              <Select 
-                value={sortConfig.key || 'none'} 
-                onValueChange={(v) => v === 'none' ? setSortConfig({ key: null, direction: 'asc' }) : handleSort(v)}
-              >
-                <SelectTrigger className="w-[200px] h-9">
-                  <SelectValue placeholder="Επιλέξτε στήλη" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Χωρίς Ταξινόμηση</SelectItem>
-                  {COLUMNS.map(col => (
-                    <SelectItem key={col.key} value={col.key}>
-                      {col.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {sortConfig.key && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSortConfig(prev => ({ ...prev, direction: prev.direction === 'asc' ? 'desc' : 'asc' }))}
-                  className="h-9"
-                >
-                  {sortConfig.direction === 'asc' ? (
-                    <><ArrowUp className="h-4 w-4 mr-1" /> Αύξουσα</>
-                  ) : (
-                    <><ArrowDown className="h-4 w-4 mr-1" /> Φθίνουσα</>
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
+        const checkChanges = async () => {
+            try {
+                const { data } = await base44.functions.invoke('personGridGetChanges', {}, `?since=${lastSync}`);
+                if (data.changes && data.changes.length > 0) {
+                    // Soft refresh changed rows
+                    queryClient.invalidateQueries(['personGrid']);
+                }
+            } catch (error) {
+                console.error('Failed to check changes:', error);
+            }
+        };
 
-            <div className="mt-4 flex items-center justify-between text-sm text-slate-600 pt-4 border-t">
-              <p>Εμφάνιση {filteredAndSortedPeople.length} από {people.length} εγγραφές</p>
-              <p className="text-xs text-slate-500">💡 Κάντε κλικ σε οποιοδήποτε κελί για επεξεργασία</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        const interval = setInterval(checkChanges, POLL_INTERVAL);
+        return () => clearInterval(interval);
+    }, [lastSync, queryClient]);
 
-      <EditableDataGrid
-        data={filteredAndSortedPeople}
-        columns={COLUMNS}
-        onUpdate={handleCellUpdate}
-        isUpdating={updatingRowId}
-        onColumnReorder={handleColumnReorder}
-      />
-    </div>
-  );
+    // Cell edit mutation
+    const cellEditMutation = useMutation({
+        mutationFn: async ({ person_id, field, value, expected_row_version }) => {
+            const { data } = await base44.functions.invoke('personGridUpdateCell', {
+                person_id,
+                field,
+                value,
+                expected_row_version
+            });
+            return data;
+        },
+        onMutate: async ({ person_id, field }) => {
+            const cellKey = `${person_id}_${field}`;
+            setSavingCells(prev => ({ ...prev, [cellKey]: true }));
+            setGridStatus('saving');
+        },
+        onSuccess: (data, variables) => {
+            const cellKey = `${variables.person_id}_${variables.field}`;
+            setSavingCells(prev => {
+                const next = { ...prev };
+                delete next[cellKey];
+                return next;
+            });
+            setErrorCells(prev => {
+                const next = { ...prev };
+                delete next[cellKey];
+                return next;
+            });
+            setConflictCells(prev => {
+                const next = { ...prev };
+                delete next[cellKey];
+                return next;
+            });
+            setGridStatus('saved');
+            setTimeout(() => setGridStatus('idle'), 2000);
+            queryClient.invalidateQueries(['personGrid']);
+        },
+        onError: (error, variables) => {
+            const cellKey = `${variables.person_id}_${variables.field}`;
+            setSavingCells(prev => {
+                const next = { ...prev };
+                delete next[cellKey];
+                return next;
+            });
+
+            if (error.response?.status === 409) {
+                // Conflict
+                setConflictCells(prev => ({ ...prev, [cellKey]: true }));
+                setGridStatus('conflict');
+                const conflictData = error.response.data;
+                setConflictDialog({
+                    personId: variables.person_id,
+                    field: variables.field,
+                    yourValue: variables.value,
+                    currentValue: conflictData.current_row?.[variables.field],
+                    currentRow: conflictData.current_row
+                });
+            } else {
+                setErrorCells(prev => ({ ...prev, [cellKey]: true }));
+                setGridStatus('error');
+                toast.error(error.response?.data?.error || 'Σφάλμα αποθήκευσης');
+            }
+        }
+    });
+
+    const handleCellCommit = (personId, field, value, rowVersion) => {
+        cellEditMutation.mutate({
+            person_id: personId,
+            field,
+            value,
+            expected_row_version: rowVersion
+        });
+    };
+
+    const handleReloadLatest = () => {
+        setConflictDialog(null);
+        queryClient.invalidateQueries(['personGrid']);
+        setConflictCells({});
+        setGridStatus('idle');
+    };
+
+    const handleOverwrite = () => {
+        if (!conflictDialog) return;
+        const { personId, field, yourValue, currentRow } = conflictDialog;
+        
+        // Force update with current version
+        cellEditMutation.mutate({
+            person_id: personId,
+            field,
+            value: yourValue,
+            expected_row_version: currentRow.row_version
+        });
+        
+        setConflictDialog(null);
+    };
+
+    const handleExport = () => {
+        if (!gridData?.data) return;
+
+        const csvData = [
+            columns.map(col => col.header).join(','),
+            ...gridData.data.map(row => 
+                columns.map(col => {
+                    const value = row[col.accessorKey];
+                    if (value === null || value === undefined) return '';
+                    return `"${String(value).replace(/"/g, '""')}"`;
+                }).join(',')
+            )
+        ].join('\n');
+
+        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `person_data_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+
+        toast.success('Τα δεδομένα εξήχθησαν επιτυχώς');
+    };
+
+    const handleResetLayout = async () => {
+        try {
+            await base44.functions.invoke('gridPreferencesReset', { grid_key: GRID_KEY });
+            setColumnOrder([]);
+            setColumnSizing({});
+            setColumnVisibility({});
+            queryClient.invalidateQueries(['gridPreferences']);
+            toast.success('Το layout επαναφέρθηκε');
+        } catch (error) {
+            toast.error('Σφάλμα επαναφοράς layout');
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <DataGridToolbar
+                    searchValue={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    showFilters={showFilters}
+                    onToggleFilters={() => setShowFilters(!showFilters)}
+                    onExport={handleExport}
+                    onRefresh={() => refetch()}
+                    onResetLayout={handleResetLayout}
+                    canCreate={false}
+                />
+
+                <AccessLikeGrid
+                    data={gridData?.data || []}
+                    columns={columns}
+                    onCellCommit={handleCellCommit}
+                    loading={isLoading}
+                    rowKeyField="id"
+                    savingCells={savingCells}
+                    errorCells={errorCells}
+                    conflictCells={conflictCells}
+                    columnOrder={columnOrder}
+                    columnSizing={columnSizing}
+                    columnVisibility={columnVisibility}
+                    onColumnOrderChange={setColumnOrder}
+                    onColumnSizingChange={setColumnSizing}
+                    onColumnVisibilityChange={setColumnVisibility}
+                />
+
+                <DataGridStatusBar
+                    totalRows={gridData?.total || 0}
+                    loadedRows={gridData?.data?.length || 0}
+                    status={gridStatus}
+                    lastSync={lastSync}
+                />
+            </Card>
+
+            <ConflictResolutionDialog
+                open={!!conflictDialog}
+                onClose={() => setConflictDialog(null)}
+                conflict={conflictDialog}
+                onReloadLatest={handleReloadLatest}
+                onOverwrite={handleOverwrite}
+            />
+        </div>
+    );
 }
