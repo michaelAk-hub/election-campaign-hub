@@ -17,7 +17,8 @@ import {
   GitCompare,
   Vote,
   UserCog,
-  Search as SearchIcon
+  Search as SearchIcon,
+  FileText
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
