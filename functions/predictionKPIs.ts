@@ -33,8 +33,22 @@ Deno.serve(async (req) => {
         const symbolFilter = url.searchParams.get('symbol');
         const departmentFilter = url.searchParams.get('department');
 
+        // Get active dataset
+        const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
+        if (activeDatasets.length === 0) {
+            return Response.json({ 
+                total: 0, 
+                voted_yes: 0, 
+                voted_no: 0, 
+                voted_yes_percent: 0,
+                generated_at: new Date().toISOString()
+            });
+        }
+
         // Get all Person records from active dataset
-        const allPersons = await base44.asServiceRole.entities.Person.filter({});
+        const allPersons = await base44.asServiceRole.entities.Person.filter({ 
+            dataset_id: activeDatasets[0].id 
+        });
 
         // Apply filters
         let filtered = allPersons;
