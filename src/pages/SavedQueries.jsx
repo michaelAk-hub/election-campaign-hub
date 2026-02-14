@@ -95,7 +95,7 @@ export default function SavedQueries() {
   });
 
   const buildExpressionFromConditions = (conditionsList) => {
-    if (conditionsList.length === 0) return '';
+    if (!conditionsList || conditionsList.length === 0) return '';
     
     return conditionsList.map((cond, idx) => {
       let expr = '';
@@ -213,7 +213,7 @@ export default function SavedQueries() {
     let results = [...people];
     
     // Build expression from conditions or use direct expression
-    const expr = buildExpressionFromConditions(query.conditions) || query.logicalExpression;
+    const expr = buildExpressionFromConditions(query.conditions || []) || query.logicalExpression;
     
     // Apply logical expression
     if (expr && expr.trim()) {
