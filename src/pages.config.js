@@ -54,6 +54,7 @@ import CompareMerge from './pages/CompareMerge';
 import CreateTestUser from './pages/CreateTestUser';
 import Dashboard from './pages/Dashboard';
 import DataGrid from './pages/DataGrid';
+import Documentation from './pages/Documentation';
 import KanaliAccounts from './pages/KanaliAccounts';
 import KanaliPortal from './pages/KanaliPortal';
 import NotFoundVoters from './pages/NotFoundVoters';
@@ -64,7 +65,7 @@ import PushMessages from './pages/PushMessages';
 import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import UserManagement from './pages/UserManagement';
-import Documentation from './pages/Documentation';
+import Predictions from './pages/Predictions';
 import __Layout from './Layout.jsx';
 
 
@@ -76,6 +77,7 @@ export const PAGES = {
     "CreateTestUser": CreateTestUser,
     "Dashboard": Dashboard,
     "DataGrid": DataGrid,
+    "Documentation": Documentation,
     "KanaliAccounts": KanaliAccounts,
     "KanaliPortal": KanaliPortal,
     "NotFoundVoters": NotFoundVoters,
@@ -86,7 +88,7 @@ export const PAGES = {
     "Records": Records,
     "SavedQueries": SavedQueries,
     "UserManagement": UserManagement,
-    "Documentation": Documentation,
+    "Predictions": Predictions,
 }
 
 export const pagesConfig = {

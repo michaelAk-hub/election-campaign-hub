@@ -28,6 +28,7 @@ const adminNavItems = [
   { name: 'Εγγραφές', icon: Database, page: 'Records' },
   { name: 'Πλέγμα Δεδομένων', icon: Database, page: 'DataGrid' },
   { name: 'Αποθηκευμένα Ερωτήματα', icon: SearchIcon, page: 'SavedQueries' },
+  { name: 'Προβλέψεις', icon: GitCompare, page: 'Predictions' },
   { name: 'Σύγκριση & Συγχώνευση', icon: GitCompare, page: 'CompareMerge' },
   { name: 'Χρεωστικοί', icon: UserPlus, page: 'ChreosiAccounts' },
   { name: 'Κανάλι', icon: Vote, page: 'KanaliAccounts' },
