@@ -3,9 +3,28 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const user = await base44.auth.me();
+        
+        // Validate custom app session
+        const sessionToken = req.headers.get('Authorization')?.replace('Bearer ', '') || 
+                            new URL(req.url).searchParams.get('session_token');
+        
+        if (!sessionToken) {
+            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-        if (!user || !['admin', 'user'].includes(user.role)) {
+        const sessions = await base44.asServiceRole.entities.AppSession.filter({ 
+            session_token: sessionToken,
+            is_active: true 
+        });
+        
+        if (sessions.length === 0) {
+            return Response.json({ error: 'Invalid session' }, { status: 401 });
+        }
+
+        const session = sessions[0];
+        const users = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+        
+        if (users.length === 0 || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
