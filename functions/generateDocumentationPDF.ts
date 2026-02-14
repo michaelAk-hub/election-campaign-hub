@@ -213,13 +213,14 @@ Deno.serve(async (req) => {
         addText('3. Στατιστική ανάλυση με saved queries', 10, false, 5);
         addText('4. Σύγκριση με προηγούμενα datasets', 10, false, 5);
 
-        const pdfBytes = doc.output('arraybuffer');
+        const pdfBase64 = doc.output('datauristring').split(',')[1];
+        const pdfBytes = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
 
         return new Response(pdfBytes, {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': 'attachment; filename="Τεκμηρίωση_Συστήματος_Εκλογών_2026.pdf"'
+                'Content-Disposition': 'attachment; filename="Documentation_2026.pdf"'
             }
         });
     } catch (error) {
