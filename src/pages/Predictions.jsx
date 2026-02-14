@@ -141,8 +141,9 @@ export default function Predictions() {
     const handleExport = () => {
         if (!bySymbol?.rows || !byYearSymbol?.rows) return;
 
-        // Create CSV content
-        let csv = 'Αναφορά Προβλέψεων\n\n';
+        // Create CSV content with UTF-8 BOM for Excel Greek support
+        const BOM = '\uFEFF';
+        let csv = BOM + 'Αναφορά Προβλέψεων\n\n';
         
         // By Symbol
         csv += 'Ανά Σύμβολο Πρόβλεψης\n';
@@ -160,7 +161,7 @@ export default function Predictions() {
             csv += `${row.admission_year},${row.symbol},${row.total},${row.voted_yes},${row.voted_no},${percent}%\n`;
         });
 
-        // Download
+        // Download with UTF-8 BOM for proper Greek character display in Excel
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
