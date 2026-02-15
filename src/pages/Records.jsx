@@ -217,6 +217,29 @@ export default function Records() {
     }
   };
 
+  const handleDeleteAllPersons = async () => {
+    if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε ΟΛΕΣ τις εγγραφές από τον πίνακα Person;')) {
+      return;
+    }
+
+    try {
+      const sessionToken = localStorage.getItem('app_session_token');
+      const { data } = await base44.functions.invoke('deleteAllPersons', {
+        session_token: sessionToken
+      });
+
+      if (data.success) {
+        toast.success(`${data.deleted_count} εγγραφές διαγράφηκαν επιτυχώς.`);
+        queryClient.invalidateQueries(['people']);
+        queryClient.invalidateQueries(['datasets']);
+      } else {
+        toast.error(data.error || 'Σφάλμα κατά τη διαγραφή');
+      }
+    } catch (error) {
+      toast.error('Σφάλμα: ' + error.message);
+    }
+  };
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -240,6 +263,10 @@ export default function Records() {
             <Button onClick={() => { setFormData({}); setAddDialog(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               Νέα Εγγραφή
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAllPersons}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Διαγραφή Όλων
             </Button>
           </>
         }
