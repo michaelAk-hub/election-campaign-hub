@@ -50,23 +50,26 @@ export default function Predictions() {
     };
 
     // Fetch KPIs
-    const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
+    const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading, error: kpisError } = useQuery({
         queryKey: ['predictionKPIs', filters],
         queryFn: async () => {
+            const sessionToken = localStorage.getItem('app_session_token');
             const { data } = await base44.functions.invoke('predictionKPIs', {
-                queryParams: buildFilterParams()
+                queryParams: buildFilterParams() + (buildFilterParams() ? '&' : '') + `session_token=${sessionToken}`
             });
+            console.log('KPIs Response:', data);
             return data;
         },
         refetchInterval: autoRefresh ? 8000 : false
     });
 
     // Fetch by symbol
-    const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
+    const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading, error: symbolError } = useQuery({
         queryKey: ['predictionBySymbol', filters],
         queryFn: async () => {
+            const sessionToken = localStorage.getItem('app_session_token');
             const { data } = await base44.functions.invoke('predictionBySymbol', {
-                queryParams: buildFilterParams()
+                queryParams: buildFilterParams() + (buildFilterParams() ? '&' : '') + `session_token=${sessionToken}`
             });
             return data;
         },
@@ -74,11 +77,12 @@ export default function Predictions() {
     });
 
     // Fetch by year-symbol
-    const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
+    const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading, error: yearSymbolError } = useQuery({
         queryKey: ['predictionByYearSymbol', filters],
         queryFn: async () => {
+            const sessionToken = localStorage.getItem('app_session_token');
             const { data } = await base44.functions.invoke('predictionByYearSymbol', {
-                queryParams: buildFilterParams()
+                queryParams: buildFilterParams() + (buildFilterParams() ? '&' : '') + `session_token=${sessionToken}`
             });
             return data;
         },
@@ -270,17 +274,24 @@ export default function Predictions() {
             </Card>
 
             {/* Debug Info (temporary) */}
-            {kpis?.debug && (
+            {(kpis?.debug || kpisError || symbolError || yearSymbolError) && (
                 <Card className="bg-yellow-50 border-yellow-200">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-medium">Debug Info</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-xs space-y-1">
-                            <div>Active Dataset ID: {kpis.debug.activeDatasetId}</div>
-                            <div>Dataset Status: {kpis.debug.activeDatasetStatus}</div>
-                            <div>Persons in Dataset: {kpis.debug.personsInDataset}</div>
-                            <div>After Filters: {kpis.debug.filteredPersons}</div>
+                            {kpisError && <div className="text-red-600 font-bold">KPIs Error: {kpisError.message}</div>}
+                            {symbolError && <div className="text-red-600 font-bold">Symbol Error: {symbolError.message}</div>}
+                            {yearSymbolError && <div className="text-red-600 font-bold">YearSymbol Error: {yearSymbolError.message}</div>}
+                            {kpis?.debug && (
+                                <>
+                                    <div>Active Dataset ID: {kpis.debug.activeDatasetId}</div>
+                                    <div>Dataset Status: {kpis.debug.activeDatasetStatus}</div>
+                                    <div>Persons in Dataset: {kpis.debug.personsInDataset}</div>
+                                    <div>After Filters: {kpis.debug.filteredPersons}</div>
+                                </>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
