@@ -66,7 +66,6 @@ import PushMessages from './pages/PushMessages';
 import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import UserManagement from './pages/UserManagement';
-import UpdateAdminInfo from './pages/UpdateAdminInfo';
 import __Layout from './Layout.jsx';
 
 
@@ -90,7 +89,6 @@ export const PAGES = {
     "Records": Records,
     "SavedQueries": SavedQueries,
     "UserManagement": UserManagement,
-    "UpdateAdminInfo": UpdateAdminInfo,
 }
 
 export const pagesConfig = {
