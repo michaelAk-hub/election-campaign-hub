@@ -61,11 +61,11 @@ import NotFoundVoters from './pages/NotFoundVoters';
 import NotificationPreferences from './pages/NotificationPreferences';
 import Portal from './pages/Portal';
 import PortalLogin from './pages/PortalLogin';
+import Predictions from './pages/Predictions';
 import PushMessages from './pages/PushMessages';
 import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import UserManagement from './pages/UserManagement';
-import Predictions from './pages/Predictions';
 import __Layout from './Layout.jsx';
 
 
@@ -84,11 +84,11 @@ export const PAGES = {
     "NotificationPreferences": NotificationPreferences,
     "Portal": Portal,
     "PortalLogin": PortalLogin,
+    "Predictions": Predictions,
     "PushMessages": PushMessages,
     "Records": Records,
     "SavedQueries": SavedQueries,
     "UserManagement": UserManagement,
-    "Predictions": Predictions,
 }
 
 export const pagesConfig = {

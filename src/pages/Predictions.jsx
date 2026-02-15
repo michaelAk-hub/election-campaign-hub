@@ -269,6 +269,23 @@ export default function Predictions() {
                 </CardContent>
             </Card>
 
+            {/* Debug Info (temporary) */}
+            {kpis?.debug && (
+                <Card className="bg-yellow-50 border-yellow-200">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">Debug Info</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-xs space-y-1">
+                            <div>Active Dataset ID: {kpis.debug.activeDatasetId}</div>
+                            <div>Dataset Status: {kpis.debug.activeDatasetStatus}</div>
+                            <div>Persons in Dataset: {kpis.debug.personsInDataset}</div>
+                            <div>After Filters: {kpis.debug.filteredPersons}</div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card>

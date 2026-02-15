@@ -82,7 +82,14 @@ Deno.serve(async (req) => {
             voted_yes,
             voted_no,
             voted_yes_percent: parseFloat(voted_yes_percent.toFixed(2)),
-            generated_at: new Date().toISOString()
+            generated_at: new Date().toISOString(),
+            debug: {
+                activeDatasetId: activeDatasets[0].id,
+                activeDatasetStatus: activeDatasets[0].status,
+                personsInDataset: allPersons.length,
+                filteredPersons: filtered.length,
+                sessionValid: true
+            }
         });
     } catch (error) {
         console.error('Error in predictionKPIs:', error);
