@@ -46,26 +46,35 @@ export default function Predictions() {
         
         // REQUIRED for backend auth
         const sessionToken = localStorage.getItem('app_session_token');
-        if (sessionToken) params.set('session_token', sessionToken);
+        console.log('Session token from localStorage:', sessionToken ? 'exists' : 'missing');
+        if (sessionToken) {
+            params.set('session_token', sessionToken);
+        }
         
         // existing filters
         if (filters.years.length > 0) params.set('year', filters.years.join(','));
         if (filters.symbols.length > 0) params.set('symbol', filters.symbols.join(','));
         if (filters.departments.length > 0) params.set('department', filters.departments.join(','));
-        return params.toString();
+        
+        const queryString = params.toString();
+        console.log('Query params:', queryString);
+        return queryString;
     };
 
     // Fetch KPIs
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading, error: kpisError } = useQuery({
         queryKey: ['predictionKPIs', filters],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionKPIs', {
-                queryParams: buildFilterParams()
+            const queryParams = buildFilterParams();
+            console.log('Invoking predictionKPIs with:', queryParams);
+            const response = await base44.functions.invoke('predictionKPIs', {
+                queryParams
             });
-            console.log('KPIs Response:', data);
-            return data;
+            console.log('KPIs Response:', response);
+            return response.data;
         },
-        refetchInterval: autoRefresh ? 8000 : false
+        refetchInterval: autoRefresh ? 8000 : false,
+        retry: false
     });
 
     // Fetch by symbol
