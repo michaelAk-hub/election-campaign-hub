@@ -145,32 +145,58 @@ export default function Records() {
     setUploadLoading(true);
     try {
       // Upload file
-      const { data: { file_url } } = await base44.integrations.Core.UploadFile({ file: uploadFile });
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
+
+      // Extract data from file
+      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: {
+          type: 'object',
+          properties: {
+            department: { type: 'string' },
+            admission_year: { type: 'string' },
+            academic_level: { type: 'string' },
+            person_id: { type: 'string' },
+            ucid: { type: 'string' },
+            mobile_phone: { type: 'string' },
+            first_name: { type: 'string' },
+            last_name: { type: 'string' },
+            contact_person_1: { type: 'string' },
+            contact_person_2: { type: 'string' },
+            member: { type: 'string' },
+            prediction_symbol: { type: 'string' },
+            voted: { type: 'boolean' },
+            notes: { type: 'string' }
+          }
+        }
+      });
+
+      if (result.status === 'error') {
+        toast.error('Σφάλμα ανάλυσης αρχείου: ' + result.details);
+        setUploadLoading(false);
+        return;
+      }
+
+      const records = Array.isArray(result.output) ? result.output : [result.output];
       
       // Create dataset
       const dataset = await base44.entities.Dataset.create({
         name: uploadFile.name,
-        status: 'pending',
-        source_file_url: file_url
+        status: 'active',
+        source_file_url: file_url,
+        total_records: records.length,
+        activated_at: new Date().toISOString()
       });
 
-      // Extract and import data
-      const sessionToken = localStorage.getItem('app_session_token');
-      const { data } = await base44.functions.invoke('importDataset', {
-        dataset_id: dataset.id,
-        file_url,
-        session_token: sessionToken
-      });
+      // Import new records with dataset_id
+      const recordsWithDataset = records.map(r => ({ ...r, dataset_id: dataset.id }));
+      await base44.entities.Person.bulkCreate(recordsWithDataset);
 
-      if (data.success) {
-        toast.success(`✅ Επιτυχία! Εισήχθησαν ${data.imported_count} εγγραφές στον πίνακα.`);
-        queryClient.invalidateQueries(['people']);
-        queryClient.invalidateQueries(['datasets']);
-        setUploadDialog(false);
-        setUploadFile(null);
-      } else {
-        toast.error(`❌ Αποτυχία εισαγωγής: ${data.error || 'Άγνωστο σφάλμα'}`);
-      }
+      toast.success(`✅ Επιτυχία! Εισήχθησαν ${records.length} εγγραφές στον πίνακα και το dataset ενεργοποιήθηκε.`);
+      queryClient.invalidateQueries(['people']);
+      queryClient.invalidateQueries(['datasets']);
+      setUploadDialog(false);
+      setUploadFile(null);
     } catch (error) {
       toast.error(`❌ Σφάλμα εισαγωγής: ${error.message}`);
     } finally {
