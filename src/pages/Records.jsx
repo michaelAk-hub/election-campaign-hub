@@ -195,6 +195,28 @@ export default function Records() {
     }
   };
 
+  const handleDeleteDataset = async (datasetId) => {
+    if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το dataset και όλες τις εγγραφές του;')) {
+      return;
+    }
+
+    try {
+      const sessionToken = localStorage.getItem('app_session_token');
+      const { data } = await base44.functions.invoke('deleteDataset', {
+        dataset_id: datasetId,
+        session_token: sessionToken
+      });
+
+      if (data.success) {
+        toast.success('Το dataset διαγράφηκε');
+        queryClient.invalidateQueries(['datasets']);
+        queryClient.invalidateQueries(['people']);
+      }
+    } catch (error) {
+      toast.error('Σφάλμα: ' + error.message);
+    }
+  };
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -239,18 +261,27 @@ export default function Records() {
                     {dataset.total_records || 0} εγγραφές • Κατάσταση: {dataset.status}
                   </p>
                 </div>
-                {dataset.status !== 'active' && (
+                <div className="flex items-center gap-2">
+                  {dataset.status !== 'active' && (
+                    <Button 
+                      size="sm"
+                      onClick={() => handleActivateDataset(dataset.id)}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Ενεργοποίηση
+                    </Button>
+                  )}
+                  {dataset.status === 'active' && (
+                    <Badge className="bg-green-100 text-green-700">Ενεργό</Badge>
+                  )}
                   <Button 
                     size="sm"
-                    onClick={() => handleActivateDataset(dataset.id)}
+                    variant="destructive"
+                    onClick={() => handleDeleteDataset(dataset.id)}
                   >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Ενεργοποίηση
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                )}
-                {dataset.status === 'active' && (
-                  <Badge className="bg-green-100 text-green-700">Ενεργό</Badge>
-                )}
+                </div>
               </div>
             ))}
           </div>
