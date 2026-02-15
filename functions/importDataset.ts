@@ -80,10 +80,11 @@ Deno.serve(async (req) => {
             await base44.asServiceRole.entities.Person.bulkCreate(personsToCreate);
         }
 
-        // Update dataset
+        // Update dataset and set to active
         await base44.asServiceRole.entities.Dataset.update(dataset_id, {
             total_records: personsToCreate.length,
-            status: 'pending'
+            status: 'active',
+            activated_at: new Date().toISOString()
         });
 
         return Response.json({ 
