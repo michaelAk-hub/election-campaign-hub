@@ -163,16 +163,16 @@ export default function Records() {
       });
 
       if (data.success) {
-        toast.success(`Εισήχθησαν ${data.imported_count} εγγραφές επιτυχώς`);
+        toast.success(`✅ Επιτυχία! Εισήχθησαν ${data.imported_count} εγγραφές στον πίνακα.`);
         queryClient.invalidateQueries(['people']);
         queryClient.invalidateQueries(['datasets']);
         setUploadDialog(false);
         setUploadFile(null);
       } else {
-        toast.error(data.error || 'Σφάλμα κατά την εισαγωγή');
+        toast.error(`❌ Αποτυχία εισαγωγής: ${data.error || 'Άγνωστο σφάλμα'}`);
       }
     } catch (error) {
-      toast.error('Σφάλμα: ' + error.message);
+      toast.error(`❌ Σφάλμα εισαγωγής: ${error.message}`);
     } finally {
       setUploadLoading(false);
     }
@@ -500,6 +500,15 @@ export default function Records() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-blue-900 font-medium mb-2">
+                💡 Συμβουλή
+              </p>
+              <p className="text-sm text-blue-800">
+                Χρησιμοποιήστε το κουμπί <strong>"Εξαγωγή"</strong> για να κατεβάσετε ένα CSV πρότυπο με τις σωστές στήλες. 
+                Συμπληρώστε τα δεδομένα σας στο αρχείο και στη συνέχεια εισάγετέ το εδώ.
+              </p>
+            </div>
             <p className="text-sm text-slate-600">
               Επιλέξτε ένα αρχείο Excel (.xlsx) ή CSV για εισαγωγή δεδομένων
             </p>
@@ -508,10 +517,16 @@ export default function Records() {
               accept=".csv,.xlsx,.xls"
               onChange={(e) => setUploadFile(e.target.files[0])}
             />
+            {uploadFile && (
+              <p className="text-sm text-green-600 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Επιλέχθηκε: {uploadFile.name}
+              </p>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialog(false)}>
+            <Button variant="outline" onClick={() => { setUploadDialog(false); setUploadFile(null); }}>
               Ακύρωση
             </Button>
             <Button 
