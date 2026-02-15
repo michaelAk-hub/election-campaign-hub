@@ -32,7 +32,9 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  Phone
+  Phone,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -67,11 +69,19 @@ export default function Records() {
   const queryClient = useQueryClient();
   const [editDialog, setEditDialog] = useState({ open: false, person: null });
   const [addDialog, setAddDialog] = useState(false);
+  const [uploadDialog, setUploadDialog] = useState(false);
   const [formData, setFormData] = useState({});
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
 
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['people'],
     queryFn: () => base44.entities.Person.list('-created_date', 10000)
+  });
+
+  const { data: datasets = [] } = useQuery({
+    queryKey: ['datasets'],
+    queryFn: () => base44.entities.Dataset.list('-created_date', 100)
   });
 
   const createMutation = useMutation({
@@ -126,6 +136,65 @@ export default function Records() {
     setEditDialog({ open: true, person });
   };
 
+  const handleFileUpload = async () => {
+    if (!uploadFile) {
+      toast.error('Παρακαλώ επιλέξτε αρχείο');
+      return;
+    }
+
+    setUploadLoading(true);
+    try {
+      // Upload file
+      const { data: { file_url } } = await base44.integrations.Core.UploadFile({ file: uploadFile });
+      
+      // Create dataset
+      const dataset = await base44.entities.Dataset.create({
+        name: uploadFile.name,
+        status: 'pending',
+        source_file_url: file_url
+      });
+
+      // Extract and import data
+      const sessionToken = localStorage.getItem('app_session_token');
+      const { data } = await base44.functions.invoke('importDataset', {
+        dataset_id: dataset.id,
+        file_url,
+        session_token: sessionToken
+      });
+
+      if (data.success) {
+        toast.success(`Εισήχθησαν ${data.imported_count} εγγραφές επιτυχώς`);
+        queryClient.invalidateQueries(['people']);
+        queryClient.invalidateQueries(['datasets']);
+        setUploadDialog(false);
+        setUploadFile(null);
+      } else {
+        toast.error(data.error || 'Σφάλμα κατά την εισαγωγή');
+      }
+    } catch (error) {
+      toast.error('Σφάλμα: ' + error.message);
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleActivateDataset = async (datasetId) => {
+    try {
+      const sessionToken = localStorage.getItem('app_session_token');
+      const { data } = await base44.functions.invoke('activateDataset', {
+        dataset_id: datasetId,
+        session_token: sessionToken
+      });
+
+      if (data.success) {
+        toast.success('Το dataset ενεργοποιήθηκε');
+        queryClient.invalidateQueries(['datasets']);
+      }
+    } catch (error) {
+      toast.error('Σφάλμα: ' + error.message);
+    }
+  };
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -138,6 +207,10 @@ export default function Records() {
         icon={Database}
         actions={
           <>
+            <Button variant="outline" onClick={() => setUploadDialog(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Εισαγωγή Αρχείου
+            </Button>
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Εξαγωγή
@@ -149,6 +222,40 @@ export default function Records() {
           </>
         }
       />
+
+      {/* Datasets */}
+      {datasets.length > 0 && (
+        <div className="bg-white rounded-lg border p-4 mb-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5" />
+            Datasets
+          </h3>
+          <div className="space-y-2">
+            {datasets.map(dataset => (
+              <div key={dataset.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div>
+                  <p className="font-medium">{dataset.name}</p>
+                  <p className="text-sm text-slate-600">
+                    {dataset.total_records || 0} εγγραφές • Κατάσταση: {dataset.status}
+                  </p>
+                </div>
+                {dataset.status !== 'active' && (
+                  <Button 
+                    size="sm"
+                    onClick={() => handleActivateDataset(dataset.id)}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Ενεργοποίηση
+                  </Button>
+                )}
+                {dataset.status === 'active' && (
+                  <Badge className="bg-green-100 text-green-700">Ενεργό</Badge>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DataGrid
         data={people}
@@ -322,6 +429,38 @@ export default function Records() {
               disabled={createMutation.isPending || updateMutation.isPending}
             >
               {editDialog.person ? 'Αποθήκευση' : 'Δημιουργία'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialog} onOpenChange={setUploadDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Εισαγωγή Αρχείου</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-slate-600">
+              Επιλέξτε ένα αρχείο Excel (.xlsx) ή CSV για εισαγωγή δεδομένων
+            </p>
+            <Input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={(e) => setUploadFile(e.target.files[0])}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadDialog(false)}>
+              Ακύρωση
+            </Button>
+            <Button 
+              onClick={handleFileUpload}
+              disabled={uploadLoading || !uploadFile}
+            >
+              {uploadLoading ? 'Εισαγωγή...' : 'Εισαγωγή'}
             </Button>
           </DialogFooter>
         </DialogContent>
