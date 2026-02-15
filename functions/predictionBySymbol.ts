@@ -4,12 +4,15 @@ Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         
+        // Parse request body
+        const body = await req.json();
+        const queryParams = new URLSearchParams(body.queryParams || '');
+        
         // Validate custom app session
-        const sessionToken = req.headers.get('Authorization')?.replace('Bearer ', '') || 
-                            new URL(req.url).searchParams.get('session_token');
+        const sessionToken = queryParams.get('session_token');
         
         if (!sessionToken) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+            return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
         }
 
         const sessions = await base44.asServiceRole.entities.AppSession.filter({ 
@@ -28,10 +31,10 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const url = new URL(req.url);
-        const yearFilter = url.searchParams.get('year');
-        const symbolFilter = url.searchParams.get('symbol');
-        const departmentFilter = url.searchParams.get('department');
+        // Get filters from query params
+        const yearFilter = queryParams.get('year');
+        const symbolFilter = queryParams.get('symbol');
+        const departmentFilter = queryParams.get('department');
 
         // Get active dataset
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
