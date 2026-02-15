@@ -43,6 +43,12 @@ export default function Predictions() {
     // Build filter query params
     const buildFilterParams = () => {
         const params = new URLSearchParams();
+        
+        // REQUIRED for backend auth
+        const sessionToken = localStorage.getItem('app_session_token');
+        if (sessionToken) params.set('session_token', sessionToken);
+        
+        // existing filters
         if (filters.years.length > 0) params.set('year', filters.years.join(','));
         if (filters.symbols.length > 0) params.set('symbol', filters.symbols.join(','));
         if (filters.departments.length > 0) params.set('department', filters.departments.join(','));
@@ -53,9 +59,8 @@ export default function Predictions() {
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading, error: kpisError } = useQuery({
         queryKey: ['predictionKPIs', filters],
         queryFn: async () => {
-            const sessionToken = localStorage.getItem('app_session_token');
             const { data } = await base44.functions.invoke('predictionKPIs', {
-                queryParams: buildFilterParams() + (buildFilterParams() ? '&' : '') + `session_token=${sessionToken}`
+                queryParams: buildFilterParams()
             });
             console.log('KPIs Response:', data);
             return data;
@@ -67,9 +72,8 @@ export default function Predictions() {
     const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading, error: symbolError } = useQuery({
         queryKey: ['predictionBySymbol', filters],
         queryFn: async () => {
-            const sessionToken = localStorage.getItem('app_session_token');
             const { data } = await base44.functions.invoke('predictionBySymbol', {
-                queryParams: buildFilterParams() + (buildFilterParams() ? '&' : '') + `session_token=${sessionToken}`
+                queryParams: buildFilterParams()
             });
             return data;
         },
@@ -80,9 +84,8 @@ export default function Predictions() {
     const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading, error: yearSymbolError } = useQuery({
         queryKey: ['predictionByYearSymbol', filters],
         queryFn: async () => {
-            const sessionToken = localStorage.getItem('app_session_token');
             const { data } = await base44.functions.invoke('predictionByYearSymbol', {
-                queryParams: buildFilterParams() + (buildFilterParams() ? '&' : '') + `session_token=${sessionToken}`
+                queryParams: buildFilterParams()
             });
             return data;
         },
@@ -93,8 +96,12 @@ export default function Predictions() {
     useEffect(() => {
         const loadFilterOptions = async () => {
             try {
+                const sessionToken = localStorage.getItem('app_session_token');
+                const params = new URLSearchParams();
+                if (sessionToken) params.set('session_token', sessionToken);
+                
                 const { data: persons } = await base44.functions.invoke('predictionByYearSymbol', {
-                    queryParams: ''
+                    queryParams: params.toString()
                 });
                 
                 const years = [...new Set(persons.rows.map(r => r.admission_year))].sort().reverse();
@@ -213,9 +220,12 @@ export default function Predictions() {
                         <div>
                             <label className="text-sm font-medium mb-2 block">Έτος Εισδοχής</label>
                             <Select
-                                value={filters.years.length > 0 ? 'selected' : 'all'}
+                                value={filters.years.length > 0 ? filters.years[0] : 'all'}
                                 onValueChange={(value) => {
-                                    if (value === 'all') setFilters(prev => ({ ...prev, years: [] }));
+                                    setFilters(prev => ({ 
+                                        ...prev, 
+                                        years: value === 'all' ? [] : [value]
+                                    }));
                                 }}
                             >
                                 <SelectTrigger>
@@ -233,9 +243,12 @@ export default function Predictions() {
                         <div>
                             <label className="text-sm font-medium mb-2 block">Σύμβολο Πρόβλεψης</label>
                             <Select
-                                value={filters.symbols.length > 0 ? 'selected' : 'all'}
+                                value={filters.symbols.length > 0 ? filters.symbols[0] : 'all'}
                                 onValueChange={(value) => {
-                                    if (value === 'all') setFilters(prev => ({ ...prev, symbols: [] }));
+                                    setFilters(prev => ({ 
+                                        ...prev, 
+                                        symbols: value === 'all' ? [] : [value]
+                                    }));
                                 }}
                             >
                                 <SelectTrigger>
@@ -253,9 +266,12 @@ export default function Predictions() {
                         <div>
                             <label className="text-sm font-medium mb-2 block">Τμήμα</label>
                             <Select
-                                value={filters.departments.length > 0 ? 'selected' : 'all'}
+                                value={filters.departments.length > 0 ? filters.departments[0] : 'all'}
                                 onValueChange={(value) => {
-                                    if (value === 'all') setFilters(prev => ({ ...prev, departments: [] }));
+                                    setFilters(prev => ({ 
+                                        ...prev, 
+                                        departments: value === 'all' ? [] : [value]
+                                    }));
                                 }}
                             >
                                 <SelectTrigger>
