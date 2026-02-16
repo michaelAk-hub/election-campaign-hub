@@ -88,7 +88,7 @@ export default function Dashboard() {
         voted: data.voted,
         percentage: Math.round((data.voted / data.total) * 100)
       }))
-      .sort((a, b) => b.total - a.total)
+      .sort((a, b) => b.voted - a.voted)
       .slice(0, 5);
   }, [people]);
 
