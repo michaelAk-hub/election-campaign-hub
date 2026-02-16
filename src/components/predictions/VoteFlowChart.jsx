@@ -38,7 +38,7 @@ export default function VoteFlowChart() {
     useEffect(() => {
         const loadSymbols = async () => {
             try {
-                const persons = await base44.asServiceRole.entities.Person.filter({});
+                const persons = await base44.entities.Person.list('-created_date', 10000);
                 const symbols = [...new Set(persons
                     .map(p => p.prediction_symbol)
                     .filter(Boolean)
