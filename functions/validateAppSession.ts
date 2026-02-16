@@ -28,6 +28,19 @@ Deno.serve(async (req) => {
             return Response.json({ valid: false, error: 'Η συνεδρία έληξε' }, { status: 401 });
         }
 
+        // Check for inactivity timeout (15 minutes)
+        const IDLE_TIMEOUT_MINUTES = 15;
+        const idleSeconds = (new Date().getTime() - new Date(session.last_seen_at).getTime()) / 1000;
+        
+        if (idleSeconds > IDLE_TIMEOUT_MINUTES * 60) {
+            await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+            return Response.json({ 
+                valid: false, 
+                error: 'Η συνεδρία σας έληξε λόγω αδράνειας',
+                reason: 'idle_timeout'
+            }, { status: 401 });
+        }
+
         // Get user
         const user = await base44.asServiceRole.entities.AppUser.get(session.app_user_id);
 
