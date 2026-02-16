@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/collapsible";
 import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import VoteFlowChart from '../components/predictions/VoteFlowChart';
 
 export default function Predictions() {
     const [filters, setFilters] = useState({
@@ -436,6 +437,9 @@ export default function Predictions() {
                     </Table>
                 </CardContent>
             </Card>
+
+            {/* Vote Flow Chart */}
+            <VoteFlowChart />
 
             {/* By Year Accordion */}
             <Card>
