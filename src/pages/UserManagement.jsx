@@ -9,10 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2, Circle } from 'lucide-react';
 import { createPageUrl } from '../utils';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { el } from 'date-fns/locale';
 
 export default function UserManagement() {
     const [currentUser, setCurrentUser] = useState(null);
@@ -81,6 +83,20 @@ export default function UserManagement() {
             }));
         },
         enabled: !!currentUser
+    });
+
+    // Fetch online status every 20 seconds
+    const { data: onlineStatus = { online_user_ids: [], last_seen: {} } } = useQuery({
+        queryKey: ['onlineStatus'],
+        queryFn: async () => {
+            const sessionToken = localStorage.getItem('app_session_token');
+            const { data } = await base44.functions.invoke('getOnlineStatus', {
+                session_token: sessionToken
+            });
+            return data;
+        },
+        enabled: !!currentUser,
+        refetchInterval: 20000 // Refresh every 20 seconds
     });
 
     const createOrganotikiMutation = useMutation({
@@ -279,6 +295,7 @@ export default function UserManagement() {
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΤΗΛΕΦΩΝΟ</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">EMAIL</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΚΩΔΙΚΟΣ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ONLINE</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΚΑΤΑΣΤΑΣΗ</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΕΝΕΡΓΕΙΕΣ</th>
                                     </tr>
@@ -296,6 +313,29 @@ export default function UserManagement() {
                                             <td className="px-4 py-3 text-sm">{user.phone}</td>
                                             <td className="px-4 py-3 text-sm">{user.email}</td>
                                             <td className="px-4 py-3 text-sm text-slate-400">••••••••</td>
+                                            <td className="px-4 py-3">
+                                                {onlineStatus.online_user_ids.includes(user.id) ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge className="bg-green-100 text-green-800">
+                                                            <Circle className="h-2 w-2 mr-1 fill-green-600" />
+                                                            Online
+                                                        </Badge>
+                                                        {onlineStatus.last_seen[user.id] && (
+                                                            <span className="text-xs text-slate-500">
+                                                                {formatDistanceToNow(new Date(onlineStatus.last_seen[user.id]), { 
+                                                                    addSuffix: true,
+                                                                    locale: el 
+                                                                })}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-600">
+                                                        <Circle className="h-2 w-2 mr-1" />
+                                                        Offline
+                                                    </Badge>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-3">
                                                 {user.is_active ? (
                                                     <Badge className="bg-green-100 text-green-800">

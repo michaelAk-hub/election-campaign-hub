@@ -85,6 +85,41 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
+  // Heartbeat mechanism - ping every 45 seconds
+  useEffect(() => {
+    const sessionToken = localStorage.getItem('app_session_token');
+    if (!sessionToken || !user) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        await base44.functions.invoke('sessionHeartbeat', {
+          session_token: sessionToken
+        });
+      } catch (e) {
+        console.error('Heartbeat failed:', e);
+      }
+    };
+
+    // Send initial heartbeat
+    sendHeartbeat();
+
+    // Send heartbeat every 45 seconds
+    const interval = setInterval(sendHeartbeat, 45000);
+
+    // Send heartbeat when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]);
+
   // Portal pages have their own layout
   if (portalPages.includes(currentPageName)) {
       return <>{children}</>;
