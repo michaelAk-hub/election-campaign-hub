@@ -220,85 +220,6 @@ export default function Predictions() {
                 </div>
             </div>
 
-            {/* Filters */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Φίλτρα</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="text-sm font-medium mb-2 block">Έτος Εισδοχής</label>
-                            <Select
-                                value={filters.years.length > 0 ? filters.years[0] : 'all'}
-                                onValueChange={(value) => {
-                                    setFilters(prev => ({ 
-                                        ...prev, 
-                                        years: value === 'all' ? [] : [value]
-                                    }));
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Όλα τα έτη" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Όλα τα έτη</SelectItem>
-                                    {availableFilters.years.map(year => (
-                                        <SelectItem key={year} value={year}>{year}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div>
-                            <label className="text-sm font-medium mb-2 block">Σύμβολο Πρόβλεψης</label>
-                            <Select
-                                value={filters.symbols.length > 0 ? filters.symbols[0] : 'all'}
-                                onValueChange={(value) => {
-                                    setFilters(prev => ({ 
-                                        ...prev, 
-                                        symbols: value === 'all' ? [] : [value]
-                                    }));
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Όλα τα σύμβολα" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Όλα τα σύμβολα</SelectItem>
-                                    {availableFilters.symbols.map(symbol => (
-                                        <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div>
-                            <label className="text-sm font-medium mb-2 block">Τμήμα</label>
-                            <Select
-                                value={filters.departments.length > 0 ? filters.departments[0] : 'all'}
-                                onValueChange={(value) => {
-                                    setFilters(prev => ({ 
-                                        ...prev, 
-                                        departments: value === 'all' ? [] : [value]
-                                    }));
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Όλα τα τμήματα" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Όλα τα τμήματα</SelectItem>
-                                    {availableFilters.departments.map(dept => (
-                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
             {/* Debug Info (temporary) */}
             {(kpis?.debug || kpisError || symbolError || yearSymbolError) && (
                 <Card className="bg-yellow-50 border-yellow-200">
@@ -438,9 +359,6 @@ export default function Predictions() {
                 </CardContent>
             </Card>
 
-            {/* Vote Flow Chart */}
-            <VoteFlowChart />
-
             {/* By Year Accordion */}
             <Card>
                 <CardHeader>
@@ -515,6 +433,9 @@ export default function Predictions() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Vote Flow Chart */}
+            <VoteFlowChart />
         </div>
     );
 }
