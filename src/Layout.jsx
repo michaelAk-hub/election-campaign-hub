@@ -31,11 +31,11 @@ const adminNavItems = [
   { name: 'Αποθηκευμένα Ερωτήματα', icon: SearchIcon, page: 'SavedQueries' },
   { name: 'Προβλέψεις', icon: GitCompare, page: 'Predictions' },
   { name: 'Σύγκριση & Συγχώνευση', icon: GitCompare, page: 'CompareMerge' },
-  { name: 'Χρεωστικοί', icon: UserPlus, page: 'ChreosiAccounts' },
+  { name: 'Χρεωστικά', icon: UserPlus, page: 'ChreosiAccounts' },
   { name: 'Κανάλι', icon: Vote, page: 'KanaliAccounts' },
   { name: 'Αποτυχημένες Ψήφοι', icon: FileSpreadsheet, page: 'NotFoundVoters' },
   { name: 'Μηνύματα', icon: MessageSquare, page: 'PushMessages' },
-  { name: 'Χρήστες Organotiki', icon: UserCog, page: 'UserManagement' },
+  { name: 'Οργανωτικοί (χρήστες)', icon: UserCog, page: 'UserManagement' },
   { name: 'Προτιμήσεις Ειδοποιήσεων', icon: Settings, page: 'NotificationPreferences' },
   { name: '🔐 Πύλη Χρηστών', icon: Users, page: 'PortalLogin', divider: true },
 ];
