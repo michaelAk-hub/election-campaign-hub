@@ -292,7 +292,10 @@ function KanaliTypeAPortal({ username }) {
         status = 'MARKED_VOTED';
         reason = 'Η ψήφος καταχωρήθηκε επιτυχώς';
         personRecordId = people[0].id;
-        await base44.entities.Person.update(people[0].id, { voted: true });
+        await base44.entities.Person.update(people[0].id, { 
+          voted: true,
+          voted_at: new Date().toISOString()
+        });
       }
 
       // Log submission
