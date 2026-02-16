@@ -23,7 +23,8 @@ import {
   Users,
   Vote,
   Eye,
-  EyeOff
+  EyeOff,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -32,6 +33,8 @@ import { el } from 'date-fns/locale';
 export default function PushMessages() {
   const queryClient = useQueryClient();
   const [sendDialog, setSendDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     body: '',
@@ -83,6 +86,14 @@ export default function PushMessages() {
     onSuccess: () => {
       queryClient.invalidateQueries(['push-messages']);
       toast.success('Το μήνυμα ενημερώθηκε');
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.PushMessage.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['push-messages']);
+      toast.success('Το μήνυμα διαγράφηκε');
     }
   });
 
@@ -141,20 +152,32 @@ export default function PushMessages() {
         columns={columns}
         pageSize={20}
         actions={(row) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => updateMutation.mutate({
-              id: row.id,
-              data: { ...row, is_active: !row.is_active }
-            })}
-          >
-            {row.is_active ? (
-              <EyeOff className="h-4 w-4 text-slate-500" />
-            ) : (
-              <Eye className="h-4 w-4 text-slate-500" />
-            )}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => updateMutation.mutate({
+                id: row.id,
+                data: { ...row, is_active: !row.is_active }
+              })}
+            >
+              {row.is_active ? (
+                <EyeOff className="h-4 w-4 text-slate-500" />
+              ) : (
+                <Eye className="h-4 w-4 text-slate-500" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setMessageToDelete(row);
+                setDeleteDialog(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
+          </div>
         )}
         emptyMessage="Δεν υπάρχουν μηνύματα"
       />
@@ -218,6 +241,39 @@ export default function PushMessages() {
             >
               <Send className="h-4 w-4 mr-2" />
               Αποστολή
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-sm text-slate-600">
+              Είστε σίγουροι ότι θέλετε να διαγράψετε το μήνυμα "{messageToDelete?.title}";
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog(false)}>
+              Ακύρωση
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => {
+                deleteMutation.mutate(messageToDelete.id);
+                setDeleteDialog(false);
+                setMessageToDelete(null);
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Διαγραφή
             </Button>
           </DialogFooter>
         </DialogContent>
