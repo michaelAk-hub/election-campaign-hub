@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { base44 } from '@/api/base44Client';
 import NotificationCenter from './components/notifications/NotificationCenter';
-import IdleTimeoutModal from './components/auth/IdleTimeoutModal';
 import {
   LayoutDashboard,
   Users,
@@ -47,15 +46,6 @@ export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // Idle timeout state
-  const [showTimeoutModal, setShowTimeoutModal] = useState(false);
-  const [remainingSeconds, setRemainingSeconds] = useState(120);
-  const lastActivityRef = useRef(Date.now());
-  const idleTimerRef = useRef(null);
-  const warningTimerRef = useRef(null);
-  const countdownIntervalRef = useRef(null);
-  const lastHeartbeatRef = useRef(Date.now());
 
   useEffect(() => {
     const loadUser = async () => {
@@ -95,125 +85,40 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
-  // Activity-based heartbeat (only when there's activity)
-  const sendHeartbeat = useCallback(async () => {
-    const sessionToken = localStorage.getItem('app_session_token');
-    if (!sessionToken) return;
-
-    const now = Date.now();
-    const timeSinceLastHeartbeat = now - lastHeartbeatRef.current;
-
-    // Throttle: send max 1 heartbeat per 45 seconds
-    if (timeSinceLastHeartbeat < 45000) return;
-
-    try {
-      await base44.functions.invoke('sessionHeartbeat', {
-        session_token: sessionToken
-      });
-      lastHeartbeatRef.current = now;
-    } catch (e) {
-      console.error('Heartbeat failed:', e);
-      // If heartbeat fails with 401 idle_timeout, logout
-      if (e.response?.data?.reason === 'idle_timeout') {
-        handleIdleLogout();
-      }
-    }
-  }, []);
-
-  // Reset idle timer on activity
-  const resetIdleTimer = useCallback(() => {
-    lastActivityRef.current = Date.now();
-    
-    // Clear existing timers
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    
-    setShowTimeoutModal(false);
-
-    // Send heartbeat (throttled)
-    sendHeartbeat();
-
-    // Set warning timer (13 minutes = 780 seconds)
-    warningTimerRef.current = setTimeout(() => {
-      setShowTimeoutModal(true);
-      setRemainingSeconds(120); // 2 minutes countdown
-      
-      // Start countdown
-      countdownIntervalRef.current = setInterval(() => {
-        setRemainingSeconds(prev => {
-          if (prev <= 1) {
-            handleIdleLogout();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }, 13 * 60 * 1000); // 13 minutes
-
-    // Set idle timeout (15 minutes = 900 seconds)
-    idleTimerRef.current = setTimeout(() => {
-      handleIdleLogout();
-    }, 15 * 60 * 1000); // 15 minutes
-  }, [sendHeartbeat]);
-
-  // Handle idle logout
-  const handleIdleLogout = useCallback(async () => {
-    const sessionToken = localStorage.getItem('app_session_token');
-    if (sessionToken) {
-      try {
-        await base44.functions.invoke('appLogout', { session_token: sessionToken });
-      } catch (e) {
-        // Ignore errors on logout
-      }
-    }
-    localStorage.removeItem('app_session_token');
-    localStorage.removeItem('app_user');
-    window.location.href = createPageUrl('AdminLogin') + '?reason=idle_timeout';
-  }, []);
-
-  // Handle continue button in modal
-  const handleContinue = useCallback(() => {
-    setShowTimeoutModal(false);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    resetIdleTimer();
-    // Send immediate heartbeat
-    sendHeartbeat();
-  }, [resetIdleTimer, sendHeartbeat]);
-
-  // Track user activity
+  // Heartbeat mechanism - ping every 45 seconds
   useEffect(() => {
-    if (!user) return;
+    const sessionToken = localStorage.getItem('app_session_token');
+    if (!sessionToken || !user) return;
 
-    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
-    
-    // Throttle activity tracking
-    let activityTimeout = null;
-    const handleActivity = () => {
-      if (activityTimeout) return;
-      activityTimeout = setTimeout(() => {
-        resetIdleTimer();
-        activityTimeout = null;
-      }, 1000); // Throttle to once per second
+    const sendHeartbeat = async () => {
+      try {
+        await base44.functions.invoke('sessionHeartbeat', {
+          session_token: sessionToken
+        });
+      } catch (e) {
+        console.error('Heartbeat failed:', e);
+      }
     };
 
-    activityEvents.forEach(event => {
-      window.addEventListener(event, handleActivity, { passive: true });
-    });
+    // Send initial heartbeat
+    sendHeartbeat();
 
-    // Initialize idle timer
-    resetIdleTimer();
+    // Send heartbeat every 45 seconds
+    const interval = setInterval(sendHeartbeat, 45000);
+
+    // Send heartbeat when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      activityEvents.forEach(event => {
-        window.removeEventListener(event, handleActivity);
-      });
-      if (activityTimeout) clearTimeout(activityTimeout);
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user, resetIdleTimer]);
+  }, [user]);
 
   // Portal pages have their own layout
   if (portalPages.includes(currentPageName)) {
@@ -261,14 +166,6 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Idle Timeout Modal */}
-      <IdleTimeoutModal
-        open={showTimeoutModal}
-        onContinue={handleContinue}
-        onLogout={handleIdleLogout}
-        remainingSeconds={remainingSeconds}
-      />
-
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4">
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
