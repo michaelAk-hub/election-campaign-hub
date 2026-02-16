@@ -28,8 +28,14 @@ const CHART_COLORS = [
 export default function VoteFlowChart() {
     const [showConfig, setShowConfig] = useState(false);
     const [availableSymbols, setAvailableSymbols] = useState([]);
-    const [parataksiList, setParataksiList] = useState([]);
-    const [chartData, setChartData] = useState(null);
+    const [parataksiList, setParataksiList] = useState(() => {
+        const saved = localStorage.getItem('voteFlow_parataksiList');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [chartData, setChartData] = useState(() => {
+        const saved = localStorage.getItem('voteFlow_chartData');
+        return saved ? JSON.parse(saved) : null;
+    });
     const [loading, setLoading] = useState(false);
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [refreshInterval, setRefreshInterval] = useState(null);
@@ -50,6 +56,20 @@ export default function VoteFlowChart() {
         };
         loadSymbols();
     }, []);
+
+    // Save parataksiList to localStorage whenever it changes
+    useEffect(() => {
+        if (parataksiList.length > 0) {
+            localStorage.setItem('voteFlow_parataksiList', JSON.stringify(parataksiList));
+        }
+    }, [parataksiList]);
+
+    // Save chartData to localStorage whenever it changes
+    useEffect(() => {
+        if (chartData) {
+            localStorage.setItem('voteFlow_chartData', JSON.stringify(chartData));
+        }
+    }, [chartData]);
 
     // Handle Start button
     const handleStart = () => {
@@ -167,6 +187,8 @@ export default function VoteFlowChart() {
         setParataksiList([]);
         setAutoRefresh(false);
         setShowConfig(false);
+        localStorage.removeItem('voteFlow_parataksiList');
+        localStorage.removeItem('voteFlow_chartData');
     };
 
     // Transform data for recharts
