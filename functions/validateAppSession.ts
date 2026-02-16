@@ -50,6 +50,23 @@ Deno.serve(async (req) => {
             return Response.json({ valid: false, error: 'Ο λογαριασμός σας έχει απενεργοποιηθεί' }, { status: 403 });
         }
 
+        // Check for idle timeout (15 minutes = 900 seconds)
+        const IDLE_TIMEOUT_SECONDS = 15 * 60;
+        if (session.last_seen_at) {
+            const lastSeenDate = new Date(session.last_seen_at);
+            const now = new Date();
+            const idleSeconds = (now - lastSeenDate) / 1000;
+            
+            if (idleSeconds > IDLE_TIMEOUT_SECONDS) {
+                await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+                return Response.json({ 
+                    valid: false, 
+                    reason: 'idle_timeout',
+                    error: 'Η συνεδρία σας έληξε λόγω αδράνειας' 
+                }, { status: 401 });
+            }
+        }
+
         return Response.json({
             valid: true,
             user: {

@@ -84,7 +84,7 @@ export default function Layout({ children, currentPageName }) {
           } else {
             localStorage.removeItem('app_session_token');
             localStorage.removeItem('app_user');
-            if (data.force_logout) {
+            if (data.force_logout || data.reason === 'idle_timeout') {
               window.location.href = createPageUrl('AdminLogin');
               return;
             }
@@ -368,6 +368,46 @@ export default function Layout({ children, currentPageName }) {
           {children}
         </div>
       </main>
+
+      {/* Timeout Warning Modal */}
+      <Dialog open={showTimeoutWarning} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" hideClose>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <DialogTitle className="text-xl">Προειδοποίηση Αδράνειας</DialogTitle>
+            </div>
+            <DialogDescription className="text-base">
+              Η συνεδρία σας θα λήξει σύντομα λόγω αδράνειας. Θα αποσυνδεθείτε αυτόματα σε:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-6">
+            <div className="text-center">
+              <div className="text-5xl font-bold text-slate-900 mb-2">
+                {Math.floor(timeoutCountdown / 60)}:{String(timeoutCountdown % 60).padStart(2, '0')}
+              </div>
+              <div className="text-sm text-slate-500">λεπτά</div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={handleIdleLogout}
+              className="w-full sm:w-auto"
+            >
+              Αποσύνδεση Τώρα
+            </Button>
+            <Button
+              onClick={handleStayLoggedIn}
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+            >
+              Συνέχεια Σύνδεσης
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
