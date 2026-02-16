@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2, Circle } from 'lucide-react';
+import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2, Circle, RefreshCw } from 'lucide-react';
 import { createPageUrl } from '../utils';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'sonner';
@@ -237,15 +237,24 @@ export default function UserManagement() {
                                 </p>
                             </div>
                         </div>
-                        {isAdmin && (
+                        <div className="flex items-center gap-2">
                             <Button
-                                onClick={() => setShowCreateDialog(true)}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                variant="outline"
+                                onClick={() => queryClient.invalidateQueries({ queryKey: ['onlineStatus'] })}
                             >
-                                <UserPlus className="h-4 w-4 mr-2" />
-                                Νέος Οργανωτικός
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Ανανέωση
                             </Button>
-                        )}
+                            {isAdmin && (
+                                <Button
+                                    onClick={() => setShowCreateDialog(true)}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                    Νέος Οργανωτικός
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </CardHeader>
 
