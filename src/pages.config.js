@@ -54,7 +54,6 @@ import CompareMerge from './pages/CompareMerge';
 import CreateTestUser from './pages/CreateTestUser';
 import Dashboard from './pages/Dashboard';
 import DataGrid from './pages/DataGrid';
-import Documentation from './pages/Documentation';
 import KanaliAccounts from './pages/KanaliAccounts';
 import KanaliPortal from './pages/KanaliPortal';
 import NotFoundVoters from './pages/NotFoundVoters';
@@ -77,7 +76,6 @@ export const PAGES = {
     "CreateTestUser": CreateTestUser,
     "Dashboard": Dashboard,
     "DataGrid": DataGrid,
-    "Documentation": Documentation,
     "KanaliAccounts": KanaliAccounts,
     "KanaliPortal": KanaliPortal,
     "NotFoundVoters": NotFoundVoters,

@@ -18,7 +18,6 @@ import {
     Vote,
     UserCog,
     Search as SearchIcon,
-    FileText,
     AlertTriangle
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,6 @@ const adminNavItems = [
   { name: 'Μηνύματα', icon: MessageSquare, page: 'PushMessages' },
   { name: 'Χρήστες Organotiki', icon: UserCog, page: 'UserManagement' },
   { name: 'Προτιμήσεις Ειδοποιήσεων', icon: Settings, page: 'NotificationPreferences' },
-  { name: 'Τεκμηρίωση', icon: FileText, page: 'Documentation' },
   { name: '🔐 Πύλη Χρηστών', icon: Users, page: 'PortalLogin', divider: true },
 ];
 
