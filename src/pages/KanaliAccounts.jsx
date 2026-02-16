@@ -48,8 +48,8 @@ function generatePassword(length = 8) {
   return password;
 }
 
-function generateUsername() {
-  return 'kanali_' + Math.random().toString(36).substring(2, 8);
+function generateUsername(type, existingCount) {
+  return `kanali_${type}${existingCount + 1}`;
 }
 
 export default function KanaliAccounts() {
@@ -116,8 +116,9 @@ export default function KanaliAccounts() {
 
   const handleCreateAccounts = async () => {
     const newAccounts = [];
+    const existingAccountsOfType = accounts.filter(a => a.user_type === accountType).length;
     for (let i = 0; i < numAccounts; i++) {
-      const username = generateUsername();
+      const username = generateUsername(accountType, existingAccountsOfType + i);
       const password = generatePassword();
       await createMutation.mutateAsync({
         username,
