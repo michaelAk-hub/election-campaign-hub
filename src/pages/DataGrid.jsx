@@ -525,8 +525,8 @@ export default function DataGrid() {
 
                 {/* AG Grid */}
                 <div className="ag-theme-alpine w-full" style={{ 
-                    height: isMobile ? 'calc(100vh - 280px)' : 'calc(100vh - 280px)', 
-                    minHeight: isMobile ? '300px' : '400px' 
+                    height: isMobile ? 'calc(100vh - 220px)' : 'calc(100vh - 200px)', 
+                    minHeight: isMobile ? '400px' : '500px' 
                 }}>
                     <AgGridReact
                         ref={gridRef}
