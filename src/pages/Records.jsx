@@ -277,51 +277,52 @@ export default function Records() {
         subtitle={`${people.length.toLocaleString('el-GR')} συνολικά εγγραφές`}
         icon={Database}
         actions={
-          <>
-            <Button variant="outline" onClick={() => setUploadDialog(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Εισαγωγή Αρχείου
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setUploadDialog(true)} className="h-10">
+              <Upload className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Εισαγωγή</span>
             </Button>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Εξαγωγή
+            <Button variant="outline" onClick={handleExport} className="h-10">
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Εξαγωγή</span>
             </Button>
-            <Button onClick={() => { setFormData({}); setAddDialog(true); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Νέα Εγγραφή
+            <Button onClick={() => { setFormData({}); setAddDialog(true); }} className="h-10">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Νέα</span>
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAllPersons}>
+            <Button variant="destructive" onClick={handleDeleteAllPersons} className="h-10 hidden sm:flex">
               <Trash2 className="h-4 w-4 mr-2" />
               Διαγραφή Όλων
             </Button>
-          </>
+          </div>
         }
       />
 
       {/* Datasets */}
       {datasets.length > 0 && (
-        <div className="bg-white rounded-lg border p-4 mb-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
+        <div className="bg-white rounded-lg border p-3 sm:p-4 mb-4 sm:mb-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5" />
             Datasets
           </h3>
           <div className="space-y-2">
             {datasets.map(dataset => (
-              <div key={dataset.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                <div>
-                  <p className="font-medium">{dataset.name}</p>
-                  <p className="text-sm text-slate-600">
-                    {dataset.total_records || 0} εγγραφές • Κατάσταση: {dataset.status}
+              <div key={dataset.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 rounded-lg gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm sm:text-base truncate">{dataset.name}</p>
+                  <p className="text-xs sm:text-sm text-slate-600">
+                    {dataset.total_records || 0} εγγραφές • {dataset.status}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {dataset.status !== 'active' && (
                     <Button 
                       size="sm"
                       onClick={() => handleActivateDataset(dataset.id)}
+                      className="h-9"
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Ενεργοποίηση
+                      <CheckCircle2 className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Ενεργοποίηση</span>
                     </Button>
                   )}
                   {dataset.status === 'active' && (
@@ -331,6 +332,7 @@ export default function Records() {
                     size="sm"
                     variant="destructive"
                     onClick={() => handleDeleteDataset(dataset.id)}
+                    className="h-9 w-9 p-0"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

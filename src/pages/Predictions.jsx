@@ -195,27 +195,28 @@ export default function Predictions() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-start">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Προβλέψεις</h1>
-                    <p className="text-slate-600 mt-1">Ανάλυση συμβόλων πρόβλεψης και ψηφοφορίας</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Προβλέψεις</h1>
+                    <p className="text-sm sm:text-base text-slate-600 mt-1">Ανάλυση συμβόλων πρόβλεψης και ψηφοφορίας</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     <Button
                         variant="outline"
                         onClick={() => setAutoRefresh(!autoRefresh)}
-                        className={cn(autoRefresh && "bg-blue-50 border-blue-300")}
+                        className={cn("h-10 flex-1 sm:flex-initial", autoRefresh && "bg-blue-50 border-blue-300")}
                     >
-                        <RefreshCw className={cn("h-4 w-4 mr-2", autoRefresh && "animate-spin")} />
-                        Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+                        <RefreshCw className={cn("h-4 w-4 sm:mr-2", autoRefresh && "animate-spin")} />
+                        <span className="hidden sm:inline">Auto-refresh {autoRefresh ? 'ON' : 'OFF'}</span>
+                        <span className="sm:hidden">{autoRefresh ? 'ON' : 'OFF'}</span>
                     </Button>
-                    <Button variant="outline" onClick={handleRefresh}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Ανανέωση
+                    <Button variant="outline" onClick={handleRefresh} className="h-10 flex-1 sm:flex-initial">
+                        <RefreshCw className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Ανανέωση</span>
                     </Button>
-                    <Button onClick={handleExport}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Εξαγωγή
+                    <Button onClick={handleExport} className="h-10 flex-1 sm:flex-initial">
+                        <Download className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Εξαγωγή</span>
                     </Button>
                 </div>
             </div>
@@ -245,58 +246,58 @@ export default function Predictions() {
             )}
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            Σύνολο Εγγραφών
+                    <CardHeader className="pb-2 sm:pb-3">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-1 sm:gap-2">
+                            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="truncate">Σύνολο</span>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-slate-900">
+                        <div className="text-xl sm:text-3xl font-bold text-slate-900">
                             {loading ? '...' : kpis?.total?.toLocaleString('el-GR') || 0}
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                            Ψήφισαν
+                    <CardHeader className="pb-2 sm:pb-3">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-1 sm:gap-2">
+                            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                            <span className="truncate">Ψήφισαν</span>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-green-600">
+                        <div className="text-xl sm:text-3xl font-bold text-green-600">
                             {loading ? '...' : kpis?.voted_yes?.toLocaleString('el-GR') || 0}
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
-                            <XCircle className="h-4 w-4 text-orange-600" />
-                            Δεν Ψήφισαν
+                    <CardHeader className="pb-2 sm:pb-3">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-1 sm:gap-2">
+                            <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
+                            <span className="truncate">Δεν Ψήφισαν</span>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-orange-600">
+                        <div className="text-xl sm:text-3xl font-bold text-orange-600">
                             {loading ? '...' : kpis?.voted_no?.toLocaleString('el-GR') || 0}
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4 text-blue-600" />
-                            % Ψήφισαν
+                    <CardHeader className="pb-2 sm:pb-3">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-1 sm:gap-2">
+                            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                            <span className="truncate">% Ψήφισαν</span>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-blue-600">
+                        <div className="text-xl sm:text-3xl font-bold text-blue-600">
                             {loading ? '...' : `${kpis?.voted_yes_percent || 0}%`}
                         </div>
                     </CardContent>
@@ -305,18 +306,18 @@ export default function Predictions() {
 
             {/* By Symbol Table */}
             <Card>
-                <CardHeader>
-                    <CardTitle>Ανά Σύμβολο Πρόβλεψης</CardTitle>
+                <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-base sm:text-lg">Ανά Σύμβολο Πρόβλεψης</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="overflow-x-auto -mx-2 sm:mx-0">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Σύμβολο</TableHead>
-                                <TableHead className="text-right">Σύνολο</TableHead>
-                                <TableHead className="text-right">Ψήφισαν</TableHead>
-                                <TableHead className="text-right">Δεν Ψήφισαν</TableHead>
-                                <TableHead className="text-right">% Ψήφισαν</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Σύμβολο</TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm">Σύνολο</TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm hidden sm:table-cell">Ψήφισαν</TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm hidden sm:table-cell">Δεν Ψήφισαν</TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm">%</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -330,12 +331,12 @@ export default function Predictions() {
                                 <>
                                     {bySymbol.rows.map((row, idx) => (
                                         <TableRow key={idx}>
-                                            <TableCell className="font-medium">{row.symbol}</TableCell>
-                                            <TableCell className="text-right font-bold">{row.total.toLocaleString('el-GR')}</TableCell>
-                                            <TableCell className="text-right font-bold text-green-600">{row.voted_yes.toLocaleString('el-GR')}</TableCell>
-                                            <TableCell className="text-right font-bold text-orange-600">{row.voted_no.toLocaleString('el-GR')}</TableCell>
-                                            <TableCell className="text-right font-bold">
-                                                {row.total > 0 ? `${((row.voted_yes / row.total) * 100).toFixed(2)}%` : '0.00%'}
+                                            <TableCell className="font-medium text-xs sm:text-sm">{row.symbol}</TableCell>
+                                            <TableCell className="text-right font-bold text-xs sm:text-sm">{row.total.toLocaleString('el-GR')}</TableCell>
+                                            <TableCell className="text-right font-bold text-green-600 text-xs sm:text-sm hidden sm:table-cell">{row.voted_yes.toLocaleString('el-GR')}</TableCell>
+                                            <TableCell className="text-right font-bold text-orange-600 text-xs sm:text-sm hidden sm:table-cell">{row.voted_no.toLocaleString('el-GR')}</TableCell>
+                                            <TableCell className="text-right font-bold text-xs sm:text-sm">
+                                                {row.total > 0 ? `${((row.voted_yes / row.total) * 100).toFixed(0)}%` : '0%'}
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -361,8 +362,8 @@ export default function Predictions() {
 
             {/* By Year Accordion */}
             <Card>
-                <CardHeader>
-                    <CardTitle>Ανά Έτος Εισδοχής</CardTitle>
+                <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-base sm:text-lg">Ανά Έτος Εισδοχής</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                     {loading ? (

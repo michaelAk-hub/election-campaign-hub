@@ -199,25 +199,25 @@ export default function Dashboard() {
         subtitle="Επισκόπηση της εκλογικής διαδικασίας"
         icon={LayoutDashboard}
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={downloadTemplate}>
-              <Download className="h-4 w-4 mr-2" />
-              Πρότυπο
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={downloadTemplate} className="h-10">
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Πρότυπο</span>
             </Button>
-            <Button variant="default" onClick={() => setUploadDialog(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Εισαγωγή
+            <Button variant="default" onClick={() => setUploadDialog(true)} className="h-10">
+              <Upload className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Εισαγωγή</span>
             </Button>
-            <Button variant="outline" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Ανανέωση
+            <Button variant="outline" onClick={() => refetch()} className="h-10">
+              <RefreshCw className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Ανανέωση</span>
             </Button>
           </div>
         }
       />
 
       {/* Main Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Σύνολο Εγγραφών"
           value={totalPeople.toLocaleString('el-GR')}
@@ -268,23 +268,24 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Department Stats */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Κορυφαία Τμήματα</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
+            <CardTitle className="text-base sm:text-lg">Κορυφαία Τμήματα</CardTitle>
             <Link to={createPageUrl('Records')}>
-              <Button variant="ghost" size="sm">
-                Όλα <ArrowRight className="h-4 w-4 ml-1" />
+              <Button variant="ghost" size="sm" className="h-9">
+                <span className="hidden sm:inline">Όλα</span>
+                <ArrowRight className="h-4 w-4 sm:ml-1" />
               </Button>
             </Link>
           </CardHeader>
           <CardContent className="space-y-4">
             {departmentStats.map((dept, idx) => (
               <div key={dept.department} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700 truncate max-w-[200px]">{dept.department}</span>
-                  <span className="text-slate-500">
+                <div className="flex items-center justify-between text-xs sm:text-sm">
+                  <span className="text-slate-700 truncate max-w-[140px] sm:max-w-[200px]">{dept.department}</span>
+                  <span className="text-slate-500 whitespace-nowrap ml-2">
                     {dept.voted}/{dept.total} ({dept.percentage}%)
                   </span>
                 </div>
@@ -296,35 +297,35 @@ export default function Dashboard() {
 
         {/* Account Stats */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Λογαριασμοί</CardTitle>
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="text-base sm:text-lg">Λογαριασμοί</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <UserCheck className="h-5 w-5 text-blue-600" />
+          <CardContent className="space-y-3 sm:space-y-4">
+            <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-lg">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+                  <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-slate-900">Χρεωστικοί</p>
-                  <p className="text-sm text-slate-500">Ενεργοί λογαριασμοί</p>
+                  <p className="text-sm sm:text-base font-medium text-slate-900">Χρεωστικοί</p>
+                  <p className="text-xs sm:text-sm text-slate-500">Ενεργοί λογαριασμοί</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold text-slate-900">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900">
                 {chreosiAccounts.filter(a => a.is_active).length}
               </span>
             </div>
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Vote className="h-5 w-5 text-purple-600" />
+            <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-lg">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg">
+                  <Vote className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-slate-900">Κανάλι</p>
-                  <p className="text-sm text-slate-500">Ενεργοί λογαριασμοί</p>
+                  <p className="text-sm sm:text-base font-medium text-slate-900">Κανάλι</p>
+                  <p className="text-xs sm:text-sm text-slate-500">Ενεργοί λογαριασμοί</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold text-slate-900">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900">
                 {kanaliAccounts.filter(a => a.is_active).length}
               </span>
             </div>
@@ -334,11 +335,12 @@ export default function Dashboard() {
 
       {/* Recent Submissions */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Πρόσφατες Καταχωρήσεις Κανάλι</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
+          <CardTitle className="text-base sm:text-lg">Πρόσφατες Καταχωρήσεις Κανάλι</CardTitle>
           <Link to={createPageUrl('NotFoundVoters')}>
-            <Button variant="ghost" size="sm">
-              Προβολή Όλων <ArrowRight className="h-4 w-4 ml-1" />
+            <Button variant="ghost" size="sm" className="h-9">
+              <span className="hidden sm:inline">Προβολή Όλων</span>
+              <ArrowRight className="h-4 w-4 sm:ml-1" />
             </Button>
           </Link>
         </CardHeader>
@@ -350,26 +352,26 @@ export default function Dashboard() {
               {recentSubmissions.slice(0, 5).map(sub => (
                 <div 
                   key={sub.id} 
-                  className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                  className="flex items-center justify-between p-2 sm:p-3 bg-slate-50 rounded-lg gap-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-1.5 rounded-full ${
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className={`p-1 sm:p-1.5 rounded-full flex-shrink-0 ${
                       sub.status === 'MARKED_VOTED' 
                         ? 'bg-emerald-100' 
                         : 'bg-red-100'
                     }`}>
                       {sub.status === 'MARKED_VOTED' ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-600" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-600" />
                       )}
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">ID: {sub.submitted_id}</p>
-                      <p className="text-xs text-slate-500">{sub.kanali_username}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-slate-900 truncate">ID: {sub.submitted_id}</p>
+                      <p className="text-xs text-slate-500 truncate">{sub.kanali_username}</p>
                     </div>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
                     sub.status === 'MARKED_VOTED'
                       ? 'bg-emerald-100 text-emerald-700'
                       : sub.status === 'ALREADY_VOTED'
@@ -388,7 +390,7 @@ export default function Dashboard() {
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialog} onOpenChange={setUploadDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Εισαγωγή Δεδομένων από Excel/CSV</DialogTitle>
           </DialogHeader>
