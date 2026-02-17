@@ -9,8 +9,8 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { searchParams } = new URL(req.url);
-        const grid_key = searchParams.get('grid_key');
+        const body = await req.json();
+        const { grid_key } = body;
 
         if (!grid_key) {
             return Response.json({ error: 'Missing grid_key' }, { status: 400 });
