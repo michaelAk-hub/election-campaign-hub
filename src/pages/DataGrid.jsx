@@ -400,11 +400,11 @@ export default function DataGrid() {
     }), [savingCells]);
 
     return (
-        <div className="space-y-4">
-            <Card>
+        <div className="space-y-4 p-2 sm:p-0">
+            <Card className="overflow-hidden">
                 {/* Toolbar */}
-                <div className="flex flex-wrap items-center gap-3 p-4 bg-white border-b">
-                    <div className="relative flex-1 min-w-[200px]">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white border-b">
+                    <div className="relative flex-1 min-w-full sm:min-w-[200px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                             placeholder="Αναζήτηση σε όλα τα πεδία..."
@@ -414,33 +414,36 @@ export default function DataGrid() {
                         />
                     </div>
                     
-                    <Button
-                        variant={showFilters ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setShowFilters(!showFilters)}
-                    >
-                        <Filter className="h-4 w-4 mr-2" />
-                        Φίλτρα
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            variant={showFilters ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="flex-1 sm:flex-initial"
+                        >
+                            <Filter className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Φίλτρα</span>
+                        </Button>
 
-                    <Button variant="outline" size="sm" onClick={handleExport}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export
-                    </Button>
+                        <Button variant="outline" size="sm" onClick={handleExport} className="flex-1 sm:flex-initial">
+                            <Download className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Export</span>
+                        </Button>
 
-                    <Button variant="outline" size="sm" onClick={() => refetch()}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Ανανέωση
-                    </Button>
+                        <Button variant="outline" size="sm" onClick={() => refetch()} className="flex-1 sm:flex-initial">
+                            <RefreshCw className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Ανανέωση</span>
+                        </Button>
 
-                    <Button variant="outline" size="sm" onClick={handleResetLayout}>
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Reset Layout
-                    </Button>
+                        <Button variant="outline" size="sm" onClick={handleResetLayout} className="flex-1 sm:flex-initial">
+                            <RotateCcw className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Reset</span>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* AG Grid */}
-                <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+                <div className="ag-theme-alpine w-full" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
                     <AgGridReact
                         ref={gridRef}
                         rowData={rowData}
@@ -452,17 +455,13 @@ export default function DataGrid() {
                         onColumnVisible={onColumnVisible}
                         animateRows={true}
                         rowSelection="multiple"
-                        enableRangeSelection={true}
                         suppressMovableColumns={false}
-                        enableCellChangeFlash={true}
                         stopEditingWhenCellsLoseFocus={true}
                         singleClickEdit={false}
                         enterNavigatesVertically={true}
                         enterNavigatesVerticallyAfterEdit={true}
                         undoRedoCellEditing={true}
                         undoRedoCellEditingLimit={20}
-                        enableFillHandle={true}
-                        fillHandleDirection="y"
                         getRowId={(params) => params.data.id}
                         loading={isLoading}
                         overlayLoadingTemplate='<span class="ag-overlay-loading-center">Φόρτωση δεδομένων...</span>'
@@ -471,18 +470,20 @@ export default function DataGrid() {
                 </div>
 
                 {/* Status Bar */}
-                <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-t text-xs text-slate-600">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 bg-slate-50 border-t text-xs text-slate-600 gap-2">
                     <div className="flex items-center gap-4">
                         <span>
                             Εγγραφές: <strong>{rowData.length}</strong> / {gridData?.total || 0}
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                         {lastSync && (
                             <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                Τελευταίος συγχρονισμός: {new Date(lastSync).toLocaleTimeString('el-GR')}
+                                <span className="hidden sm:inline">Τελευταίος συγχρονισμός:</span>
+                                <span className="sm:hidden">Sync:</span>
+                                {new Date(lastSync).toLocaleTimeString('el-GR')}
                             </span>
                         )}
                         
@@ -559,6 +560,21 @@ export default function DataGrid() {
                 .ag-overlay-no-rows-center {
                     padding: 20px;
                     color: #64748b;
+                }
+                
+                /* Mobile optimizations */
+                @media (max-width: 640px) {
+                    .ag-theme-alpine {
+                        font-size: 12px;
+                    }
+                    
+                    .ag-theme-alpine .ag-header-cell {
+                        padding: 8px 4px;
+                    }
+                    
+                    .ag-theme-alpine .ag-cell {
+                        padding: 8px 4px;
+                    }
                 }
             `}</style>
         </div>
