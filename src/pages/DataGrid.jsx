@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
 import ConflictResolutionDialog from '../components/datagrid/ConflictResolutionDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
     Search,
     Filter,
@@ -19,7 +20,9 @@ import {
     CheckCircle2,
     Loader2,
     AlertCircle,
-    Clock
+    Clock,
+    Columns3,
+    MoreVertical
 } from 'lucide-react';
 
 const GRID_KEY = 'data_grid_person';
@@ -36,6 +39,18 @@ export default function DataGrid() {
     const [rowData, setRowData] = useState([]);
     const [conflictDialog, setConflictDialog] = useState(null);
     const [savingCells, setSavingCells] = useState(new Set());
+    const [showColumnPicker, setShowColumnPicker] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Detect mobile
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     // Load grid preferences
     const { data: preferences } = useQuery({
@@ -53,85 +68,97 @@ export default function DataGrid() {
             headerName: 'ΑΤ (ID)',
             editable: true,
             filter: 'agTextColumnFilter',
-            pinned: 'left',
-            width: 120
+            pinned: isMobile ? null : 'left',
+            width: isMobile ? 100 : 120,
+            hide: false
         },
         {
             field: 'first_name',
             headerName: 'Όνομα',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 150
+            width: isMobile ? 120 : 150,
+            hide: false
         },
         {
             field: 'last_name',
             headerName: 'Επώνυμο',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 150
+            width: isMobile ? 120 : 150,
+            hide: false
         },
         {
             field: 'mobile_phone',
             headerName: 'Κινητό',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 140
+            width: isMobile ? 110 : 140,
+            hide: isMobile
         },
         {
             field: 'department',
             headerName: 'Τμήμα',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 200
+            width: isMobile ? 140 : 200,
+            hide: isMobile
         },
         {
             field: 'admission_year',
             headerName: 'Έτος Εισδοχής',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 140
+            width: isMobile ? 100 : 140,
+            hide: isMobile
         },
         {
             field: 'academic_level',
             headerName: 'Επίπεδο',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 150
+            width: isMobile ? 100 : 150,
+            hide: isMobile
         },
         {
             field: 'ucid',
             headerName: 'UCID',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 120
+            width: isMobile ? 100 : 120,
+            hide: isMobile
         },
         {
             field: 'contact_person_1',
             headerName: 'Άτομο 1',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 150
+            width: isMobile ? 120 : 150,
+            hide: isMobile
         },
         {
             field: 'contact_person_2',
             headerName: 'Άτομο 2',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 150
+            width: isMobile ? 120 : 150,
+            hide: isMobile
         },
         {
             field: 'member',
             headerName: 'Μέλος',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 120
+            width: isMobile ? 100 : 120,
+            hide: isMobile
         },
         {
             field: 'prediction_symbol',
             headerName: 'Σύμβολο Πρόβλεψης',
             editable: true,
             filter: 'agTextColumnFilter',
-            width: 160
+            width: isMobile ? 120 : 160,
+            hide: isMobile
         },
         {
             field: 'voted',
@@ -145,7 +172,8 @@ export default function DataGrid() {
                 valueListGap: 0,
                 formatValue: (value) => value ? 'Ναι' : 'Όχι'
             },
-            width: 100
+            width: isMobile ? 80 : 100,
+            hide: false
         },
         {
             field: 'notes',
@@ -153,15 +181,17 @@ export default function DataGrid() {
             editable: true,
             filter: 'agTextColumnFilter',
             cellEditor: 'agLargeTextCellEditor',
-            width: 200
+            width: isMobile ? 150 : 200,
+            hide: isMobile
         },
         {
             field: 'dataset_id',
             headerName: 'Dataset ID',
             editable: false,
             filter: 'agTextColumnFilter',
-            width: 150,
-            cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' }
+            width: isMobile ? 120 : 150,
+            cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' },
+            hide: true
         },
         {
             field: 'created_date',
@@ -172,10 +202,11 @@ export default function DataGrid() {
                 if (!params.value) return '-';
                 return new Date(params.value).toLocaleString('el-GR');
             },
-            width: 180,
-            cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' }
+            width: isMobile ? 140 : 180,
+            cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' },
+            hide: isMobile
         }
-    ], []);
+    ], [isMobile]);
 
     // Default grid options
     const defaultColDef = useMemo(() => ({
@@ -399,51 +430,104 @@ export default function DataGrid() {
         }
     }), [savingCells]);
 
+    // Toggle column visibility
+    const toggleColumnVisibility = useCallback((field) => {
+        if (gridRef.current) {
+            const columnState = gridRef.current.api.getColumnState();
+            const column = columnState.find(col => col.colId === field);
+            if (column) {
+                gridRef.current.api.setColumnVisible(field, column.hide);
+            }
+        }
+    }, []);
+
+    // Get visible columns
+    const getVisibleColumns = useCallback(() => {
+        if (!gridRef.current) return [];
+        return gridRef.current.api.getColumnState().map(col => ({
+            field: col.colId,
+            hide: col.hide,
+            headerName: columnDefs.find(c => c.field === col.colId)?.headerName || col.colId
+        }));
+    }, [columnDefs]);
+
     return (
         <div className="space-y-4 p-2 sm:p-0">
             <Card className="overflow-hidden">
                 {/* Toolbar */}
-                <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white border-b">
-                    <div className="relative flex-1 min-w-full sm:min-w-[200px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <div className="flex flex-col gap-2 p-3 sm:p-4 bg-white border-b">
+                    <div className="relative w-full">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                         <Input
                             placeholder="Αναζήτηση σε όλα τα πεδία..."
                             value={searchQuery}
                             onChange={(e) => onSearchChange(e.target.value)}
-                            className="pl-9"
+                            className="pl-9 h-11 text-base"
                         />
                     </div>
                     
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
                         <Button
                             variant={showFilters ? "default" : "outline"}
                             size="sm"
                             onClick={() => setShowFilters(!showFilters)}
-                            className="flex-1 sm:flex-initial"
+                            className="h-10"
                         >
-                            <Filter className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Φίλτρα</span>
+                            <Filter className="h-4 w-4 mr-1.5" />
+                            Φίλτρα
                         </Button>
 
-                        <Button variant="outline" size="sm" onClick={handleExport} className="flex-1 sm:flex-initial">
-                            <Download className="h-4 w-4 sm:mr-2" />
+                        {isMobile && (
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => setShowColumnPicker(true)}
+                                className="h-10"
+                            >
+                                <Columns3 className="h-4 w-4 mr-1.5" />
+                                Στήλες
+                            </Button>
+                        )}
+
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleExport}
+                            className="h-10"
+                        >
+                            <Download className="h-4 w-4 mr-1.5" />
                             <span className="hidden sm:inline">Export</span>
                         </Button>
 
-                        <Button variant="outline" size="sm" onClick={() => refetch()} className="flex-1 sm:flex-initial">
-                            <RefreshCw className="h-4 w-4 sm:mr-2" />
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => refetch()}
+                            className="h-10"
+                        >
+                            <RefreshCw className="h-4 w-4 mr-1.5" />
                             <span className="hidden sm:inline">Ανανέωση</span>
                         </Button>
 
-                        <Button variant="outline" size="sm" onClick={handleResetLayout} className="flex-1 sm:flex-initial">
-                            <RotateCcw className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Reset</span>
-                        </Button>
+                        {!isMobile && (
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleResetLayout}
+                                className="h-10"
+                            >
+                                <RotateCcw className="h-4 w-4 mr-1.5" />
+                                Reset
+                            </Button>
+                        )}
                     </div>
                 </div>
 
                 {/* AG Grid */}
-                <div className="ag-theme-alpine w-full" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
+                <div className="ag-theme-alpine w-full" style={{ 
+                    height: isMobile ? 'calc(100vh - 280px)' : 'calc(100vh - 280px)', 
+                    minHeight: isMobile ? '300px' : '400px' 
+                }}>
                     <AgGridReact
                         ref={gridRef}
                         rowData={rowData}
@@ -455,9 +539,9 @@ export default function DataGrid() {
                         onColumnVisible={onColumnVisible}
                         animateRows={true}
                         rowSelection="multiple"
-                        suppressMovableColumns={false}
+                        suppressMovableColumns={isMobile}
                         stopEditingWhenCellsLoseFocus={true}
-                        singleClickEdit={false}
+                        singleClickEdit={isMobile}
                         enterNavigatesVertically={true}
                         enterNavigatesVerticallyAfterEdit={true}
                         undoRedoCellEditing={true}
@@ -518,6 +602,32 @@ export default function DataGrid() {
                 </div>
             </Card>
 
+            {/* Column Picker Dialog for Mobile */}
+            {isMobile && (
+                <Dialog open={showColumnPicker} onOpenChange={setShowColumnPicker}>
+                    <DialogContent className="max-w-sm max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Επιλογή Στηλών</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-2 py-4">
+                            {getVisibleColumns().map(col => (
+                                <div key={col.field} className="flex items-center justify-between py-2 px-3 rounded hover:bg-slate-50">
+                                    <span className="text-sm">{col.headerName}</span>
+                                    <Button
+                                        variant={col.hide ? "outline" : "default"}
+                                        size="sm"
+                                        onClick={() => toggleColumnVisibility(col.field)}
+                                        className="h-8"
+                                    >
+                                        {col.hide ? 'Εμφάνιση' : 'Απόκρυψη'}
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
+
             {/* Conflict Resolution Dialog */}
             <ConflictResolutionDialog
                 open={!!conflictDialog}
@@ -563,17 +673,51 @@ export default function DataGrid() {
                 }
                 
                 /* Mobile optimizations */
-                @media (max-width: 640px) {
+                @media (max-width: 768px) {
                     .ag-theme-alpine {
+                        font-size: 13px;
+                    }
+                    
+                    .ag-theme-alpine .ag-header {
                         font-size: 12px;
                     }
                     
                     .ag-theme-alpine .ag-header-cell {
-                        padding: 8px 4px;
+                        padding: 10px 6px;
+                        min-height: 48px;
                     }
                     
                     .ag-theme-alpine .ag-cell {
-                        padding: 8px 4px;
+                        padding: 12px 6px;
+                        min-height: 48px;
+                        line-height: 1.4;
+                    }
+                    
+                    .ag-theme-alpine .ag-row {
+                        min-height: 48px;
+                    }
+                    
+                    /* Better touch targets for editors */
+                    .ag-theme-alpine .ag-cell-inline-editing {
+                        height: 48px;
+                        padding: 8px;
+                    }
+                    
+                    .ag-theme-alpine input[type="text"],
+                    .ag-theme-alpine textarea {
+                        font-size: 16px;
+                        min-height: 44px;
+                        padding: 10px;
+                    }
+                    
+                    /* Horizontal scrolling indicator */
+                    .ag-theme-alpine .ag-body-horizontal-scroll-viewport {
+                        height: 12px;
+                    }
+                    
+                    .ag-theme-alpine .ag-horizontal-left-spacer,
+                    .ag-theme-alpine .ag-horizontal-right-spacer {
+                        height: 12px;
                     }
                 }
             `}</style>
