@@ -210,6 +210,7 @@ export default function DataGrid() {
     // Update row data when grid data changes
     useEffect(() => {
         if (gridData?.data) {
+            console.log("🔍 [DataGrid] Setting row data:", gridData.data.length, "rows, total:", gridData.total);
             setRowData(gridData.data);
         }
     }, [gridData]);
@@ -298,6 +299,7 @@ export default function DataGrid() {
             const api = gridRef.current.api;
             const state = preferences.state_json;
             
+            console.log("🔍 [DataGrid] Applying grid preferences:", state.columnState);
             if (state.columnState) {
                 api.applyColumnState({ state: state.columnState, applyOrder: true });
             }

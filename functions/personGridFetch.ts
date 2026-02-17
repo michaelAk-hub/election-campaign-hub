@@ -72,6 +72,8 @@ Deno.serve(async (req) => {
         const end = start + pageSize;
         const paginatedPersons = allPersons.slice(start, end);
 
+        console.log("🔍 [personGridFetch] Returning data:", paginatedPersons.length, "rows, total:", total, "search:", search);
+
         return Response.json({
             data: paginatedPersons,
             total,
@@ -81,6 +83,7 @@ Deno.serve(async (req) => {
         });
 
     } catch (error) {
+        console.error("❌ [personGridFetch] Error:", error.message);
         return Response.json({ error: error.message }, { status: 500 });
     }
 });
