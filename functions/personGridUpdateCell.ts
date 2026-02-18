@@ -34,15 +34,37 @@ Deno.serve(async (req) => {
 
         // Validate field is editable
         const nonEditableFields = ['id', 'created_date', 'updated_date', 'created_by', 'updated_by', 'row_version'];
+        
         if (nonEditableFields.includes(field)) {
             return Response.json({ error: 'Field is not editable' }, { status: 403 });
         }
 
+        // Build update payload based on field type
+        let updatePayload = {};
+        
+        if (field === 'custom_data') {
+            // When field is custom_data, the value passed is the entire custom_data object
+            updatePayload = {
+                custom_data: value,
+                row_version: currentPerson.row_version + 1
+            };
+        } else if (field === 'voted') {
+            // Handle voted field and voted_at timestamp
+            updatePayload = {
+                voted: value,
+                voted_at: value ? new Date().toISOString() : null,
+                row_version: currentPerson.row_version + 1
+            };
+        } else {
+            // Standard field update
+            updatePayload = {
+                [field]: value,
+                row_version: currentPerson.row_version + 1
+            };
+        }
+
         // Update with version increment
-        const updatedPerson = await base44.entities.Person.update(person_id, {
-            [field]: value,
-            row_version: currentPerson.row_version + 1
-        });
+        const updatedPerson = await base44.entities.Person.update(person_id, updatePayload);
 
         return Response.json({
             success: true,
