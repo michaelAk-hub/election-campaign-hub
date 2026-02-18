@@ -44,11 +44,14 @@ const AVAILABLE_COLUMNS = [
   { key: 'first_name', label: 'Όνομα', type: 'text' },
   { key: 'department', label: 'Τμήμα', type: 'text' },
   { key: 'admission_year', label: 'Εισδοχή', type: 'text' },
+  { key: 'academic_level', label: 'Επίπεδο', type: 'text' },
+  { key: 'ucid', label: 'UCID', type: 'text' },
   { key: 'mobile_phone', label: 'Κινητό', type: 'text' },
   { key: 'contact_person_1', label: 'Άτομο 1', type: 'text' },
   { key: 'contact_person_2', label: 'Άτομο 2', type: 'text' },
   { key: 'voted', label: 'Ψήφισε', type: 'boolean' },
   { key: 'member', label: 'Μέλος', type: 'text' },
+  { key: 'prediction_symbol', label: 'Σύμβολο Πρόβλεψης', type: 'text' },
   { key: 'notes', label: 'Σημειώσεις', type: 'text' },
 ];
 
@@ -131,7 +134,7 @@ export default function SavedQueries() {
       });
       
       // Replace field references with values
-      const fieldPattern = /\b(person_id|last_name|first_name|department|admission_year|mobile_phone|contact_person_1|contact_person_2|voted|member|notes)\b/g;
+      const fieldPattern = /\b(person_id|last_name|first_name|department|admission_year|academic_level|ucid|mobile_phone|contact_person_1|contact_person_2|voted|member|prediction_symbol|notes)\b/g;
       expr = expr.replace(fieldPattern, (match) => {
         const value = person[match];
         if (match === 'voted') return value ? 'true' : 'false';
