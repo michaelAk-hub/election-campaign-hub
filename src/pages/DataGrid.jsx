@@ -61,8 +61,18 @@ export default function DataGrid() {
         }
     });
 
-    // Column definitions based on Person schema
-    const columnDefs = useMemo(() => [
+    // Fetch active dataset schema for custom columns
+    const { data: datasetSchema } = useQuery({
+        queryKey: ['datasetSchema'],
+        queryFn: async () => {
+            const { data } = await base44.functions.invoke('datasetGetActiveSchema');
+            return data;
+        }
+    });
+
+    // Column definitions based on Person schema + dynamic custom columns
+    const columnDefs = useMemo(() => {
+        const baseColumns = [
         {
             field: 'person_id',
             headerName: 'ΑΤ (ID)',
@@ -206,7 +216,31 @@ export default function DataGrid() {
             cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' },
             hide: isMobile
         }
-    ], [isMobile]);
+    ];
+
+        // Add dynamic custom columns from dataset schema
+        const customColumns = (datasetSchema?.customFields || []).map(fieldDef => ({
+            field: `custom_data.${fieldDef.field_key}`,
+            headerName: fieldDef.display_label,
+            editable: true,
+            filter: 'agTextColumnFilter',
+            width: 150,
+            hide: isMobile,
+            valueGetter: (params) => {
+                return params.data?.custom_data?.[fieldDef.field_key] || '';
+            },
+            valueSetter: (params) => {
+                if (!params.data.custom_data) {
+                    params.data.custom_data = {};
+                }
+                params.data.custom_data[fieldDef.field_key] = params.newValue;
+                return true;
+            },
+            cellStyle: { backgroundColor: '#fefce8' }
+        }));
+
+        return [...baseColumns, ...customColumns];
+    }, [isMobile, datasetSchema]);
 
     // Default grid options
     const defaultColDef = useMemo(() => ({
@@ -316,10 +350,19 @@ export default function DataGrid() {
         
         if (newValue === oldValue) return;
         
+        // Handle custom_data fields differently
+        let field = colDef.field;
+        let value = newValue;
+        
+        if (field.startsWith('custom_data.')) {
+            field = 'custom_data';
+            value = data.custom_data; // Send entire custom_data object
+        }
+        
         cellEditMutation.mutate({
             id: data.id,
-            field: colDef.field,
-            value: newValue,
+            field: field,
+            value: value,
             expected_row_version: data.row_version
         });
     }, [cellEditMutation]);
