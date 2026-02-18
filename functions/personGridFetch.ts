@@ -3,14 +3,33 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const user = await base44.auth.me();
         
-        if (!user) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        // Parse request body
+        const body = await req.json();
+        
+        // Validate custom app session (like other functions)
+        const sessionToken = localStorage?.getItem('app_session_token') || body.session_token;
+        
+        // Try base44 auth first
+        let user = null;
+        try {
+            user = await base44.auth.me();
+        } catch (e) {
+            // If base44 auth fails, try custom session validation
+            if (!sessionToken) {
+                return Response.json({ error: 'Unauthorized' }, { status: 401 });
+            }
+            
+            const sessions = await base44.asServiceRole.entities.AppSession.filter({ 
+                session_token: sessionToken,
+                is_active: true 
+            });
+            
+            if (sessions.length === 0) {
+                return Response.json({ error: 'Invalid session' }, { status: 401 });
+            }
         }
 
-        // Read from request body instead of URL params
-        const body = await req.json();
         const page = parseInt(body.page || '1');
         const pageSize = parseInt(body.pageSize || '50');
         const sortField = body.sortField || 'created_date';
