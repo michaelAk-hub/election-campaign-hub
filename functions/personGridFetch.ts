@@ -9,13 +9,14 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { searchParams } = new URL(req.url);
-        const page = parseInt(searchParams.get('page') || '1');
-        const pageSize = parseInt(searchParams.get('pageSize') || '50');
-        const sortField = searchParams.get('sortField') || 'created_date';
-        const sortDirection = searchParams.get('sortDirection') || 'desc';
-        const search = searchParams.get('search') || '';
-        const filtersParam = searchParams.get('filters');
+        // Read from request body instead of URL params
+        const body = await req.json();
+        const page = parseInt(body.page || '1');
+        const pageSize = parseInt(body.pageSize || '50');
+        const sortField = body.sortField || 'created_date';
+        const sortDirection = body.sortDirection || 'desc';
+        const search = body.search || '';
+        const filtersParam = body.filters;
 
         let allPersons = await base44.entities.Person.list();
 
