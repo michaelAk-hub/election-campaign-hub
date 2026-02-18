@@ -7,7 +7,15 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileSpreadsheet, Download, RefreshCw, Trash2 } from 'lucide-react';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from "@/components/ui/dialog";
+import { FileSpreadsheet, Download, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
@@ -15,6 +23,7 @@ import { el } from 'date-fns/locale';
 export default function NotFoundVoters() {
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { data: notFoundVoters = [], isLoading, refetch } = useQuery({
     queryKey: ['not-found-voters'],
@@ -35,17 +44,17 @@ export default function NotFoundVoters() {
     }
   });
 
-  const handleDelete = () => {
+  const handleDeleteClick = () => {
     if (selectedIds.length === 0) {
       toast.error('Δεν έχετε επιλέξει καταχωρήσεις');
       return;
     }
-    const message = selectedIds.length === 1 
-      ? 'Διαγραφή 1 καταχώρησης;'
-      : `Διαγραφή ${selectedIds.length} καταχωρήσεων;`;
-    if (confirm(message)) {
-      deleteMutation.mutate(selectedIds);
-    }
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    deleteMutation.mutate(selectedIds);
+    setShowDeleteDialog(false);
   };
 
   const toggleSelectAll = () => {
@@ -136,7 +145,7 @@ export default function NotFoundVoters() {
             {selectedIds.length > 0 && (
               <Button 
                 variant="destructive" 
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 disabled={deleteMutation.isPending}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -161,6 +170,44 @@ export default function NotFoundVoters() {
         pageSize={25}
         emptyMessage="Δεν υπάρχουν αποτυχημένες καταχωρήσεις"
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <DialogTitle className="text-xl">Επιβεβαίωση Διαγραφής</DialogTitle>
+            </div>
+            <DialogDescription className="text-base pt-2">
+              {selectedIds.length === 1 
+                ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε 1 καταχώρηση;'
+                : `Είστε σίγουροι ότι θέλετε να διαγράψετε ${selectedIds.length} καταχωρήσεις;`
+              }
+              <br />
+              <span className="text-red-600 font-medium">Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Ακύρωση
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Διαγραφή
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
