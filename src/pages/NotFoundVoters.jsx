@@ -40,7 +40,10 @@ export default function NotFoundVoters() {
       toast.error('Δεν έχετε επιλέξει καταχωρήσεις');
       return;
     }
-    if (confirm(`Διαγραφή ${selectedIds.length} καταχωρήσεων;`)) {
+    const message = selectedIds.length === 1 
+      ? 'Διαγραφή 1 καταχώρησης;'
+      : `Διαγραφή ${selectedIds.length} καταχωρήσεων;`;
+    if (confirm(message)) {
       deleteMutation.mutate(selectedIds);
     }
   };
