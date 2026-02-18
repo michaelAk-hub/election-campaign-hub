@@ -31,6 +31,7 @@ const POLL_INTERVAL = 8000;
 export default function DataGrid() {
     const gridRef = useRef();
     const queryClient = useQueryClient();
+    const [gridApi, setGridApi] = useState(null);
     
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
@@ -324,24 +325,24 @@ export default function DataGrid() {
         });
     }, [cellEditMutation]);
 
-    // Apply grid preferences
+    // Apply grid preferences when gridApi is ready
     useEffect(() => {
-        if (preferences?.state_json && gridRef.current?.api) {
-            const api = gridRef.current.api;
+        if (preferences?.state_json && gridApi) {
             const state = preferences.state_json;
             
             console.log("🔍 [DataGrid] Applying grid preferences:", state.columnState);
             if (state.columnState) {
-                api.applyColumnState({ state: state.columnState, applyOrder: true });
+                gridApi.applyColumnState({ state: state.columnState, applyOrder: true });
             }
         }
-    }, [preferences]);
+    }, [preferences, gridApi]);
 
     // Save grid preferences (debounced)
     const savePreferences = useMemo(
-        () => debounce(async (api) => {
+        () => debounce(async () => {
+            if (!gridApi) return;
             try {
-                const columnState = api.getColumnState();
+                const columnState = gridApi.getColumnState();
                 await base44.functions.invoke('gridPreferencesSave', {
                     grid_key: GRID_KEY,
                     state_json: { columnState }
@@ -350,45 +351,39 @@ export default function DataGrid() {
                 console.error('Failed to save preferences:', error);
             }
         }, 1000),
-        []
+        [gridApi]
     );
 
     // Grid events
     const onColumnMoved = useCallback(() => {
-        if (gridRef.current) {
-            savePreferences(gridRef.current.api);
-        }
+        savePreferences();
     }, [savePreferences]);
 
     const onColumnResized = useCallback(() => {
-        if (gridRef.current) {
-            savePreferences(gridRef.current.api);
-        }
+        savePreferences();
     }, [savePreferences]);
 
     const onColumnVisible = useCallback(() => {
-        if (gridRef.current) {
-            savePreferences(gridRef.current.api);
-        }
+        savePreferences();
     }, [savePreferences]);
 
     // Export to CSV
     const handleExport = useCallback(() => {
-        if (gridRef.current) {
-            gridRef.current.api.exportDataAsCsv({
+        if (gridApi) {
+            gridApi.exportDataAsCsv({
                 fileName: `person_data_${new Date().toISOString().split('T')[0]}.csv`
             });
             toast.success('Τα δεδομένα εξήχθησαν επιτυχώς');
         }
-    }, []);
+    }, [gridApi]);
 
     // Reset layout
     const handleResetLayout = async () => {
         try {
             await base44.functions.invoke('gridPreferencesReset', { grid_key: GRID_KEY });
             queryClient.invalidateQueries(['gridPreferences']);
-            if (gridRef.current) {
-                gridRef.current.api.resetColumnState();
+            if (gridApi) {
+                gridApi.resetColumnState();
             }
             toast.success('Το layout επαναφέρθηκε');
         } catch (error) {
@@ -432,24 +427,24 @@ export default function DataGrid() {
 
     // Toggle column visibility
     const toggleColumnVisibility = useCallback((field) => {
-        if (gridRef.current) {
-            const columnState = gridRef.current.api.getColumnState();
+        if (gridApi) {
+            const columnState = gridApi.getColumnState();
             const column = columnState.find(col => col.colId === field);
             if (column) {
-                gridRef.current.api.setColumnVisible(field, column.hide);
+                gridApi.setColumnVisible(field, column.hide);
             }
         }
-    }, []);
+    }, [gridApi]);
 
     // Get visible columns
     const getVisibleColumns = useCallback(() => {
-        if (!gridRef.current) return [];
-        return gridRef.current.api.getColumnState().map(col => ({
+        if (!gridApi) return [];
+        return gridApi.getColumnState().map(col => ({
             field: col.colId,
             hide: col.hide,
             headerName: columnDefs.find(c => c.field === col.colId)?.headerName || col.colId
         }));
-    }, [columnDefs]);
+    }, [gridApi, columnDefs]);
 
     return (
         <div className="space-y-4 p-2 sm:p-0">
@@ -533,12 +528,13 @@ export default function DataGrid() {
                         rowData={rowData}
                         columnDefs={columnDefs}
                         defaultColDef={defaultColDef}
+                        onGridReady={(params) => setGridApi(params.api)}
                         onCellValueChanged={onCellValueChanged}
                         onColumnMoved={onColumnMoved}
                         onColumnResized={onColumnResized}
                         onColumnVisible={onColumnVisible}
                         animateRows={true}
-                        rowSelection="multiple"
+                        rowSelection={{ mode: "multiRow" }}
                         suppressMovableColumns={isMobile}
                         stopEditingWhenCellsLoseFocus={true}
                         singleClickEdit={isMobile}
