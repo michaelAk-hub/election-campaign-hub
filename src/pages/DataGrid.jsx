@@ -326,7 +326,7 @@ export default function DataGrid() {
 
     // Apply grid preferences
     useEffect(() => {
-        if (preferences?.state_json && gridRef.current) {
+        if (preferences?.state_json && gridRef.current?.api) {
             const api = gridRef.current.api;
             const state = preferences.state_json;
             
