@@ -37,7 +37,8 @@ Deno.serve(async (req) => {
         const search = body.search || '';
         const filtersParam = body.filters;
 
-        let allPersons = await base44.entities.Person.list();
+        // Get all Person records using service role
+        let allPersons = await base44.asServiceRole.entities.Person.list();
 
         // Global search
         if (search) {
