@@ -35,7 +35,8 @@ import {
   Copy,
   CheckCircle2,
   Plus,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -59,6 +60,7 @@ export default function KanaliAccounts() {
   const [numAccounts, setNumAccounts] = useState(5);
   const [accountType, setAccountType] = useState('A');
   const [selectedIds, setSelectedIds] = useState([]);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, ids: [], single: false, username: '' });
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['kanali-accounts'],
@@ -254,11 +256,7 @@ export default function KanaliAccounts() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε ${selectedIds.length} λογαριασμούς;`)) {
-                  bulkDeleteMutation.mutate(selectedIds);
-                }
-              }}
+              onClick={() => setDeleteDialog({ open: true, ids: selectedIds, single: false, username: '' })}
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Διαγραφή
@@ -309,11 +307,7 @@ export default function KanaliAccounts() {
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => {
-                  if (confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον λογαριασμό ${row.username}?`)) {
-                    deleteMutation.mutate(row.id);
-                  }
-                }}
+                onClick={() => setDeleteDialog({ open: true, ids: [row.id], single: true, username: row.username })}
                 className="text-red-600"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -323,6 +317,56 @@ export default function KanaliAccounts() {
           </DropdownMenu>
         )}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, ids: [], single: false, username: '' })}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <DialogTitle className="text-xl">Επιβεβαίωση Διαγραφής</DialogTitle>
+            </div>
+            <DialogDescription className="text-base pt-2">
+              {deleteDialog.single ? (
+                <>
+                  Είστε σίγουροι ότι θέλετε να διαγράψετε τον λογαριασμό <strong>{deleteDialog.username}</strong>;
+                </>
+              ) : (
+                deleteDialog.ids.length === 1 
+                  ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε 1 λογαριασμό;'
+                  : `Είστε σίγουροι ότι θέλετε να διαγράψετε ${deleteDialog.ids.length} λογαριασμούς;`
+              )}
+              <br />
+              <span className="text-red-600 font-medium">Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialog({ open: false, ids: [], single: false, username: '' })}
+            >
+              Ακύρωση
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteDialog.single) {
+                  deleteMutation.mutate(deleteDialog.ids[0]);
+                } else {
+                  bulkDeleteMutation.mutate(deleteDialog.ids);
+                }
+                setDeleteDialog({ open: false, ids: [], single: false, username: '' });
+              }}
+              disabled={deleteMutation.isPending || bulkDeleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Διαγραφή
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Accounts Dialog */}
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
