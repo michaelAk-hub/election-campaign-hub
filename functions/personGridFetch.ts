@@ -3,42 +3,21 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
+        const user = await base44.auth.me();
         
-        // Parse request body
-        const body = await req.json();
-        
-        // Validate custom app session (like other functions)
-        const sessionToken = localStorage?.getItem('app_session_token') || body.session_token;
-        
-        // Try base44 auth first
-        let user = null;
-        try {
-            user = await base44.auth.me();
-        } catch (e) {
-            // If base44 auth fails, try custom session validation
-            if (!sessionToken) {
-                return Response.json({ error: 'Unauthorized' }, { status: 401 });
-            }
-            
-            const sessions = await base44.asServiceRole.entities.AppSession.filter({ 
-                session_token: sessionToken,
-                is_active: true 
-            });
-            
-            if (sessions.length === 0) {
-                return Response.json({ error: 'Invalid session' }, { status: 401 });
-            }
+        if (!user) {
+            return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const page = parseInt(body.page || '1');
-        const pageSize = parseInt(body.pageSize || '50');
-        const sortField = body.sortField || 'created_date';
-        const sortDirection = body.sortDirection || 'desc';
-        const search = body.search || '';
-        const filtersParam = body.filters;
+        const { searchParams } = new URL(req.url);
+        const page = parseInt(searchParams.get('page') || '1');
+        const pageSize = parseInt(searchParams.get('pageSize') || '50');
+        const sortField = searchParams.get('sortField') || 'created_date';
+        const sortDirection = searchParams.get('sortDirection') || 'desc';
+        const search = searchParams.get('search') || '';
+        const filtersParam = searchParams.get('filters');
 
-        // Get all Person records using service role
-        let allPersons = await base44.asServiceRole.entities.Person.list();
+        let allPersons = await base44.entities.Person.list();
 
         // Global search
         if (search) {
