@@ -534,7 +534,6 @@ export default function DataGrid() {
                         onColumnResized={onColumnResized}
                         onColumnVisible={onColumnVisible}
                         animateRows={true}
-                        rowSelection={{ mode: "multiRow" }}
                         suppressMovableColumns={isMobile}
                         stopEditingWhenCellsLoseFocus={true}
                         singleClickEdit={isMobile}
