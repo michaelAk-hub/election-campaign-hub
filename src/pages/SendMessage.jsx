@@ -340,10 +340,7 @@ export default function SendMessage() {
           <CardContent>
             <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
               <div className="flex gap-3">
-                {notificationType === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-                {notificationType === 'warning' && <AlertCircle className="h-5 w-5 text-amber-600" />}
-                {notificationType === 'error' && <AlertCircle className="h-5 w-5 text-red-600" />}
-                {notificationType === 'info' && <AlertCircle className="h-5 w-5 text-blue-600" />}
+                <AlertCircle className="h-5 w-5 text-blue-600" />
                 <div className="flex-1">
                   <h4 className="font-semibold text-sm text-slate-900">
                     {title || 'Τίτλος μηνύματος'}
