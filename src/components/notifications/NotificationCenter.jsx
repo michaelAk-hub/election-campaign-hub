@@ -126,21 +126,57 @@ export default function NotificationCenter({ userType, username }) {
       {/* Hidden audio element for notification sound */}
       <audio ref={audioRef} src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ4GV63k8LJoIA4+ltrzxnMpBSh+zPHZizkIEmq98N+ZTBELV67i8bllIA5Akdfy0n4rBSl+zPHaizsIF2u+7+CbUw8FWK/k8LNoIA4/ltrzxnMpBSl+zPHaizsIF2y+7+CbUw8FWK/k8LNoIA0/ltvzxnMpBSl/zPHaizsIF2y+7uCbUw8FWK/k8LNoIA0/ltvzxnMpBSl/zPHaizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHaizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUw8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoIA0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8LJoHw0+ltvzxnMpBSl/zPHbizsIF2y+7uCbUg8FWK/k8A==" />
       
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className={cn("relative", isBlinking && "animate-pulse")}
-        onClick={() => setOpen(true)}
+      <motion.div
+        animate={unreadCount > 0 && !open ? {
+          scale: [1, 1.2, 1, 1.2, 1],
+        } : {
+          scale: 1
+        }}
+        transition={{
+          duration: 2,
+          repeat: unreadCount > 0 && !open ? Infinity : 0,
+          repeatDelay: 1
+        }}
       >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <Badge 
-            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-600 animate-pulse"
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="relative"
+          onClick={() => setOpen(true)}
+        >
+          <motion.div
+            animate={unreadCount > 0 && !open ? {
+              color: ['#475569', '#dc2626', '#475569', '#dc2626', '#475569']
+            } : {}}
+            transition={{
+              duration: 2,
+              repeat: unreadCount > 0 && !open ? Infinity : 0,
+              repeatDelay: 1
+            }}
           >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </Badge>
-        )}
-      </Button>
+            <Bell className="h-5 w-5" />
+          </motion.div>
+          {unreadCount > 0 && (
+            <motion.div
+              animate={{
+                scale: [1, 1.2, 1, 1.2, 1],
+                backgroundColor: ['#dc2626', '#ef4444', '#dc2626', '#ef4444', '#dc2626']
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                repeatDelay: 1
+              }}
+            >
+              <Badge 
+                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-600"
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Badge>
+            </motion.div>
+          )}
+        </Button>
+      </motion.div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
