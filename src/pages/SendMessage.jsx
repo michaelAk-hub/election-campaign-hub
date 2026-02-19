@@ -19,7 +19,6 @@ export default function SendMessage() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [notificationType, setNotificationType] = useState('info');
   const [recipientMode, setRecipientMode] = useState('groups'); // 'groups' or 'specific'
   
   // Group recipients
@@ -53,7 +52,7 @@ export default function SendMessage() {
         for (const group of selectedGroups) {
           notifications.push({
             recipient_type: group,
-            type: notificationType,
+            type: 'info',
             title,
             message,
             read: false
@@ -65,7 +64,7 @@ export default function SendMessage() {
           notifications.push({
             recipient_type: user.type,
             recipient_username: user.username,
-            type: notificationType,
+            type: 'info',
             title,
             message,
             read: false
@@ -123,12 +122,7 @@ export default function SendMessage() {
     { value: 'all', label: 'Όλοι οι χρήστες', icon: Users }
   ];
 
-  const notificationTypes = [
-    { value: 'info', label: 'Πληροφορία', color: 'bg-blue-100 text-blue-800' },
-    { value: 'success', label: 'Επιτυχία', color: 'bg-green-100 text-green-800' },
-    { value: 'warning', label: 'Προειδοποίηση', color: 'bg-amber-100 text-amber-800' },
-    { value: 'error', label: 'Σφάλμα', color: 'bg-red-100 text-red-800' }
-  ];
+
 
   if (loadingAppUsers || loadingChreosi || loadingKanali) {
     return <LoadingSpinner text="Φόρτωση χρηστών..." />;
@@ -175,24 +169,7 @@ export default function SendMessage() {
                 <p className="text-xs text-slate-500 mt-1">{message.length}/500</p>
               </div>
 
-              <div>
-                <Label>Τύπος Ειδοποίησης</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {notificationTypes.map((type) => (
-                    <Badge
-                      key={type.value}
-                      className={`cursor-pointer ${
-                        notificationType === type.value 
-                          ? type.color 
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                      onClick={() => setNotificationType(type.value)}
-                    >
-                      {type.label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+
             </CardContent>
           </Card>
         </div>

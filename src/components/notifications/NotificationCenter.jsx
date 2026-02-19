@@ -28,12 +28,12 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
+import { motion } from 'framer-motion';
 
 export default function NotificationCenter({ userType, username }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState('all');
-  const [isBlinking, setIsBlinking] = useState(false);
   const audioRef = useRef(null);
   const prevCountRef = useRef(0);
 
@@ -51,17 +51,13 @@ export default function NotificationCenter({ userType, username }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // Play notification sound and blink on new notification
+  // Play notification sound on new notification
   useEffect(() => {
     if (unreadCount > prevCountRef.current && prevCountRef.current !== 0) {
       // New notification arrived
       if (audioRef.current) {
         audioRef.current.play().catch(e => console.log('Audio play failed:', e));
       }
-      
-      // Start blinking
-      setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 3000);
     }
     prevCountRef.current = unreadCount;
   }, [unreadCount]);
