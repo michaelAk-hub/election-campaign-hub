@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [uploadFile, setUploadFile] = useState(null);
   const [importMode, setImportMode] = useState('append');
   const [isUploading, setIsUploading] = useState(false);
+  const [showDynamicImport, setShowDynamicImport] = useState(false);
 
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
     queryKey: ['people'],
