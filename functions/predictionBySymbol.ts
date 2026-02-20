@@ -48,10 +48,23 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Get all Person records from active dataset
-        const allPersons = await base44.asServiceRole.entities.Person.filter({ 
-            dataset_id: activeDatasets[0].id 
-        });
+        // Get all Person records from active dataset with pagination (5000 limit per request)
+        let allPersons = [];
+        let skip = 0;
+        const limit = 5000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const batch = await base44.asServiceRole.entities.Person.filter(
+                { dataset_id: activeDatasets[0].id },
+                '-created_date',
+                limit,
+                skip
+            );
+            allPersons = allPersons.concat(batch);
+            skip += limit;
+            hasMore = batch.length === limit;
+        }
 
         // Apply filters
         let filtered = allPersons;
