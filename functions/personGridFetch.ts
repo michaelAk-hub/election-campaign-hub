@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
         const search = searchParams.get('search') || '';
         const filtersParam = searchParams.get('filters');
 
-        let allPersons = await base44.entities.Person.list('created_date', 10000);
+        let allPersons = await base44.entities.Person.list();
 
         // Global search
         if (search) {
