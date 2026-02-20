@@ -278,7 +278,7 @@ export default function Dashboard() {
               <Download className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Πρότυπο</span>
             </Button>
-            <Button variant="default" onClick={() => setUploadDialog(true)} className="h-10">
+            <Button variant="default" onClick={() => setShowDynamicImport(true)} className="h-10">
               <Upload className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Εισαγωγή</span>
             </Button>
