@@ -303,13 +303,13 @@ export default function DataGrid() {
     // Cell edit mutation
     const cellEditMutation = useMutation({
         mutationFn: async ({ id, field, value, expected_row_version }) => {
-            const { data } = await base44.functions.invoke('personGridUpdateCell', {
+            const result = await base44.functions.invoke('personGridUpdateCell', {
                 person_id: id,
                 field,
                 value,
                 expected_row_version
             });
-            return data;
+            return result.data;
         },
         onMutate: async ({ id, field }) => {
             const cellKey = `${id}_${field}`;
