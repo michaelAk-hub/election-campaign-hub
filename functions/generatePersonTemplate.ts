@@ -30,42 +30,30 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create header row with mandatory fields + custom fields (using Greek labels)
-    const headerLabels = [
-      ...MANDATORY_FIELDS.map(f => f.label),
-      ...custom_fields.map(f => f.label || f.name)
-    ];
-
-    // Create sample row with field names for reference
-    const fieldNames = [
+    // Create header row with mandatory fields + custom fields
+    const headers = [
       ...MANDATORY_FIELDS.map(f => f.name),
       ...custom_fields.map(f => f.name)
     ];
 
-    // Create workbook with proper encoding for Greek characters
+    // Create workbook
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headerLabels, fieldNames]);
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
 
     // Set column widths
-    ws['!cols'] = headerLabels.map(() => ({ wch: 20 }));
+    ws['!cols'] = headers.map(() => ({ wch: 20 }));
 
     XLSX.utils.book_append_sheet(wb, ws, 'Person Data');
 
-    // Write as buffer for proper XLSX format
-    const buffer = XLSX.write(wb, { 
-      type: 'buffer', 
-      bookType: 'xlsx',
-      bookSST: false,
-      type: 'array'
-    });
+    // Write to buffer
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
-    // Convert to Uint8Array and create blob
-    const uint8Array = new Uint8Array(buffer);
-    const blob = new Blob([uint8Array], { 
+    // Upload to Base44 storage
+    const blob = new Blob([buffer], { 
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
     });
     
-    const file = new File([blob], 'person_template.xlsx', {
+    const file = new File([blob], 'person_import_template.xlsx', {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
 
