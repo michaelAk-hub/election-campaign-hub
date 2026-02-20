@@ -30,9 +30,19 @@ Deno.serve(async (req) => {
         const { dataset_id } = body;
 
         // Delete all Person records associated with this dataset
-        const persons = await base44.asServiceRole.entities.Person.filter({ 
-            dataset_id 
-        });
+        let persons = [];
+        let skip = 0;
+        const limit = 5000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const batch = await base44.asServiceRole.entities.Person.filter({ 
+                dataset_id 
+            }, '-created_date', limit, skip);
+            persons = persons.concat(batch);
+            skip += limit;
+            hasMore = batch.length === limit;
+        }
         
         for (const person of persons) {
             await base44.asServiceRole.entities.Person.delete(person.id);

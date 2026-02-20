@@ -28,7 +28,17 @@ Deno.serve(async (req) => {
         }
 
         // Get all Person records
-        const allPersons = await base44.asServiceRole.entities.Person.filter({});
+        let allPersons = [];
+        let skip = 0;
+        const limit = 5000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const batch = await base44.asServiceRole.entities.Person.filter({}, '-created_date', limit, skip);
+            allPersons = allPersons.concat(batch);
+            skip += limit;
+            hasMore = batch.length === limit;
+        }
         
         // Delete all Person records
         for (const person of allPersons) {

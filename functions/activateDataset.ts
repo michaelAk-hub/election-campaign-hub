@@ -30,7 +30,18 @@ Deno.serve(async (req) => {
         const { dataset_id } = body;
 
         // Deactivate all other datasets
-        const allDatasets = await base44.asServiceRole.entities.Dataset.filter({});
+        let allDatasets = [];
+        let skip = 0;
+        const limit = 5000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const batch = await base44.asServiceRole.entities.Dataset.filter({}, '-created_date', limit, skip);
+            allDatasets = allDatasets.concat(batch);
+            skip += limit;
+            hasMore = batch.length === limit;
+        }
+
         for (const ds of allDatasets) {
             if (ds.id !== dataset_id && ds.status === 'active') {
                 await base44.asServiceRole.entities.Dataset.update(ds.id, {
