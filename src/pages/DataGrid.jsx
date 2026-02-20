@@ -303,8 +303,7 @@ export default function DataGrid() {
     // Cell edit mutation
     const cellEditMutation = useMutation({
         mutationFn: async ({ id, field, value, expected_row_version }) => {
-            // Handle custom_data fields specially
-            let updatePayload = {
+            const { data } = await base44.functions.invoke('personGridUpdateCell', {
                 person_id: id,
                 field,
                 value,
