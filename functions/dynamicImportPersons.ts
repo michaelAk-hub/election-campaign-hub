@@ -48,56 +48,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update Person entity schema with custom fields
-    if (custom_fields.length > 0) {
-      const currentSchema = await base44.asServiceRole.entities.Person.schema();
-      const updatedProperties = { ...currentSchema.properties };
+    // Store custom field definitions in the dataset for later retrieval
+    // (Entity schemas cannot be modified dynamically)
 
-      // Add custom fields to schema
-      for (const field of custom_fields) {
-        if (!updatedProperties[field.name]) {
-          let fieldSchema = { description: `Custom field: ${field.name}` };
-          
-          switch (field.type) {
-            case 'number':
-              fieldSchema.type = 'number';
-              break;
-            case 'boolean':
-              fieldSchema.type = 'boolean';
-              fieldSchema.default = false;
-              break;
-            case 'date':
-              fieldSchema.type = 'string';
-              fieldSchema.format = 'date';
-              break;
-            default:
-              fieldSchema.type = 'string';
-          }
-
-          updatedProperties[field.name] = fieldSchema;
-        }
-      }
-
-      // Update schema via entity file write
-      const updatedSchema = {
-        name: 'Person',
-        type: 'object',
-        properties: updatedProperties,
-        required: currentSchema.required || ['person_id']
-      };
-
-      // Write updated schema (using Base44 SDK to update entity definition)
-      await base44.asServiceRole.functions.invoke('updatePersonEntitySchema', {
-        schema: updatedSchema
-      });
-    }
-
-    // Create new dataset
+    // Create new dataset with custom field definitions
     const dataset = await base44.asServiceRole.entities.Dataset.create({
       name: dataset_name,
       status: 'pending',
       source_file_url: file_url,
-      total_records: rows.length - 1
+      total_records: rows.length - 1,
+      custom_fields: custom_fields // Store custom field metadata
     });
 
     // Prepare person records
@@ -105,7 +65,10 @@ Deno.serve(async (req) => {
     const personRecords = [];
 
     for (const row of dataRows) {
-      const record = { dataset_id: dataset.id };
+      const record = { 
+        dataset_id: dataset.id,
+        custom_data: {} // Initialize custom_data object
+      };
       
       headers.forEach((header, index) => {
         const value = row[index];
@@ -115,20 +78,20 @@ Deno.serve(async (req) => {
           return;
         }
 
-        // Find custom field type
+        // Find if this is a custom field
         const customField = custom_fields.find(f => f.name === header);
         
         if (customField) {
-          // Convert based on type
+          // Store custom fields in custom_data object
           if (customField.type === 'number') {
-            record[header] = Number(value) || 0;
+            record.custom_data[header] = Number(value) || 0;
           } else if (customField.type === 'boolean') {
-            record[header] = ['true', '1', 'yes', 'ναι', 'TRUE', 'YES'].includes(String(value).toLowerCase());
+            record.custom_data[header] = ['true', '1', 'yes', 'ναι', 'TRUE', 'YES'].includes(String(value).toLowerCase());
           } else {
-            record[header] = String(value);
+            record.custom_data[header] = String(value);
           }
         } else {
-          // Standard field
+          // Standard field - store at top level
           if (header === 'voted') {
             record[header] = ['true', '1', 'yes', 'ναι', 'TRUE', 'YES'].includes(String(value).toLowerCase());
           } else {
