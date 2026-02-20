@@ -27,7 +27,20 @@ export default function NotFoundVoters() {
 
   const { data: notFoundVoters = [], isLoading, refetch } = useQuery({
     queryKey: ['not-found-voters'],
-    queryFn: () => base44.entities.NotFoundVoter.list('-created_date', 1000)
+    queryFn: async () => {
+      let allRecords = [];
+      let skip = 0;
+      const limit = 5000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batch = await base44.entities.NotFoundVoter.list('-created_date', limit, skip);
+        allRecords = allRecords.concat(batch);
+        skip += limit;
+        hasMore = batch.length === limit;
+      }
+      return allRecords;
+    }
   });
 
   const deleteMutation = useMutation({
