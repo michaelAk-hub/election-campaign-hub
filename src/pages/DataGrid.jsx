@@ -62,8 +62,18 @@ export default function DataGrid() {
         }
     });
 
-    // Column definitions based on Person schema
-    const columnDefs = useMemo(() => [
+    // Load active dataset to get custom fields
+    const { data: activeDataset } = useQuery({
+        queryKey: ['activeDataset'],
+        queryFn: async () => {
+            const datasets = await base44.entities.Dataset.filter({ status: 'active' });
+            return datasets.length > 0 ? datasets[0] : null;
+        }
+    });
+
+    // Column definitions based on Person schema + custom fields
+    const columnDefs = useMemo(() => {
+        const baseColumns = [
         {
             field: 'person_id',
             headerName: 'ΑΤ (ID)',
@@ -207,7 +217,50 @@ export default function DataGrid() {
             cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' },
             hide: isMobile
         }
-    ], [isMobile]);
+    ];
+
+        // Add custom field columns from active dataset
+        if (activeDataset?.custom_fields && Array.isArray(activeDataset.custom_fields)) {
+            activeDataset.custom_fields.forEach(field => {
+                baseColumns.push({
+                    field: `custom_data.${field.name}`,
+                    headerName: field.name,
+                    editable: true,
+                    filter: field.type === 'number' ? 'agNumberColumnFilter' : 'agTextColumnFilter',
+                    valueGetter: (params) => {
+                        return params.data?.custom_data?.[field.name] || '';
+                    },
+                    valueSetter: (params) => {
+                        if (!params.data.custom_data) {
+                            params.data.custom_data = {};
+                        }
+                        
+                        // Convert value based on type
+                        let convertedValue = params.newValue;
+                        if (field.type === 'number') {
+                            convertedValue = Number(params.newValue) || 0;
+                        } else if (field.type === 'boolean') {
+                            convertedValue = ['true', '1', 'yes', 'ναι', 'TRUE', 'YES'].includes(String(params.newValue).toLowerCase());
+                        }
+                        
+                        params.data.custom_data[field.name] = convertedValue;
+                        return true;
+                    },
+                    cellEditor: field.type === 'boolean' ? 'agSelectCellEditor' : 'agTextCellEditor',
+                    cellEditorParams: field.type === 'boolean' ? {
+                        values: [true, false],
+                        valueListGap: 0,
+                        formatValue: (value) => value ? 'Ναι' : 'Όχι'
+                    } : undefined,
+                    cellRenderer: field.type === 'boolean' ? (params) => params.value ? 'Ναι' : 'Όχι' : undefined,
+                    width: isMobile ? 120 : 150,
+                    hide: isMobile
+                });
+            });
+        }
+
+        return baseColumns;
+    }, [isMobile, activeDataset]);
 
     // Default grid options
     const defaultColDef = useMemo(() => ({
@@ -250,7 +303,8 @@ export default function DataGrid() {
     // Cell edit mutation
     const cellEditMutation = useMutation({
         mutationFn: async ({ id, field, value, expected_row_version }) => {
-            const { data } = await base44.functions.invoke('personGridUpdateCell', {
+            // Handle custom_data fields specially
+            let updatePayload = {
                 person_id: id,
                 field,
                 value,
