@@ -38,11 +38,25 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Field is not editable' }, { status: 403 });
         }
 
+        // Handle custom_data fields specially
+        let updateData = {};
+        if (field.startsWith('custom_data.')) {
+            const customFieldName = field.replace('custom_data.', '');
+            const custom_data = currentPerson.custom_data || {};
+            custom_data[customFieldName] = value;
+            updateData = {
+                custom_data,
+                row_version: currentPerson.row_version + 1
+            };
+        } else {
+            updateData = {
+                [field]: value,
+                row_version: currentPerson.row_version + 1
+            };
+        }
+
         // Update with version increment
-        const updatedPerson = await base44.entities.Person.update(person_id, {
-            [field]: value,
-            row_version: currentPerson.row_version + 1
-        });
+        const updatedPerson = await base44.entities.Person.update(person_id, updateData);
 
         return Response.json({
             success: true,
