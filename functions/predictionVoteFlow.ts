@@ -31,13 +31,23 @@ Deno.serve(async (req) => {
         }
         const activeDatasetId = datasets[0].id;
 
-        // Fetch all voted persons with voted_at
+        // Fetch all voted persons with voted_at using pagination
         let query = {
             dataset_id: activeDatasetId,
             voted: true
         };
 
-        const persons = await base44.asServiceRole.entities.Person.filter(query);
+        let persons = [];
+        let skip = 0;
+        const limit = 5000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const batch = await base44.asServiceRole.entities.Person.filter(query, '-created_date', limit, skip);
+            persons = persons.concat(batch);
+            skip += limit;
+            hasMore = batch.length === limit;
+        }
         
         // Filter only persons with valid voted_at
         const validPersons = persons.filter(p => p.voted_at && p.prediction_symbol);

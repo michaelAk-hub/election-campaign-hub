@@ -17,7 +17,19 @@ Deno.serve(async (req) => {
         }
 
         const sinceDate = new Date(since);
-        const allPersons = await base44.entities.Person.list();
+        
+        // Fetch all Person records with pagination
+        let allPersons = [];
+        let skip = 0;
+        const limit = 5000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const batch = await base44.entities.Person.list('-updated_date', limit, skip);
+            allPersons = allPersons.concat(batch);
+            skip += limit;
+            hasMore = batch.length === limit;
+        }
 
         // Filter persons updated after the 'since' timestamp
         const changedPersons = allPersons.filter(p => {
