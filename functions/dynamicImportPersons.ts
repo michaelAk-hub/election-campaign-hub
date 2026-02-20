@@ -138,10 +138,11 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Import error:', error);
+    console.error('Import error:', error.message, error.stack);
     return Response.json({ 
       success: false,
-      error: error.message || 'Import failed' 
+      error: error.message || 'Import failed',
+      details: error.stack
     }, { status: 500 });
   }
 });
