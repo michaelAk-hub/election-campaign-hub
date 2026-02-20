@@ -10,7 +10,22 @@ const MANDATORY_FIELDS = [
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { session_token, file_url, dataset_name, custom_fields = [] } = await req.json();
+    
+    // Read and parse request body
+    let body;
+    try {
+      const text = await req.text();
+      body = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return Response.json({ 
+        success: false,
+        error: 'Invalid request body',
+        details: parseError.message
+      }, { status: 400 });
+    }
+    
+    const { session_token, file_url, dataset_name, custom_fields = [] } = body;
 
     // Validate session
     const { data: sessionData } = await base44.functions.invoke('validateAppSession', {
