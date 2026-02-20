@@ -42,27 +42,88 @@ export default function Dashboard() {
 
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
     queryKey: ['people'],
-    queryFn: () => base44.entities.Person.list('-created_date', 10000)
+    queryFn: async () => {
+      let allRecords = [];
+      let skip = 0;
+      const limit = 5000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batch = await base44.entities.Person.list('-created_date', limit, skip);
+        allRecords = allRecords.concat(batch);
+        skip += limit;
+        hasMore = batch.length === limit;
+      }
+      return allRecords;
+    }
   });
 
   const { data: chreosiAccounts = [] } = useQuery({
     queryKey: ['chreosi-accounts'],
-    queryFn: () => base44.entities.ChreosiAccount.list()
+    queryFn: async () => {
+      let allRecords = [];
+      let skip = 0;
+      const limit = 5000;
+      let hasMore = true;
+      while (hasMore) {
+        const batch = await base44.entities.ChreosiAccount.list('-created_date', limit, skip);
+        allRecords = allRecords.concat(batch);
+        skip += limit;
+        hasMore = batch.length === limit;
+      }
+      return allRecords;
+    }
   });
 
   const { data: kanaliAccounts = [] } = useQuery({
     queryKey: ['kanali-accounts'],
-    queryFn: () => base44.entities.KanaliAccount.list()
+    queryFn: async () => {
+      let allRecords = [];
+      let skip = 0;
+      const limit = 5000;
+      let hasMore = true;
+      while (hasMore) {
+        const batch = await base44.entities.KanaliAccount.list('-created_date', limit, skip);
+        allRecords = allRecords.concat(batch);
+        skip += limit;
+        hasMore = batch.length === limit;
+      }
+      return allRecords;
+    }
   });
 
   const { data: notFoundVoters = [] } = useQuery({
     queryKey: ['not-found-voters'],
-    queryFn: () => base44.entities.NotFoundVoter.list('-created_date', 100)
+    queryFn: async () => {
+      let allRecords = [];
+      let skip = 0;
+      const limit = 5000;
+      let hasMore = true;
+      while (hasMore) {
+        const batch = await base44.entities.NotFoundVoter.list('-created_date', limit, skip);
+        allRecords = allRecords.concat(batch);
+        skip += limit;
+        hasMore = batch.length === limit;
+      }
+      return allRecords;
+    }
   });
 
   const { data: recentSubmissions = [] } = useQuery({
     queryKey: ['recent-submissions'],
-    queryFn: () => base44.entities.KanaliSubmission.list('-created_date', 50)
+    queryFn: async () => {
+      let allRecords = [];
+      let skip = 0;
+      const limit = 5000;
+      let hasMore = true;
+      while (hasMore) {
+        const batch = await base44.entities.KanaliSubmission.list('-created_date', limit, skip);
+        allRecords = allRecords.concat(batch);
+        skip += limit;
+        hasMore = batch.length === limit;
+      }
+      return allRecords;
+    }
   });
 
   const totalPeople = people.length;
@@ -167,7 +228,18 @@ export default function Dashboard() {
 
       // Delete all if replace mode
       if (importMode === 'replace') {
-        const allPeople = await base44.entities.Person.list('-created_date', 50000);
+        let allPeople = [];
+        let skip = 0;
+        const limit = 5000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const batch = await base44.entities.Person.list('-created_date', limit, skip);
+          allPeople = allPeople.concat(batch);
+          skip += limit;
+          hasMore = batch.length === limit;
+        }
+
         for (const person of allPeople) {
           await base44.entities.Person.delete(person.id);
         }
