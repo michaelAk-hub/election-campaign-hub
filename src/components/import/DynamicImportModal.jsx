@@ -1,79 +1,55 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { base44 } from '@/api/base44Client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { base44 } from '@/api/base44Client';
-import { Plus, Trash2, Download, Upload, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { Upload, Download, Plus, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const MANDATORY_FIELDS = [
-  { name: 'person_id', label: 'ΑΤ (ID)', type: 'string' },
-  { name: 'department', label: 'ΤΜΗΜΑ', type: 'string' },
-  { name: 'admission_year', label: 'ΕΙΣΔΟΧΗ', type: 'string' },
-  { name: 'academic_level', label: 'ΕΠΙΠΕΔΟ', type: 'string' },
-  { name: 'ucid', label: 'UCID', type: 'string' },
-  { name: 'mobile_phone', label: 'ΚΙΝΗΤΟ', type: 'string' },
-  { name: 'first_name', label: 'ΟΝΟΜΑ', type: 'string' },
-  { name: 'last_name', label: 'ΕΠΙΘΕΤΟ', type: 'string' },
-  { name: 'contact_person_1', label: 'ATOMO_1', type: 'string' },
-  { name: 'contact_person_2', label: 'ATOMO_2', type: 'string' },
-  { name: 'member', label: 'ΜΕΛΟΣ', type: 'string' },
-  { name: 'prediction_symbol', label: 'Σύμβολο πρόβλεψης', type: 'string' }
-];
-
-const FIELD_TYPES = [
-  { value: 'string', label: 'Κείμενο (Text)' },
-  { value: 'number', label: 'Αριθμός (Number)' },
-  { value: 'boolean', label: 'Ναι/Όχι (Boolean)' },
-  { value: 'date', label: 'Ημερομηνία (Date)' }
-];
-
 export default function DynamicImportModal({ open, onClose, onSuccess }) {
-  const [step, setStep] = useState(1); // 1: Define fields, 2: Upload file, 3: Progress
+  const [step, setStep] = useState(1); // 1: select fields, 2: upload file
   const [customFields, setCustomFields] = useState([]);
   const [newFieldName, setNewFieldName] = useState('');
-  const [newFieldType, setNewFieldType] = useState('string');
-  const [datasetName, setDatasetName] = useState('');
-  const [uploadedFile, setUploadedFile] = useState(null);
-  const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0, percentage: 0 });
-  const [importComplete, setImportComplete] = useState(false);
-  const [error, setError] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
 
-  const handleAddField = () => {
-    const trimmedName = newFieldName.trim();
-    
-    if (!trimmedName) {
-      toast.error('Το όνομα πεδίου δεν μπορεί να είναι κενό');
-      return;
+  const standardFields = [
+    { key: 'person_id', label: 'AT (ID)', required: true },
+    { key: 'ucid', label: 'UCID' },
+    { key: 'department', label: 'TMHMA' },
+    { key: 'admission_year', label: 'EISDOXI' },
+    { key: 'academic_level', label: 'ΕΠΙΠΕΔΟ' },
+    { key: 'mobile_phone', label: 'ΚΙΝΗΤΟ' },
+    { key: 'first_name', label: 'ΟΝΟΜΑ' },
+    { key: 'last_name', label: 'ΕΠΙΘΕΤΟ' },
+    { key: 'contact_person_1', label: 'ATOMO_1' },
+    { key: 'contact_person_2', label: 'ATOMO_2' },
+    { key: 'member', label: 'ΜΕΛΟΣ' },
+    { key: 'prediction_symbol', label: 'Σύμβολο πρόβλεψης' },
+    { key: 'notes', label: 'Notes' },
+  ];
+
+  const addCustomField = () => {
+    if (newFieldName.trim()) {
+      setCustomFields([...customFields, newFieldName.trim()]);
+      setNewFieldName('');
     }
-
-    // Check if field already exists in mandatory fields
-    if (MANDATORY_FIELDS.some(f => f.name === trimmedName)) {
-      toast.error('Αυτό το όνομα πεδίου υπάρχει ήδη στα υποχρεωτικά πεδία');
-      return;
-    }
-
-    // Check if field already exists in custom fields
-    if (customFields.some(f => f.name === trimmedName)) {
-      toast.error('Αυτό το όνομα πεδίου υπάρχει ήδη');
-      return;
-    }
-
-    setCustomFields([...customFields, { name: trimmedName, type: newFieldType }]);
-    setNewFieldName('');
-    setNewFieldType('string');
   };
 
-  const handleRemoveField = (index) => {
+  const removeCustomField = (index) => {
     setCustomFields(customFields.filter((_, i) => i !== index));
   };
 
   const handleGenerateTemplate = async () => {
     try {
+      setIsGenerating(true);
       const sessionToken = localStorage.getItem('app_session_token');
+
       const { data } = await base44.functions.invoke('generatePersonTemplate', {
         session_token: sessionToken,
         custom_fields: customFields
@@ -81,318 +57,207 @@ export default function DynamicImportModal({ open, onClose, onSuccess }) {
 
       // Download the template
       const link = document.createElement('a');
-      link.href = data.template_url;
-      link.download = 'person_import_template.xlsx';
+      link.href = data.file_url;
+      link.download = 'person_template.xlsx';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      toast.success('Το πρότυπο αρχείο δημιουργήθηκε επιτυχώς');
+      toast.success('Το πρότυπο δημιουργήθηκε επιτυχώς');
       setStep(2);
-    } catch (err) {
-      console.error('Template generation error:', err);
+    } catch (error) {
+      console.error('Template generation error:', error);
       toast.error('Σφάλμα κατά τη δημιουργία προτύπου');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const handleFileSelect = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      setUploadedFile(file);
-      setError(null);
+      setSelectedFile(file);
     }
   };
 
   const handleImport = async () => {
-    if (!uploadedFile) {
-      toast.error('Παρακαλώ επιλέξτε ένα αρχείο');
-      return;
-    }
-
-    if (!datasetName.trim()) {
-      toast.error('Παρακαλώ δώστε ένα όνομα στο dataset');
-      return;
-    }
-
-    setImporting(true);
-    setStep(3);
-    setProgress({ current: 0, total: 0, percentage: 0 });
-    setError(null);
+    if (!selectedFile) return;
 
     try {
+      setIsImporting(true);
+      setImportProgress(10);
+
       const sessionToken = localStorage.getItem('app_session_token');
 
-      // Upload file first
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadedFile });
+      // Upload file
+      const { file_url } = await base44.integrations.Core.UploadFile({
+        file: selectedFile
+      });
+      setImportProgress(30);
 
-      // Start import
+      // Import data
       const { data } = await base44.functions.invoke('dynamicImportPersons', {
         session_token: sessionToken,
         file_url,
-        dataset_name: datasetName.trim(),
         custom_fields: customFields
       });
 
+      setImportProgress(100);
+
       if (data.success) {
-        setProgress({ 
-          current: data.total_imported, 
-          total: data.total_imported, 
-          percentage: 100 
-        });
-        setImportComplete(true);
-        toast.success(`Η εισαγωγή ολοκληρώθηκε! ${data.total_imported} εγγραφές εισήχθησαν`);
-        
-        // Call onSuccess callback
-        if (onSuccess) {
-          onSuccess();
-        }
+        toast.success(`Εισήχθησαν ${data.imported_count} εγγραφές επιτυχώς`);
+        onSuccess();
       } else {
-        setError(data.error || 'Άγνωστο σφάλμα κατά την εισαγωγή');
-        toast.error(data.error || 'Η εισαγωγή απέτυχε');
+        toast.error(data.error || 'Σφάλμα κατά την εισαγωγή');
       }
-    } catch (err) {
-      console.error('Import error:', err);
-      setError(err.message || 'Σφάλμα κατά την εισαγωγή δεδομένων');
+    } catch (error) {
+      console.error('Import error:', error);
       toast.error('Σφάλμα κατά την εισαγωγή δεδομένων');
     } finally {
-      setImporting(false);
+      setIsImporting(false);
+      setImportProgress(0);
     }
   };
 
   const handleClose = () => {
-    if (!importing) {
-      setStep(1);
-      setCustomFields([]);
-      setNewFieldName('');
-      setNewFieldType('string');
-      setDatasetName('');
-      setUploadedFile(null);
-      setImporting(false);
-      setProgress({ current: 0, total: 0, percentage: 0 });
-      setImportComplete(false);
-      setError(null);
-      onClose();
-    }
+    setStep(1);
+    setCustomFields([]);
+    setNewFieldName('');
+    setSelectedFile(null);
+    setImportProgress(0);
+    onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {step === 1 && 'Βήμα 1: Ορισμός Προσαρμοσμένων Πεδίων'}
-            {step === 2 && 'Βήμα 2: Μεταφόρτωση Αρχείου'}
-            {step === 3 && 'Βήμα 3: Εισαγωγή Δεδομένων'}
-          </DialogTitle>
+          <DialogTitle>Δυναμική Εισαγωγή Δεδομένων</DialogTitle>
           <DialogDescription>
-            {step === 1 && 'Προσθέστε τυχόν προσαρμοσμένα πεδία που θέλετε να συμπεριλάβετε'}
-            {step === 2 && 'Μεταφορτώστε το αρχείο Excel με τα δεδομένα'}
-            {step === 3 && 'Εισαγωγή δεδομένων σε εξέλιξη...'}
+            Βήμα {step} από 2: {step === 1 ? 'Ορισμός πεδίων' : 'Μεταφόρτωση αρχείου'}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Step 1: Define Custom Fields */}
-        {step === 1 && (
+        {step === 1 ? (
           <div className="space-y-6">
-            {/* Mandatory Fields Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-900 mb-2">Υποχρεωτικά Πεδία:</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
-                {MANDATORY_FIELDS.map(field => (
-                  <div key={field.name}>• {field.label}</div>
+            <div>
+              <h3 className="font-semibold mb-3">Πρότυπα Πεδία</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm text-slate-600">
+                {standardFields.map(field => (
+                  <div key={field.key} className="flex items-center gap-2">
+                    <Checkbox checked disabled />
+                    <span>{field.label} {field.required && <span className="text-red-500">*</span>}</span>
+                  </div>
                 ))}
               </div>
             </div>
 
-            {/* Add Custom Field */}
-            <div className="space-y-4">
-              <h4 className="font-semibold">Προσθήκη Προσαρμοσμένου Πεδίου:</h4>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <Label>Όνομα Πεδίου</Label>
+            <div>
+              <h3 className="font-semibold mb-3">Προσαρμοσμένα Πεδία</h3>
+              <div className="space-y-3">
+                <div className="flex gap-2">
                   <Input
+                    placeholder="Όνομα νέου πεδίου..."
                     value={newFieldName}
                     onChange={(e) => setNewFieldName(e.target.value)}
-                    placeholder="π.χ. phone_2, address"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddField()}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomField()}
                   />
-                </div>
-                <div className="w-48">
-                  <Label>Τύπος</Label>
-                  <Select value={newFieldType} onValueChange={setNewFieldType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FIELD_TYPES.map(type => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-end">
-                  <Button onClick={handleAddField} size="icon">
+                  <Button onClick={addCustomField} variant="outline">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+
+                {customFields.length > 0 && (
+                  <div className="space-y-2">
+                    {customFields.map((field, index) => (
+                      <div key={index} className="flex items-center justify-between bg-slate-50 p-2 rounded">
+                        <span className="text-sm">{field}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCustomField(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+              <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <Label htmlFor="file-upload" className="cursor-pointer">
+                <span className="text-sm text-slate-600">
+                  {selectedFile ? selectedFile.name : 'Επιλέξτε αρχείο Excel (.xlsx)'}
+                </span>
+              </Label>
+              <Input
+                id="file-upload"
+                type="file"
+                accept=".xlsx"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => document.getElementById('file-upload').click()}
+              >
+                Επιλογή Αρχείου
+              </Button>
+            </div>
 
-            {/* Custom Fields List */}
-            {customFields.length > 0 && (
+            {isImporting && (
               <div className="space-y-2">
-                <h4 className="font-semibold">Προσαρμοσμένα Πεδία ({customFields.length}):</h4>
-                <div className="space-y-2">
-                  {customFields.map((field, index) => (
-                    <div key={index} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg">
-                      <div className="flex-1">
-                        <span className="font-medium">{field.name}</span>
-                        <span className="text-slate-500 text-sm ml-2">
-                          ({FIELD_TYPES.find(t => t.value === field.type)?.label})
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveField(index)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                <Progress value={importProgress} />
+                <p className="text-sm text-slate-600 text-center">
+                  Εισαγωγή σε εξέλιξη... {importProgress}%
+                </p>
               </div>
             )}
-
-            {/* Actions */}
-            <div className="flex justify-between pt-4 border-t">
-              <Button variant="outline" onClick={handleClose}>
-                Ακύρωση
-              </Button>
-              <Button onClick={handleGenerateTemplate} className="gap-2">
-                <Download className="h-4 w-4" />
-                Δημιουργία Προτύπου & Συνέχεια
-              </Button>
-            </div>
           </div>
         )}
 
-        {/* Step 2: Upload File */}
-        {step === 2 && (
-          <div className="space-y-6">
-            {/* Dataset Name */}
-            <div className="space-y-2">
-              <Label>Όνομα Dataset *</Label>
-              <Input
-                value={datasetName}
-                onChange={(e) => setDatasetName(e.target.value)}
-                placeholder="π.χ. Εισαγωγή Ιανουαρίου 2026"
-              />
-            </div>
-
-            {/* File Upload */}
-            <div className="space-y-2">
-              <Label>Μεταφόρτωση Αρχείου Excel *</Label>
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-sm text-slate-600 mb-2">
-                    {uploadedFile ? uploadedFile.name : 'Κάντε κλικ για επιλογή αρχείου'}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Υποστηρίζονται αρχεία .xlsx και .xls
-                  </p>
-                </label>
-              </div>
-            </div>
-
-            {/* Instructions */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <h4 className="font-semibold text-amber-900 mb-2">Σημαντικό:</h4>
-              <ul className="text-sm text-amber-800 space-y-1">
-                <li>• Η πρώτη γραμμή πρέπει να περιέχει τα ονόματα των στηλών</li>
-                <li>• Όλες οι υποχρεωτικές στήλες πρέπει να υπάρχουν</li>
-                <li>• Τα κενά κελιά επιτρέπονται</li>
-                <li>• Το αρχείο μπορεί να περιέχει πάνω από 5000 γραμμές</li>
-              </ul>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-between pt-4 border-t">
-              <Button variant="outline" onClick={() => setStep(1)}>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={isGenerating || isImporting}>
+            Ακύρωση
+          </Button>
+          {step === 1 ? (
+            <Button onClick={handleGenerateTemplate} disabled={isGenerating}>
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Δημιουργία...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Λήψη Προτύπου & Συνέχεια
+                </>
+              )}
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setStep(1)} disabled={isImporting}>
                 Πίσω
               </Button>
-              <Button 
-                onClick={handleImport} 
-                disabled={!uploadedFile || !datasetName.trim()}
-                className="gap-2"
-              >
-                <Upload className="h-4 w-4" />
-                Εισαγωγή Δεδομένων
+              <Button onClick={handleImport} disabled={!selectedFile || isImporting}>
+                {isImporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Εισαγωγή...
+                  </>
+                ) : (
+                  'Εισαγωγή'
+                )}
               </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Progress */}
-        {step === 3 && (
-          <div className="space-y-6">
-            {!error && !importComplete && (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Loader2 className="h-16 w-16 animate-spin text-blue-600 mb-4" />
-                <p className="text-lg font-medium text-slate-900 mb-2">
-                  Εισαγωγή δεδομένων σε εξέλιξη...
-                </p>
-                <p className="text-sm text-slate-500">
-                  Παρακαλώ περιμένετε...
-                </p>
-              </div>
-            )}
-
-            {importComplete && (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle2 className="h-10 w-10 text-green-600" />
-                </div>
-                <p className="text-lg font-medium text-slate-900 mb-2">
-                  Η εισαγωγή ολοκληρώθηκε επιτυχώς!
-                </p>
-                <p className="text-sm text-slate-500 mb-6">
-                  {progress.total} εγγραφές εισήχθησαν
-                </p>
-                <Button onClick={handleClose}>
-                  Κλείσιμο
-                </Button>
-              </div>
-            )}
-
-            {error && (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                  <AlertCircle className="h-10 w-10 text-red-600" />
-                </div>
-                <p className="text-lg font-medium text-slate-900 mb-2">
-                  Σφάλμα κατά την εισαγωγή
-                </p>
-                <p className="text-sm text-red-600 mb-6 text-center max-w-md">
-                  {error}
-                </p>
-                <Button onClick={handleClose} variant="outline">
-                  Κλείσιμο
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
+            </>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
