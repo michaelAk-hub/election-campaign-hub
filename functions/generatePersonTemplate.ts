@@ -45,11 +45,11 @@ Deno.serve(async (req) => {
 
     XLSX.utils.book_append_sheet(wb, ws, 'Person Data');
 
-    // Write to buffer
-    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    // Write to array buffer (not 'buffer' which doesn't exist in XLSX)
+    const arrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
 
     // Upload to Base44 storage
-    const blob = new Blob([buffer], { 
+    const blob = new Blob([arrayBuffer], { 
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
     });
     
