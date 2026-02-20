@@ -29,7 +29,20 @@ export default function CompareMerge() {
 
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['people'],
-    queryFn: () => base44.entities.Person.list('-created_date', 10000)
+    queryFn: async () => {
+      let allRecords = [];
+      let skip = 0;
+      const limit = 5000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batch = await base44.entities.Person.list('-created_date', limit, skip);
+        allRecords = allRecords.concat(batch);
+        skip += limit;
+        hasMore = batch.length === limit;
+      }
+      return allRecords;
+    }
   });
 
   const handleFileUpload = (e) => {
