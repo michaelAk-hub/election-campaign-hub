@@ -542,6 +542,16 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dynamic Import Modal */}
+      <DynamicImportModal
+        open={showDynamicImport}
+        onClose={() => setShowDynamicImport(false)}
+        onSuccess={() => {
+          setShowDynamicImport(false);
+          refetch();
+        }}
+      />
     </div>
   );
 }
