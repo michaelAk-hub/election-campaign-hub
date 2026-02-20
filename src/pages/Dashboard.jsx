@@ -6,7 +6,6 @@ import { createPageUrl } from '../utils';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import DynamicImportModal from '../components/import/DynamicImportModal';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -40,7 +39,6 @@ export default function Dashboard() {
   const [uploadFile, setUploadFile] = useState(null);
   const [importMode, setImportMode] = useState('append');
   const [isUploading, setIsUploading] = useState(false);
-  const [showDynamicImport, setShowDynamicImport] = useState(false);
 
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
     queryKey: ['people'],
@@ -278,7 +276,7 @@ export default function Dashboard() {
               <Download className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Πρότυπο</span>
             </Button>
-            <Button variant="default" onClick={() => setShowDynamicImport(true)} className="h-10">
+            <Button variant="default" onClick={() => setUploadDialog(true)} className="h-10">
               <Upload className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Εισαγωγή</span>
             </Button>
@@ -542,16 +540,6 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Dynamic Import Modal */}
-      <DynamicImportModal
-        open={showDynamicImport}
-        onClose={() => setShowDynamicImport(false)}
-        onSuccess={() => {
-          setShowDynamicImport(false);
-          refetch();
-        }}
-      />
     </div>
   );
 }
