@@ -82,13 +82,49 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Fetch windowed data for infinite scroll
-        const persons = await base44.entities.Person.filter(
-            query,
-            sort,
-            limit,
-            startRow
-        );
+        // Fetch windowed data for infinite scroll with batching for large offsets
+        let persons = [];
+        const maxSingleQueryLimit = 5000;
+
+        if (startRow >= maxSingleQueryLimit) {
+            // For large offsets, fetch in batches
+            const batchSize = 1000;
+            let currentSkip = 0;
+            let targetRowsToSkip = startRow;
+            let targetRowsToFetch = limit;
+
+            // Skip to the target position in batches
+            while (currentSkip < targetRowsToSkip) {
+                const skipBatch = Math.min(batchSize, targetRowsToSkip - currentSkip);
+                await base44.entities.Person.filter(query, sort, skipBatch, currentSkip);
+                currentSkip += skipBatch;
+            }
+
+            // Now fetch the actual data we need in batches
+            let fetchedCount = 0;
+            while (fetchedCount < targetRowsToFetch) {
+                const fetchSize = Math.min(batchSize, targetRowsToFetch - fetchedCount);
+                const batch = await base44.entities.Person.filter(
+                    query,
+                    sort,
+                    fetchSize,
+                    startRow + fetchedCount
+                );
+                persons.push(...batch);
+                fetchedCount += batch.length;
+                if (batch.length < fetchSize) {
+                    break; // No more data
+                }
+            }
+        } else {
+            // Normal fetch for small offsets
+            persons = await base44.entities.Person.filter(
+                query,
+                sort,
+                limit,
+                startRow
+            );
+        }
 
         // Count total records efficiently by fetching in batches
         let total = 0;
