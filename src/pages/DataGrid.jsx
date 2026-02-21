@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { base44 } from '@/api/base44Client';
@@ -208,6 +207,45 @@ export default function DataGrid() {
         }
     ], [isMobile]);
 
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(100);
+    const [sortModel, setSortModel] = useState([{ colId: 'created_date', sort: 'desc' }]);
+    const [filterModel, setFilterModel] = useState({});
+
+    // Fetch data with React Query
+    const { data: gridData, isLoading, refetch } = useQuery({
+        queryKey: ['personGrid', page, pageSize, sortModel, filterModel, searchQuery],
+        queryFn: async () => {
+            const sortField = sortModel.length > 0 ? sortModel[0].colId : 'created_date';
+            const sortDirection = sortModel.length > 0 ? sortModel[0].sort : 'desc';
+
+            const filters = {};
+            Object.entries(filterModel).forEach(([key, value]) => {
+                if (value.filterType === 'text') {
+                    filters[key] = { operator: value.type, value: value.filter };
+                } else if (value.filterType === 'set') {
+                    filters[key] = { operator: 'in', value: value.values };
+                } else if (value.filterType === 'date') {
+                    filters[key] = { operator: value.type, value: value.dateFrom };
+                }
+            });
+
+            const { data } = await base44.functions.invoke('personGridFetch', {
+                page,
+                pageSize,
+                sortField,
+                sortDirection,
+                search: searchQuery,
+                filters: JSON.stringify(filters)
+            });
+            
+            setLastSync(new Date().toISOString());
+            setGridTotal(data.total);
+            return data;
+        }
+    });
+
     // Default grid options
     const defaultColDef = useMemo(() => ({
         sortable: true,
@@ -218,55 +256,8 @@ export default function DataGrid() {
         singleClickEdit: false
     }), [showFilters]);
 
-    // Server-side Datasource for infinite scrolling
-    const serverSideDatasource = useMemo(() => {
-        return {
-            getRows: async (params) => {
-                try {
-                    const currentPage = Math.floor(params.request.startRow / (params.request.endRow - params.request.startRow)) + 1;
-                    const pageSize = params.request.endRow - params.request.startRow;
-
-                    const sortModel = params.request.sortModel.length > 0 ? params.request.sortModel[0] : null;
-                    const sortField = sortModel ? sortModel.colId : 'created_date';
-                    const sortDirection = sortModel ? sortModel.sort : 'desc';
-
-                    const filters = {};
-                    Object.entries(params.request.filterModel).forEach(([key, value]) => {
-                        if (value.filterType === 'text') {
-                            filters[key] = { operator: value.type, value: value.filter };
-                        } else if (value.filterType === 'set') {
-                            filters[key] = { operator: 'in', value: value.values };
-                        } else if (value.filterType === 'date') {
-                            filters[key] = { operator: value.type, value: value.dateFrom };
-                        }
-                    });
-
-                    const requestParams = {
-                        page: currentPage,
-                        pageSize: pageSize,
-                        sortField: sortField,
-                        sortDirection: sortDirection,
-                        search: searchQuery,
-                        filters: JSON.stringify(filters)
-                    };
-
-                    const { data } = await base44.functions.invoke('personGridFetch', requestParams);
-                    setLastSync(new Date().toISOString());
-                    
-                    params.successCallback(data.data, data.total);
-                    setGridTotal(data.total);
-                } catch (error) {
-                    console.error("Error fetching data:", error);
-                    params.failCallback();
-                    toast.error('Σφάλμα φόρτωσης δεδομένων');
-                }
-            }
-        };
-    }, [searchQuery]);
-
     const onGridReady = useCallback((params) => {
         setGridApi(params.api);
-        params.api.setServerSideDatasource(serverSideDatasource);
         if (preferences?.state_json?.columnState) {
             try {
                 params.api.applyColumnState({ state: preferences.state_json.columnState, applyOrder: true });
@@ -274,20 +265,23 @@ export default function DataGrid() {
                 console.error("Error applying column state on grid ready:", error);
             }
         }
-    }, [serverSideDatasource, preferences]);
+    }, [preferences]);
 
-    // Update datasource when search changes
-    useEffect(() => {
-        if (gridApi) {
-            gridApi.setServerSideDatasource(serverSideDatasource);
-        }
-    }, [gridApi, serverSideDatasource]);
+    // Handle sort changes
+    const onSortChanged = useCallback((params) => {
+        const sortModel = params.api.getColumnState()
+            .filter(col => col.sort != null)
+            .map(col => ({ colId: col.colId, sort: col.sort }));
+        setSortModel(sortModel);
+        setPage(1);
+    }, []);
 
-    const refetch = useCallback(() => {
-        if (gridApi) {
-            gridApi.setServerSideDatasource(serverSideDatasource);
-        }
-    }, [gridApi, serverSideDatasource]);
+    // Handle filter changes
+    const onFilterChanged = useCallback((params) => {
+        const filterModel = params.api.getFilterModel();
+        setFilterModel(filterModel);
+        setPage(1);
+    }, []);
 
     // Cell edit mutation
     const cellEditMutation = useMutation({
@@ -552,6 +546,7 @@ export default function DataGrid() {
                 }}>
                     <AgGridReact
                         ref={gridRef}
+                        rowData={gridData?.data || []}
                         columnDefs={columnDefs}
                         defaultColDef={defaultColDef}
                         onGridReady={onGridReady}
@@ -559,6 +554,8 @@ export default function DataGrid() {
                         onColumnMoved={onColumnMoved}
                         onColumnResized={onColumnResized}
                         onColumnVisible={onColumnVisible}
+                        onSortChanged={onSortChanged}
+                        onFilterChanged={onFilterChanged}
                         animateRows={true}
                         suppressMovableColumns={isMobile}
                         stopEditingWhenCellsLoseFocus={true}
@@ -568,11 +565,10 @@ export default function DataGrid() {
                         undoRedoCellEditing={true}
                         undoRedoCellEditingLimit={20}
                         getRowId={(params) => params.data.id}
-                        rowModelType={'serverSide'}
                         pagination={true}
-                        paginationPageSize={100}
-                        cacheBlockSize={100}
-                        maxBlocksInCache={10}
+                        paginationPageSize={pageSize}
+                        suppressPaginationPanel={true}
+                        loading={isLoading}
                         overlayLoadingTemplate='<span class="ag-overlay-loading-center">Φόρτωση δεδομένων...</span>'
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Δεν βρέθηκαν εγγραφές</span>'
                     />
@@ -584,6 +580,29 @@ export default function DataGrid() {
                         <span>
                             Σύνολο Εγγραφών: <strong>{gridTotal}</strong>
                         </span>
+                        <span>
+                            Σελίδα: <strong>{page}</strong> / <strong>{Math.ceil(gridTotal / pageSize)}</strong>
+                        </span>
+                        <div className="flex gap-1">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1 || isLoading}
+                                className="h-7 px-2"
+                            >
+                                Προηγ.
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.min(Math.ceil(gridTotal / pageSize), p + 1))}
+                                disabled={page >= Math.ceil(gridTotal / pageSize) || isLoading}
+                                className="h-7 px-2"
+                            >
+                                Επόμ.
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
