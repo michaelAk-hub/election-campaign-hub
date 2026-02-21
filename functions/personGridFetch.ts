@@ -90,8 +90,18 @@ Deno.serve(async (req) => {
             startRow
         );
 
-        // Fetch total count of filtered records
-        const total = (await base44.entities.Person.filter(query, sort, null, null)).length;
+        // Count total records efficiently by fetching in batches
+        let total = 0;
+        const countBatchSize = 1000;
+        let countSkip = 0;
+        while (true) {
+            const batch = await base44.entities.Person.filter(query, sort, countBatchSize, countSkip);
+            total += batch.length;
+            if (batch.length < countBatchSize) {
+                break; // Last batch, we've counted all records
+            }
+            countSkip += countBatchSize;
+        }
 
         console.log("🔍 [personGridFetch] Returning data:", persons.length, "rows, total:", total, "startRow:", startRow, "endRow:", endRow);
 
