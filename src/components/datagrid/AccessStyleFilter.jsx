@@ -67,25 +67,23 @@ const AccessStyleFilter = forwardRef((props, ref) => {
     };
 
     const handleApply = () => {
-        const model = {
-            filterType: 'set',
-            values: Array.from(selectedValues),
-            includeBlanks: blanksSelected
-        };
-        
-        props.filterChangedCallback();
+        if (props.filterChangedCallback) {
+            props.filterChangedCallback();
+        }
     };
 
     const handleClear = () => {
         setSelectedValues(new Set());
         setBlanksSelected(false);
-        props.filterChangedCallback();
+        if (props.filterChangedCallback) {
+            props.filterChangedCallback();
+        }
     };
 
     // Expose methods to AG Grid
     useImperativeHandle(ref, () => ({
         doesFilterPass(params) {
-            const value = props.valueGetter(params.node);
+            const value = props.valueGetter ? props.valueGetter(params) : params.data[columnKey];
             const isBlank = value === null || value === undefined || value === '' || 
                            (typeof value === 'string' && value.trim() === '');
             
@@ -123,6 +121,14 @@ const AccessStyleFilter = forwardRef((props, ref) => {
             }
             setSelectedValues(new Set(model.values || []));
             setBlanksSelected(model.includeBlanks || false);
+        },
+        
+        getModelAsString() {
+            if (selectedValues.size === 0 && !blanksSelected) {
+                return '';
+            }
+            const count = selectedValues.size + (blanksSelected ? 1 : 0);
+            return `${count} selected`;
         }
     }));
 
