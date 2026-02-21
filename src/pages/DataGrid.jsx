@@ -275,6 +275,13 @@ export default function DataGrid() {
         }
     }, [serverSideDatasource, preferences]);
 
+    // Update datasource when search changes
+    useEffect(() => {
+        if (gridApi) {
+            gridApi.setServerSideDatasource(serverSideDatasource);
+        }
+    }, [gridApi, serverSideDatasource]);
+
     const refetch = useCallback(() => {
         if (gridApi) {
             gridApi.setServerSideDatasource(serverSideDatasource);
