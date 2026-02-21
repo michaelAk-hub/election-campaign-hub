@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
 import ConflictResolutionDialog from '../components/datagrid/ConflictResolutionDialog';
+import AccessStyleFilter from '../components/datagrid/AccessStyleFilter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
     Search,
@@ -66,7 +67,7 @@ export default function DataGrid() {
             field: 'person_id',
             headerName: 'ΑΤ (ID)',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             pinned: isMobile ? null : 'left',
             width: isMobile ? 100 : 120,
             hide: false
@@ -75,7 +76,7 @@ export default function DataGrid() {
             field: 'first_name',
             headerName: 'Όνομα',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 120 : 150,
             hide: false
         },
@@ -83,7 +84,7 @@ export default function DataGrid() {
             field: 'last_name',
             headerName: 'Επώνυμο',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 120 : 150,
             hide: false
         },
@@ -91,7 +92,7 @@ export default function DataGrid() {
             field: 'mobile_phone',
             headerName: 'Κινητό',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 110 : 140,
             hide: isMobile
         },
@@ -99,7 +100,7 @@ export default function DataGrid() {
             field: 'department',
             headerName: 'Τμήμα',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 140 : 200,
             hide: isMobile
         },
@@ -107,7 +108,7 @@ export default function DataGrid() {
             field: 'admission_year',
             headerName: 'Έτος Εισδοχής',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 100 : 140,
             hide: isMobile
         },
@@ -115,7 +116,7 @@ export default function DataGrid() {
             field: 'academic_level',
             headerName: 'Επίπεδο',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 100 : 150,
             hide: isMobile
         },
@@ -123,7 +124,7 @@ export default function DataGrid() {
             field: 'ucid',
             headerName: 'UCID',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 100 : 120,
             hide: isMobile
         },
@@ -131,7 +132,7 @@ export default function DataGrid() {
             field: 'contact_person_1',
             headerName: 'Άτομο 1',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 120 : 150,
             hide: isMobile
         },
@@ -139,7 +140,7 @@ export default function DataGrid() {
             field: 'contact_person_2',
             headerName: 'Άτομο 2',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 120 : 150,
             hide: isMobile
         },
@@ -147,7 +148,7 @@ export default function DataGrid() {
             field: 'member',
             headerName: 'Μέλος',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 100 : 120,
             hide: isMobile
         },
@@ -155,7 +156,7 @@ export default function DataGrid() {
             field: 'prediction_symbol',
             headerName: 'Σύμβολο Πρόβλεψης',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 120 : 160,
             hide: isMobile
         },
@@ -163,7 +164,7 @@ export default function DataGrid() {
             field: 'voted',
             headerName: 'Ψήφισε',
             editable: true,
-            filter: 'agSetColumnFilter',
+            filter: AccessStyleFilter,
             cellRenderer: (params) => params.value ? 'Ναι' : 'Όχι',
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: {
@@ -178,7 +179,7 @@ export default function DataGrid() {
             field: 'notes',
             headerName: 'Σημειώσεις',
             editable: true,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             cellEditor: 'agLargeTextCellEditor',
             width: isMobile ? 150 : 200,
             hide: isMobile
@@ -187,7 +188,7 @@ export default function DataGrid() {
             field: 'dataset_id',
             headerName: 'Dataset ID',
             editable: false,
-            filter: 'agTextColumnFilter',
+            filter: AccessStyleFilter,
             width: isMobile ? 120 : 150,
             cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' },
             hide: true
@@ -196,7 +197,7 @@ export default function DataGrid() {
             field: 'created_date',
             headerName: 'Δημιουργήθηκε',
             editable: false,
-            filter: 'agDateColumnFilter',
+            filter: false,
             valueFormatter: (params) => {
                 if (!params.value) return '-';
                 return new Date(params.value).toLocaleString('el-GR');
@@ -284,6 +285,10 @@ export default function DataGrid() {
     const onFilterChanged = useCallback((params) => {
         const filterModel = params.api.getFilterModel();
         setFilterModel(filterModel);
+        
+        // Count active filters
+        const activeFilters = Object.keys(filterModel).length;
+        console.log('Active filters:', activeFilters, filterModel);
     }, []);
 
     // Cell edit mutation
