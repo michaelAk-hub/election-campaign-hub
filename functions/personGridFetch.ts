@@ -33,13 +33,40 @@ Deno.serve(async (req) => {
             ];
         }
 
-        // Column filters
+        // Column filters - supports Access-style set filters with blanks
         if (filtersParam) {
             const filters = JSON.parse(filtersParam);
             Object.entries(filters).forEach(([field, filterValue]) => {
                 if (!filterValue) return;
                 
-                if (typeof filterValue === 'object' && filterValue.operator) {
+                // Access-style filter (set-based with blanks)
+                if (typeof filterValue === 'object' && filterValue.filterType === 'set') {
+                    const { values = [], includeBlanks = false } = filterValue;
+                    
+                    if (includeBlanks && values.length > 0) {
+                        // Include both selected values and blanks
+                        query.$or = query.$or || [];
+                        query.$or.push(
+                            { [field]: { $in: values } },
+                            { [field]: null },
+                            { [field]: '' },
+                            { [field]: { $exists: false } }
+                        );
+                    } else if (includeBlanks) {
+                        // Only blanks
+                        query.$or = query.$or || [];
+                        query.$or.push(
+                            { [field]: null },
+                            { [field]: '' },
+                            { [field]: { $exists: false } }
+                        );
+                    } else if (values.length > 0) {
+                        // Only selected values
+                        query[field] = { $in: values };
+                    }
+                }
+                // Legacy filters (for backwards compatibility)
+                else if (typeof filterValue === 'object' && filterValue.operator) {
                     const { operator, value: filterVal } = filterValue;
                     if (operator === 'contains') query[field] = { $regex: String(filterVal), $options: 'i' };
                     if (operator === 'startsWith') query[field] = { $regex: `^${String(filterVal)}`, $options: 'i' };
