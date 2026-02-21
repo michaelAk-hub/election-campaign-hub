@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -21,12 +21,10 @@ import {
     Loader2,
     AlertCircle,
     Clock,
-    Columns3,
-    MoreVertical
+    Columns3
 } from 'lucide-react';
 
 const GRID_KEY = 'data_grid_person';
-const POLL_INTERVAL = 8000;
 
 export default function DataGrid() {
     const gridRef = useRef();
@@ -37,11 +35,11 @@ export default function DataGrid() {
     const [showFilters, setShowFilters] = useState(false);
     const [lastSync, setLastSync] = useState(null);
     const [gridStatus, setGridStatus] = useState('idle');
-    const [rowData, setRowData] = useState([]);
     const [conflictDialog, setConflictDialog] = useState(null);
     const [savingCells, setSavingCells] = useState(new Set());
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [gridTotal, setGridTotal] = useState(0);
 
     // Detect mobile
     useEffect(() => {
@@ -54,7 +52,7 @@ export default function DataGrid() {
     }, []);
 
     // Load grid preferences
-    const { data: preferences } = useQuery({
+    const { data: preferences, refetch: refetchPreferences } = useQuery({
         queryKey: ['gridPreferences', GRID_KEY],
         queryFn: async () => {
             const { data } = await base44.functions.invoke('gridPreferencesLoad', { grid_key: GRID_KEY });
@@ -219,33 +217,69 @@ export default function DataGrid() {
         singleClickEdit: false
     }), [showFilters]);
 
-    // Fetch data
-    const { data: gridData, isLoading, refetch } = useQuery({
-        queryKey: ['personGrid', searchQuery],
-        queryFn: async () => {
-            const params = {
-                page: 1,
-                pageSize: 10000,
-                sortField: 'created_date',
-                sortDirection: 'desc',
-                search: searchQuery,
-                filters: '{}'
-            };
+    // Server-side Datasource for infinite scrolling
+    const serverSideDatasource = useMemo(() => {
+        return {
+            getRows: async (params) => {
+                try {
+                    const currentPage = Math.floor(params.request.startRow / (params.request.endRow - params.request.startRow)) + 1;
+                    const pageSize = params.request.endRow - params.request.startRow;
 
-            const { data } = await base44.functions.invoke('personGridFetch', params);
-            setLastSync(new Date().toISOString());
-            return data;
-        },
-        refetchInterval: POLL_INTERVAL
-    });
+                    const sortModel = params.request.sortModel.length > 0 ? params.request.sortModel[0] : null;
+                    const sortField = sortModel ? sortModel.colId : 'created_date';
+                    const sortDirection = sortModel ? sortModel.sort : 'desc';
 
-    // Update row data when grid data changes
-    useEffect(() => {
-        if (gridData?.data) {
-            console.log("🔍 [DataGrid] Setting row data:", gridData.data.length, "rows, total:", gridData.total);
-            setRowData(gridData.data);
+                    const filters = {};
+                    Object.entries(params.request.filterModel).forEach(([key, value]) => {
+                        if (value.filterType === 'text') {
+                            filters[key] = { operator: value.type, value: value.filter };
+                        } else if (value.filterType === 'set') {
+                            filters[key] = { operator: 'in', value: value.values };
+                        } else if (value.filterType === 'date') {
+                            filters[key] = { operator: value.type, value: value.dateFrom };
+                        }
+                    });
+
+                    const requestParams = {
+                        page: currentPage,
+                        pageSize: pageSize,
+                        sortField: sortField,
+                        sortDirection: sortDirection,
+                        search: searchQuery,
+                        filters: JSON.stringify(filters)
+                    };
+
+                    const { data } = await base44.functions.invoke('personGridFetch', requestParams);
+                    setLastSync(new Date().toISOString());
+                    
+                    params.successCallback(data.data, data.total);
+                    setGridTotal(data.total);
+                } catch (error) {
+                    console.error("Error fetching data:", error);
+                    params.failCallback();
+                    toast.error('Σφάλμα φόρτωσης δεδομένων');
+                }
+            }
+        };
+    }, [searchQuery]);
+
+    const onGridReady = useCallback((params) => {
+        setGridApi(params.api);
+        params.api.setServerSideDatasource(serverSideDatasource);
+        if (preferences?.state_json?.columnState) {
+            try {
+                params.api.applyColumnState({ state: preferences.state_json.columnState, applyOrder: true });
+            } catch (error) {
+                console.error("Error applying column state on grid ready:", error);
+            }
         }
-    }, [gridData]);
+    }, [serverSideDatasource, preferences]);
+
+    const refetch = useCallback(() => {
+        if (gridApi) {
+            gridApi.setServerSideDatasource(serverSideDatasource);
+        }
+    }, [gridApi, serverSideDatasource]);
 
     // Cell edit mutation
     const cellEditMutation = useMutation({
@@ -274,15 +308,11 @@ export default function DataGrid() {
             setGridStatus('saved');
             setTimeout(() => setGridStatus('idle'), 2000);
             
-            // Update the row data with new version
-            if (data.data) {
-                setRowData(prevData => 
-                    prevData.map(row => 
-                        row.id === variables.id 
-                            ? { ...row, ...data.data }
-                            : row
-                    )
-                );
+            if (gridApi && data.data) {
+                const rowNode = gridApi.getRowNode(variables.id);
+                if (rowNode) {
+                    rowNode.setData({ ...rowNode.data, ...data.data });
+                }
             }
         },
         onError: (error, variables) => {
@@ -324,18 +354,6 @@ export default function DataGrid() {
             expected_row_version: data.row_version
         });
     }, [cellEditMutation]);
-
-    // Apply grid preferences
-    useEffect(() => {
-        if (preferences?.state_json?.columnState && gridApi) {
-            console.log("🔍 [DataGrid] Applying grid preferences:", preferences.state_json.columnState);
-            try {
-                gridApi.applyColumnState({ state: preferences.state_json.columnState, applyOrder: true });
-            } catch (error) {
-                console.error("Error applying column state:", error);
-            }
-        }
-    }, [preferences, gridApi]);
 
     // Save grid preferences (debounced)
     const savePreferences = useMemo(
@@ -381,9 +399,10 @@ export default function DataGrid() {
     const handleResetLayout = async () => {
         try {
             await base44.functions.invoke('gridPreferencesReset', { grid_key: GRID_KEY });
-            queryClient.invalidateQueries(['gridPreferences']);
+            await refetchPreferences();
             if (gridApi) {
-                gridApi.resetColumnState();
+                gridApi.setColumnState([]);
+                gridApi.setServerSideDatasource(serverSideDatasource);
             }
             toast.success('Το layout επαναφέρθηκε');
         } catch (error) {
@@ -525,10 +544,9 @@ export default function DataGrid() {
                 }}>
                     <AgGridReact
                         ref={gridRef}
-                        rowData={rowData}
                         columnDefs={columnDefs}
                         defaultColDef={defaultColDef}
-                        onGridReady={(params) => setGridApi(params.api)}
+                        onGridReady={onGridReady}
                         onCellValueChanged={onCellValueChanged}
                         onColumnMoved={onColumnMoved}
                         onColumnResized={onColumnResized}
@@ -542,7 +560,11 @@ export default function DataGrid() {
                         undoRedoCellEditing={true}
                         undoRedoCellEditingLimit={20}
                         getRowId={(params) => params.data.id}
-                        loading={isLoading}
+                        rowModelType={'serverSide'}
+                        pagination={true}
+                        paginationPageSize={100}
+                        cacheBlockSize={100}
+                        maxBlocksInCache={10}
                         overlayLoadingTemplate='<span class="ag-overlay-loading-center">Φόρτωση δεδομένων...</span>'
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Δεν βρέθηκαν εγγραφές</span>'
                     />
@@ -552,7 +574,7 @@ export default function DataGrid() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 bg-slate-50 border-t text-xs text-slate-600 gap-2">
                     <div className="flex items-center gap-4">
                         <span>
-                            Εγγραφές: <strong>{rowData.length}</strong> / {gridData?.total || 0}
+                            Σύνολο Εγγραφών: <strong>{gridTotal}</strong>
                         </span>
                     </div>
 
