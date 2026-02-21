@@ -270,9 +270,7 @@ export default function DataGrid() {
                 console.error("Error applying column state on grid ready:", error);
             }
         }
-        // Set datasource for infinite scroll
-        params.api.setDatasource(datasource);
-    }, [preferences, datasource]);
+    }, [preferences]);
 
     // Handle sort changes
     const onSortChanged = useCallback((params) => {
@@ -409,7 +407,7 @@ export default function DataGrid() {
             await refetchPreferences();
             if (gridApi) {
                 gridApi.setColumnState([]);
-                gridApi.refreshInfiniteCache();
+                gridApi.purgeInfiniteCache();
             }
             toast.success('Το layout επαναφέρθηκε');
         } catch (error) {
@@ -420,15 +418,15 @@ export default function DataGrid() {
     // Refresh datasource when filters/sort/search change
     useEffect(() => {
         if (gridApi) {
-            gridApi.setDatasource(datasource);
+            gridApi.purgeInfiniteCache();
         }
-    }, [gridApi, datasource]);
+    }, [gridApi, sortModel, filterModel, searchQuery]);
 
     // Conflict resolution handlers
     const handleReloadLatest = () => {
         setConflictDialog(null);
         if (gridApi) {
-            gridApi.refreshInfiniteCache();
+            gridApi.purgeInfiniteCache();
         }
         setGridStatus('idle');
     };
@@ -450,10 +448,7 @@ export default function DataGrid() {
     // Search handler
     const onSearchChange = useCallback((value) => {
         setSearchQuery(value);
-        if (gridApi) {
-            gridApi.refreshInfiniteCache();
-        }
-    }, [gridApi]);
+    }, []);
 
     // Custom cell class rules for saving indicator
     const cellClassRules = useMemo(() => ({
@@ -535,7 +530,7 @@ export default function DataGrid() {
                         <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={() => gridApi?.refreshInfiniteCache()}
+                            onClick={() => gridApi?.purgeInfiniteCache()}
                             className="h-10"
                         >
                             <RefreshCw className="h-4 w-4 mr-1.5" />
@@ -582,6 +577,7 @@ export default function DataGrid() {
                         undoRedoCellEditingLimit={20}
                         getRowId={(params) => params.data.id}
                         rowModelType='infinite'
+                        datasource={datasource}
                         cacheBlockSize={100}
                         maxBlocksInCache={10}
                         blockLoadDebounceMillis={100}
