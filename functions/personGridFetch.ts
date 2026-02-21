@@ -10,14 +10,14 @@ Deno.serve(async (req) => {
         }
 
         const { searchParams } = new URL(req.url);
-        const page = parseInt(searchParams.get('page') || '1');
-        const pageSize = parseInt(searchParams.get('pageSize') || '50');
+        const startRow = parseInt(searchParams.get('startRow') || '0');
+        const endRow = parseInt(searchParams.get('endRow') || '100');
         const sortField = searchParams.get('sortField') || 'created_date';
         const sortDirection = searchParams.get('sortDirection') || 'desc';
         const search = searchParams.get('search') || '';
         const filtersParam = searchParams.get('filters');
 
-        const skip = (page - 1) * pageSize;
+        const limit = endRow - startRow;
         const sort = sortDirection === 'asc' ? sortField : `-${sortField}`;
         let query = {};
 
@@ -55,25 +55,22 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Fetch paginated and filtered data
+        // Fetch windowed data for infinite scroll
         const persons = await base44.entities.Person.filter(
             query,
             sort,
-            pageSize,
-            skip
+            limit,
+            startRow
         );
 
         // Fetch total count of filtered records
         const total = (await base44.entities.Person.filter(query, sort, null, null)).length;
 
-        console.log("🔍 [personGridFetch] Returning data:", persons.length, "rows, total:", total, "search:", search);
+        console.log("🔍 [personGridFetch] Returning data:", persons.length, "rows, total:", total, "startRow:", startRow, "endRow:", endRow);
 
         return Response.json({
-            data: persons,
-            total,
-            page,
-            pageSize,
-            totalPages: Math.ceil(total / pageSize)
+            rows: persons,
+            lastRow: total
         });
 
     } catch (error) {
