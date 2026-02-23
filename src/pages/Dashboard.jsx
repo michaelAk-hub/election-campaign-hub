@@ -30,7 +30,8 @@ import {
   Clock,
   CheckCircle2,
   Download,
-  Upload
+  Upload,
+  LogIn
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -123,6 +124,14 @@ export default function Dashboard() {
         hasMore = batch.length === limit;
       }
       return allRecords;
+    }
+  });
+
+  const { data: recentLogins = [] } = useQuery({
+    queryKey: ['recent-logins'],
+    queryFn: async () => {
+      const { data } = await base44.functions.invoke('getRecentLogins');
+      return data.logins || [];
     }
   });
 
@@ -405,60 +414,116 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Recent Submissions */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
-          <CardTitle className="text-base sm:text-lg">Πρόσφατες Καταχωρήσεις Κανάλι</CardTitle>
-          <Link to={createPageUrl('NotFoundVoters')}>
-            <Button variant="ghost" size="sm" className="h-9">
-              <span className="hidden sm:inline">Προβολή Όλων</span>
-              <ArrowRight className="h-4 w-4 sm:ml-1" />
-            </Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {recentSubmissions.length === 0 ? (
-            <p className="text-slate-500 text-center py-8">Δεν υπάρχουν καταχωρήσεις ακόμα</p>
-          ) : (
-            <div className="space-y-2">
-              {recentSubmissions.slice(0, 5).map(sub => (
-                <div 
-                  key={sub.id} 
-                  className="flex items-center justify-between p-2 sm:p-3 bg-slate-50 rounded-lg gap-2"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                    <div className={`p-1 sm:p-1.5 rounded-full flex-shrink-0 ${
-                      sub.status === 'MARKED_VOTED' 
-                        ? 'bg-emerald-100' 
-                        : 'bg-red-100'
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Recent Logins */}
+        <Card>
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <LogIn className="h-5 w-5 text-blue-600" />
+              Πρόσφατες Συνδέσεις
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentLogins.length === 0 ? (
+              <p className="text-slate-500 text-center py-8">Δεν υπάρχουν συνδέσεις ακόμα</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-slate-500 border-b">
+                    <tr>
+                      <th className="text-left py-2 px-1 sm:px-2">Τύπος</th>
+                      <th className="text-left py-2 px-1 sm:px-2">Όνομα</th>
+                      <th className="text-left py-2 px-1 sm:px-2">Τελευταία Σύνδεση</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {recentLogins.slice(0, 10).map((login, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="py-2 px-1 sm:px-2">
+                          <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
+                            login.type === 'Διαχειριστής' ? 'bg-purple-100 text-purple-700' :
+                            login.type === 'Οργανωτικός' ? 'bg-blue-100 text-blue-700' :
+                            login.type.startsWith('Κανάλι') ? 'bg-green-100 text-green-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {login.type}
+                          </span>
+                        </td>
+                        <td className="py-2 px-1 sm:px-2 text-slate-900 font-medium truncate max-w-[120px] sm:max-w-[200px]">
+                          {login.name}
+                        </td>
+                        <td className="py-2 px-1 sm:px-2 text-slate-600 text-xs">
+                          {new Date(login.last_seen).toLocaleString('el-GR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Submissions */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
+            <CardTitle className="text-base sm:text-lg">Πρόσφατες Καταχωρήσεις Κανάλι</CardTitle>
+            <Link to={createPageUrl('NotFoundVoters')}>
+              <Button variant="ghost" size="sm" className="h-9">
+                <span className="hidden sm:inline">Προβολή Όλων</span>
+                <ArrowRight className="h-4 w-4 sm:ml-1" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {recentSubmissions.length === 0 ? (
+              <p className="text-slate-500 text-center py-8">Δεν υπάρχουν καταχωρήσεις ακόμα</p>
+            ) : (
+              <div className="space-y-2">
+                {recentSubmissions.slice(0, 5).map(sub => (
+                  <div 
+                    key={sub.id} 
+                    className="flex items-center justify-between p-2 sm:p-3 bg-slate-50 rounded-lg gap-2"
+                  >
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <div className={`p-1 sm:p-1.5 rounded-full flex-shrink-0 ${
+                        sub.status === 'MARKED_VOTED' 
+                          ? 'bg-emerald-100' 
+                          : 'bg-red-100'
+                      }`}>
+                        {sub.status === 'MARKED_VOTED' ? (
+                          <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-600" />
+                        ) : (
+                          <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-600" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm font-medium text-slate-900 truncate">ID: {sub.submitted_id}</p>
+                        <p className="text-xs text-slate-500 truncate">{sub.kanali_username}</p>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
+                      sub.status === 'MARKED_VOTED'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : sub.status === 'ALREADY_VOTED'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-red-100 text-red-700'
                     }`}>
-                      {sub.status === 'MARKED_VOTED' ? (
-                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-600" />
-                      ) : (
-                        <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-600" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-medium text-slate-900 truncate">ID: {sub.submitted_id}</p>
-                      <p className="text-xs text-slate-500 truncate">{sub.kanali_username}</p>
-                    </div>
+                      {sub.status === 'MARKED_VOTED' ? 'Επιτυχής' :
+                       sub.status === 'ALREADY_VOTED' ? 'Ήδη Ψήφισε' : 'Δεν Βρέθηκε'}
+                    </span>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
-                    sub.status === 'MARKED_VOTED'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : sub.status === 'ALREADY_VOTED'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}>
-                    {sub.status === 'MARKED_VOTED' ? 'Επιτυχής' :
-                     sub.status === 'ALREADY_VOTED' ? 'Ήδη Ψήφισε' : 'Δεν Βρέθηκε'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialog} onOpenChange={setUploadDialog}>
