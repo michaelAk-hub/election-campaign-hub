@@ -40,6 +40,26 @@ export default function Dashboard() {
   const [uploadFile, setUploadFile] = useState(null);
   const [importMode, setImportMode] = useState('append');
   const [isUploading, setIsUploading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const sessionToken = localStorage.getItem('app_session_token');
+        if (sessionToken) {
+          const { data } = await base44.functions.invoke('validateAppSession', {
+            session_token: sessionToken
+          });
+          if (data.valid) {
+            setCurrentUser(data.user);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading user:', e);
+      }
+    };
+    loadUser();
+  }, []);
 
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
     queryKey: ['people'],
@@ -415,62 +435,64 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Recent Logins */}
-        <Card>
-          <CardHeader className="pb-3 sm:pb-6">
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <LogIn className="h-5 w-5 text-blue-600" />
-              Πρόσφατες Συνδέσεις
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentLogins.length === 0 ? (
-              <p className="text-slate-500 text-center py-8">Δεν υπάρχουν συνδέσεις ακόμα</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-xs text-slate-500 border-b">
-                    <tr>
-                      <th className="text-left py-2 px-1 sm:px-2">Τύπος</th>
-                      <th className="text-left py-2 px-1 sm:px-2">Όνομα</th>
-                      <th className="text-left py-2 px-1 sm:px-2">Τελευταία Σύνδεση</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {recentLogins.slice(0, 10).map((login, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="py-2 px-1 sm:px-2">
-                          <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
-                            login.type === 'Διαχειριστής' ? 'bg-purple-100 text-purple-700' :
-                            login.type === 'Οργανωτικός' ? 'bg-blue-100 text-blue-700' :
-                            login.type.startsWith('Κανάλι') ? 'bg-green-100 text-green-700' :
-                            'bg-amber-100 text-amber-700'
-                          }`}>
-                            {login.type}
-                          </span>
-                        </td>
-                        <td className="py-2 px-1 sm:px-2 text-slate-900 font-medium truncate max-w-[120px] sm:max-w-[200px]">
-                          {login.name}
-                        </td>
-                        <td className="py-2 px-1 sm:px-2 text-slate-600 text-xs">
-                          {new Date(login.last_seen).toLocaleString('el-GR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
+        {/* Recent Logins - Admin Only */}
+        {currentUser?.role === 'ADMIN' && (
+          <Card>
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <LogIn className="h-5 w-5 text-blue-600" />
+                Πρόσφατες Συνδέσεις
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentLogins.length === 0 ? (
+                <p className="text-slate-500 text-center py-8">Δεν υπάρχουν συνδέσεις ακόμα</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs text-slate-500 border-b">
+                      <tr>
+                        <th className="text-left py-2 px-1 sm:px-2">Τύπος</th>
+                        <th className="text-left py-2 px-1 sm:px-2">Όνομα</th>
+                        <th className="text-left py-2 px-1 sm:px-2">Τελευταία Σύνδεση</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </thead>
+                    <tbody className="divide-y">
+                      {recentLogins.slice(0, 10).map((login, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="py-2 px-1 sm:px-2">
+                            <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
+                              login.type === 'Διαχειριστής' ? 'bg-purple-100 text-purple-700' :
+                              login.type === 'Οργανωτικός' ? 'bg-blue-100 text-blue-700' :
+                              login.type.startsWith('Κανάλι') ? 'bg-green-100 text-green-700' :
+                              'bg-amber-100 text-amber-700'
+                            }`}>
+                              {login.type}
+                            </span>
+                          </td>
+                          <td className="py-2 px-1 sm:px-2 text-slate-900 font-medium truncate max-w-[120px] sm:max-w-[200px]">
+                            {login.name}
+                          </td>
+                          <td className="py-2 px-1 sm:px-2 text-slate-600 text-xs">
+                            {new Date(login.last_seen).toLocaleString('el-GR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Submissions */}
-        <Card>
+        <Card className={currentUser?.role === 'ADMIN' ? '' : 'lg:col-span-2'}>
           <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
             <CardTitle className="text-base sm:text-lg">Πρόσφατες Καταχωρήσεις Κανάλι</CardTitle>
             <Link to={createPageUrl('NotFoundVoters')}>
