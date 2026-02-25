@@ -208,49 +208,95 @@ export default function DataGrid() {
         }
     ], [isMobile]);
 
-    // Infinite scroll state
+    // Infinite scroll state with cursor management
     const [sortModel, setSortModel] = useState([{ colId: 'created_date', sort: 'desc' }]);
     const [filterModel, setFilterModel] = useState({});
     const [loadedRowsCount, setLoadedRowsCount] = useState(0);
+    const [hasMoreData, setHasMoreData] = useState(true);
+    const cursorMapRef = useRef(new Map()); // blockIndex -> cursor
+    const [activeDatasetId, setActiveDatasetId] = useState(null);
 
-    // Datasource for infinite scrolling
+    // Load active dataset ID
+    useEffect(() => {
+        const loadActiveDataset = async () => {
+            try {
+                const datasets = await base44.entities.Dataset.filter({ status: 'active' }, '-activated_at', 1);
+                if (datasets.length > 0) {
+                    setActiveDatasetId(datasets[0].id);
+                }
+            } catch (error) {
+                console.error('Error loading active dataset:', error);
+            }
+        };
+        loadActiveDataset();
+    }, []);
+
+    // Datasource for infinite scrolling with cursor-based pagination
     const datasource = useMemo(() => ({
         getRows: async (params) => {
             try {
-                const sortField = sortModel.length > 0 ? sortModel[0].colId : 'created_date';
-                const sortDirection = sortModel.length > 0 ? sortModel[0].sort : 'desc';
+                if (!activeDatasetId) {
+                    params.failCallback();
+                    return;
+                }
 
+                const blockIndex = Math.floor(params.startRow / 100);
+                const blockSize = params.endRow - params.startRow;
+
+                // Build sortModel for external API
+                const sortModelArray = sortModel.map(s => ({
+                    field: s.colId,
+                    sort: s.sort
+                }));
+
+                // Build filters compatible with external API
                 const filters = {};
                 Object.entries(filterModel).forEach(([key, value]) => {
-                    if (value.filterType === 'text') {
-                        filters[key] = { operator: value.type, value: value.filter };
-                    } else if (value.filterType === 'set') {
-                        filters[key] = { operator: 'in', value: value.values };
-                    } else if (value.filterType === 'date') {
-                        filters[key] = { operator: value.type, value: value.dateFrom };
+                    if (value.filterType === 'set') {
+                        filters[key] = {
+                            filterType: 'set',
+                            values: value.values || [],
+                            includeBlanks: value.includeBlanks || false
+                        };
                     }
                 });
 
-                const { data } = await base44.functions.invoke('personGridFetch', {
-                    startRow: params.startRow,
-                    endRow: params.endRow,
-                    sortField,
-                    sortDirection,
+                // Get cursor for this block
+                const cursor = blockIndex === 0 ? null : cursorMapRef.current.get(blockIndex);
+
+                const { data } = await base44.functions.invoke('personGridFetchProxy', {
+                    datasetId: activeDatasetId,
+                    blockSize,
+                    cursor,
+                    sortModel: sortModelArray,
                     search: searchQuery,
-                    filters: JSON.stringify(filters)
+                    filters
                 });
                 
                 setLastSync(new Date().toISOString());
-                setGridTotal(data.lastRow || 0);
-                setLoadedRowsCount(params.endRow);
+                setHasMoreData(data.hasMore || false);
                 
-                params.successCallback(data.rows, data.lastRow);
+                // Store next cursor for next block
+                if (data.nextCursor) {
+                    cursorMapRef.current.set(blockIndex + 1, data.nextCursor);
+                }
+                
+                // Update loaded count
+                const newLoadedCount = params.startRow + data.rows.length;
+                setLoadedRowsCount(newLoadedCount);
+                
+                // Calculate lastRow for AG Grid
+                // If hasMore is false, we know the exact end
+                const lastRow = data.hasMore ? undefined : newLoadedCount;
+                
+                params.successCallback(data.rows, lastRow);
             } catch (error) {
                 console.error('Error fetching rows:', error);
+                toast.error('Σφάλμα φόρτωσης δεδομένων');
                 params.failCallback();
             }
         }
-    }), [sortModel, filterModel, searchQuery]);
+    }), [sortModel, filterModel, searchQuery, activeDatasetId]);
 
     // Default grid options
     const defaultColDef = useMemo(() => ({
@@ -423,6 +469,8 @@ export default function DataGrid() {
     // Refresh datasource when filters/sort/search change
     useEffect(() => {
         if (gridApi) {
+            // Clear cursor map on filter/sort/search change
+            cursorMapRef.current.clear();
             gridApi.purgeInfiniteCache();
         }
     }, [gridApi, sortModel, filterModel, searchQuery]);
@@ -597,8 +645,15 @@ export default function DataGrid() {
                         <span>
                             Φορτωμένες: <strong>{loadedRowsCount}</strong>
                         </span>
-                        <span>
-                            Σύνολο: <strong>{gridTotal}</strong>
+                        <span className="flex items-center gap-1">
+                            {hasMoreData ? (
+                                <>
+                                    <span>Περισσότερα διαθέσιμα</span>
+                                    <span className="text-blue-600">↓</span>
+                                </>
+                            ) : (
+                                <span>Τέλος αποτελεσμάτων</span>
+                            )}
                         </span>
                     </div>
 
