@@ -161,6 +161,14 @@ export default function DataGrid() {
             hide: isMobile
         },
         {
+            field: 'monadikos_katalogou',
+            headerName: 'Μοναδικός Καταλόγου',
+            editable: true,
+            filter: AccessStyleFilter,
+            width: isMobile ? 140 : 180,
+            hide: isMobile
+        },
+        {
             field: 'voted',
             headerName: 'Ψήφισε',
             editable: true,
