@@ -320,6 +320,10 @@ export default function Dashboard() {
               <Vote className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">{isMarkingVoted ? 'Επεξεργασία...' : 'Σήμανση 50% (Σ/Ο/Π)'}</span>
             </Button>
+            <Button variant="outline" onClick={handleMarkHalfVotedX} disabled={isMarkingVotedX} className="h-10 border-purple-300 text-purple-700 hover:bg-purple-50">
+              <Vote className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{isMarkingVotedX ? 'Επεξεργασία...' : 'Σήμανση 50% (Χ)'}</span>
+            </Button>
           </div>
         }
       />
