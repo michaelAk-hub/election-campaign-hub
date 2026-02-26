@@ -61,21 +61,21 @@ export default function KanaliPortal() {
   };
 
   const submitVoteMutation = useMutation({
-    mutationFn: async (personId) => {
-      // Find person
-      const people = await base44.entities.Person.filter({ person_id: personId });
+    mutationFn: async (submittedValue) => {
+      // Find person by monadikos_kanali
+      const people = await base44.entities.Person.filter({ monadikos_kanali: submittedValue });
       
       if (people.length === 0) {
         // Not found
         await base44.entities.NotFoundVoter.create({
-          submitted_id: personId,
+          submitted_id: submittedValue,
           reason_text: 'Δεν βρέθηκε εγγραφή με αυτό το ID',
           kanali_username: session.username
         });
         
         await base44.entities.KanaliSubmission.create({
           kanali_username: session.username,
-          submitted_id: personId,
+          submitted_id: submittedValue,
           status: 'NOT_FOUND',
           reason_text: 'Δεν βρέθηκε εγγραφή με αυτό το ID'
         });
@@ -88,14 +88,14 @@ export default function KanaliPortal() {
       if (person.voted) {
         // Already voted
         await base44.entities.NotFoundVoter.create({
-          submitted_id: personId,
+          submitted_id: submittedValue,
           reason_text: 'Ήδη ήταν Ψήφισε = ΝΑΙ',
           kanali_username: session.username
         });
         
         await base44.entities.KanaliSubmission.create({
           kanali_username: session.username,
-          submitted_id: personId,
+          submitted_id: submittedValue,
           status: 'ALREADY_VOTED',
           reason_text: 'Ήδη ήταν Ψήφισε = ΝΑΙ',
           person_record_id: person.id
@@ -104,15 +104,16 @@ export default function KanaliPortal() {
         return { status: 'ALREADY_VOTED', message: 'Ήδη ήταν Ψήφισε = ΝΑΙ', person };
       }
 
-      // Mark as voted
+      // Mark as voted with timestamp
       await base44.entities.Person.update(person.id, { 
         voted: true,
+        voted_at: new Date().toISOString(),
         row_version: (person.row_version || 1) + 1
       });
       
       await base44.entities.KanaliSubmission.create({
         kanali_username: session.username,
-        submitted_id: personId,
+        submitted_id: submittedValue,
         status: 'MARKED_VOTED',
         person_record_id: person.id
       });
