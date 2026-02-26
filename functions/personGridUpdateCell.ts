@@ -44,17 +44,6 @@ Deno.serve(async (req) => {
             row_version: currentPerson.row_version + 1
         });
 
-        // Trigger sync to external Grid API (non-blocking)
-        try {
-            await base44.functions.invoke('syncPersonToGridAPI', {
-                person_id: person_id,
-                use_service_role: false
-            });
-        } catch (syncError) {
-            console.error('Failed to sync to Grid API:', syncError);
-            // Don't fail the request - sync can be retried by reconciliation job
-        }
-
         return Response.json({
             success: true,
             data: updatedPerson,

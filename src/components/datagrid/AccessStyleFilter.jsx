@@ -23,28 +23,9 @@ const AccessStyleFilter = forwardRef((props, ref) => {
     const loadFilterValues = async (search = '') => {
         setLoading(true);
         try {
-            // Get active dataset ID from API params or grid context
-            const gridApi = props.api;
-            let datasetId = null;
-            
-            // Try to get dataset from grid context
-            if (gridApi) {
-                const firstRow = gridApi.getDisplayedRowAtIndex(0);
-                if (firstRow?.data?.dataset_id) {
-                    datasetId = firstRow.data.dataset_id;
-                }
-            }
-            
-            // Get current filters to respect context
-            const currentFilters = gridApi ? gridApi.getFilterModel() : {};
-            const currentSearch = ''; // Could get from parent if needed
-            
-            const { data } = await base44.functions.invoke('personGridFilterValuesProxy', {
-                datasetId: datasetId || 'active', // Fallback to 'active'
+            const { data } = await base44.functions.invoke('personGridFilterValues', {
                 columnKey,
-                searchText: search,
-                currentSearch,
-                currentFilters
+                searchText: search
             });
             
             setFilterValues(data.values || []);
