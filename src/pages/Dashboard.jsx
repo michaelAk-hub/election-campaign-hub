@@ -270,13 +270,41 @@ export default function Dashboard() {
     if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Χ ως ψηφίσαντες. Συνέχεια;')) return;
     setIsMarkingVotedX(true);
     try {
-      const response = await base44.functions.invoke('markHalfVotedX', {});
+      const response = await base44.functions.invoke('markHalfVotedBySymbol', { symbol: 'Χ' });
       toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές (Χ) ως ψηφίσαντες`);
       refetch();
     } catch (error) {
       toast.error('Σφάλμα: ' + error.message);
     } finally {
       setIsMarkingVotedX(false);
+    }
+  };
+
+  const handleMarkHalfVotedX2 = async () => {
+    if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Χ2 ως ψηφίσαντες. Συνέχεια;')) return;
+    setIsMarkingVotedX2(true);
+    try {
+      const response = await base44.functions.invoke('markHalfVotedBySymbol', { symbol: 'Χ2' });
+      toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές (Χ2) ως ψηφίσαντες`);
+      refetch();
+    } catch (error) {
+      toast.error('Σφάλμα: ' + error.message);
+    } finally {
+      setIsMarkingVotedX2(false);
+    }
+  };
+
+  const handleMarkHalfVotedX3 = async () => {
+    if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Χ3 ως ψηφίσαντες. Συνέχεια;')) return;
+    setIsMarkingVotedX3(true);
+    try {
+      const response = await base44.functions.invoke('markHalfVotedBySymbol', { symbol: 'Χ3' });
+      toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές (Χ3) ως ψηφίσαντες`);
+      refetch();
+    } catch (error) {
+      toast.error('Σφάλμα: ' + error.message);
+    } finally {
+      setIsMarkingVotedX3(false);
     }
   };
 
