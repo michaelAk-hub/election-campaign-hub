@@ -301,6 +301,10 @@ export default function Dashboard() {
               <RefreshCw className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Ανανέωση</span>
             </Button>
+            <Button variant="outline" onClick={handleMarkHalfVoted} disabled={isMarkingVoted} className="h-10 border-amber-300 text-amber-700 hover:bg-amber-50">
+              <Vote className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{isMarkingVoted ? 'Επεξεργασία...' : 'Σήμανση 50% (Σ/Ο/Π)'}</span>
+            </Button>
           </div>
         }
       />
