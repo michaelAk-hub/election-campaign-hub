@@ -263,6 +263,20 @@ export default function Dashboard() {
     }
   };
 
+  const handleMarkHalfVoted = async () => {
+    if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Σ, Ο, Π ως ψηφίσαντες. Συνέχεια;')) return;
+    setIsMarkingVoted(true);
+    try {
+      const response = await base44.functions.invoke('markHalfVoted', {});
+      toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές ως ψηφίσαντες`);
+      refetch();
+    } catch (error) {
+      toast.error('Σφάλμα: ' + error.message);
+    } finally {
+      setIsMarkingVoted(false);
+    }
+  };
+
   if (loadingPeople) {
     return <LoadingSpinner />;
   }
