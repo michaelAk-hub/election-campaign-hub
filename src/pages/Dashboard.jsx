@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [importMode, setImportMode] = useState('append');
   const [isUploading, setIsUploading] = useState(false);
   const [isMarkingVoted, setIsMarkingVoted] = useState(false);
+  const [isMarkingVotedX, setIsMarkingVotedX] = useState(false);
 
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
     queryKey: ['people'],
