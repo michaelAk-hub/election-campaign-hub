@@ -185,6 +185,14 @@ export default function DataGrid() {
             hide: isMobile
         },
         {
+            field: 'monadikos_kanali',
+            headerName: 'Μοναδικός Κανάλι',
+            editable: true,
+            filter: AccessStyleFilter,
+            width: isMobile ? 140 : 180,
+            hide: isMobile
+        },
+        {
             field: 'dataset_id',
             headerName: 'Dataset ID',
             editable: false,
