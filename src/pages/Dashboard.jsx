@@ -354,6 +354,14 @@ export default function Dashboard() {
               <Vote className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">{isMarkingVotedX ? 'Επεξεργασία...' : 'Σήμανση 50% (Χ)'}</span>
             </Button>
+            <Button variant="outline" onClick={handleMarkHalfVotedX2} disabled={isMarkingVotedX2} className="h-10 border-indigo-300 text-indigo-700 hover:bg-indigo-50">
+              <Vote className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{isMarkingVotedX2 ? 'Επεξεργασία...' : 'Σήμανση 50% (Χ2)'}</span>
+            </Button>
+            <Button variant="outline" onClick={handleMarkHalfVotedX3} disabled={isMarkingVotedX3} className="h-10 border-teal-300 text-teal-700 hover:bg-teal-50">
+              <Vote className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{isMarkingVotedX3 ? 'Επεξεργασία...' : 'Σήμανση 50% (Χ3)'}</span>
+            </Button>
           </div>
         }
       />
