@@ -10,14 +10,14 @@ Deno.serve(async (req) => {
         }
 
         const { searchParams } = new URL(req.url);
-        const startRow = parseInt(searchParams.get('startRow') || '0');
-        const endRow = parseInt(searchParams.get('endRow') || '100');
+        const page = parseInt(searchParams.get('page') || '1');
+        const pageSize = parseInt(searchParams.get('pageSize') || '50');
         const sortField = searchParams.get('sortField') || 'created_date';
         const sortDirection = searchParams.get('sortDirection') || 'desc';
         const search = searchParams.get('search') || '';
         const filtersParam = searchParams.get('filters');
 
-        const limit = endRow - startRow;
+        const skip = (page - 1) * pageSize;
         const sort = sortDirection === 'asc' ? sortField : `-${sortField}`;
         let query = {};
 
@@ -33,40 +33,13 @@ Deno.serve(async (req) => {
             ];
         }
 
-        // Column filters - supports Access-style set filters with blanks
+        // Column filters
         if (filtersParam) {
             const filters = JSON.parse(filtersParam);
             Object.entries(filters).forEach(([field, filterValue]) => {
                 if (!filterValue) return;
                 
-                // Access-style filter (set-based with blanks)
-                if (typeof filterValue === 'object' && filterValue.filterType === 'set') {
-                    const { values = [], includeBlanks = false } = filterValue;
-                    
-                    if (includeBlanks && values.length > 0) {
-                        // Include both selected values and blanks
-                        query.$or = query.$or || [];
-                        query.$or.push(
-                            { [field]: { $in: values } },
-                            { [field]: null },
-                            { [field]: '' },
-                            { [field]: { $exists: false } }
-                        );
-                    } else if (includeBlanks) {
-                        // Only blanks
-                        query.$or = query.$or || [];
-                        query.$or.push(
-                            { [field]: null },
-                            { [field]: '' },
-                            { [field]: { $exists: false } }
-                        );
-                    } else if (values.length > 0) {
-                        // Only selected values
-                        query[field] = { $in: values };
-                    }
-                }
-                // Legacy filters (for backwards compatibility)
-                else if (typeof filterValue === 'object' && filterValue.operator) {
+                if (typeof filterValue === 'object' && filterValue.operator) {
                     const { operator, value: filterVal } = filterValue;
                     if (operator === 'contains') query[field] = { $regex: String(filterVal), $options: 'i' };
                     if (operator === 'startsWith') query[field] = { $regex: `^${String(filterVal)}`, $options: 'i' };
@@ -82,68 +55,25 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Fetch windowed data for infinite scroll with batching for large offsets
-        let persons = [];
-        const maxSingleQueryLimit = 5000;
+        // Fetch paginated and filtered data
+        const persons = await base44.entities.Person.filter(
+            query,
+            sort,
+            pageSize,
+            skip
+        );
 
-        if (startRow >= maxSingleQueryLimit) {
-            // For large offsets, fetch in batches
-            const batchSize = 1000;
-            let currentSkip = 0;
-            let targetRowsToSkip = startRow;
-            let targetRowsToFetch = limit;
+        // Fetch total count of filtered records
+        const total = (await base44.entities.Person.filter(query, sort, null, null)).length;
 
-            // Skip to the target position in batches
-            while (currentSkip < targetRowsToSkip) {
-                const skipBatch = Math.min(batchSize, targetRowsToSkip - currentSkip);
-                await base44.entities.Person.filter(query, sort, skipBatch, currentSkip);
-                currentSkip += skipBatch;
-            }
-
-            // Now fetch the actual data we need in batches
-            let fetchedCount = 0;
-            while (fetchedCount < targetRowsToFetch) {
-                const fetchSize = Math.min(batchSize, targetRowsToFetch - fetchedCount);
-                const batch = await base44.entities.Person.filter(
-                    query,
-                    sort,
-                    fetchSize,
-                    startRow + fetchedCount
-                );
-                persons.push(...batch);
-                fetchedCount += batch.length;
-                if (batch.length < fetchSize) {
-                    break; // No more data
-                }
-            }
-        } else {
-            // Normal fetch for small offsets
-            persons = await base44.entities.Person.filter(
-                query,
-                sort,
-                limit,
-                startRow
-            );
-        }
-
-        // Count total records efficiently by fetching in batches
-        let total = 0;
-        const countBatchSize = 1000;
-        let countSkip = 0;
-        while (true) {
-            const batch = await base44.entities.Person.filter(query, sort, countBatchSize, countSkip);
-            total += batch.length;
-            if (batch.length < countBatchSize) {
-                break; // Last batch, we've counted all records
-            }
-            countSkip += countBatchSize;
-        }
-
-        console.log("🔍 [personGridFetch] Returning data:", persons.length, "rows, total:", total, "startRow:", startRow, "endRow:", endRow);
+        console.log("🔍 [personGridFetch] Returning data:", persons.length, "rows, total:", total, "search:", search);
 
         return Response.json({
-            rows: persons,
-            lastRow: total
+            data: persons,
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize)
         });
 
     } catch (error) {

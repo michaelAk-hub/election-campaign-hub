@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/card";
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
 import ConflictResolutionDialog from '../components/datagrid/ConflictResolutionDialog';
-import AccessStyleFilter from '../components/datagrid/AccessStyleFilter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
     Search,
@@ -67,7 +66,7 @@ export default function DataGrid() {
             field: 'person_id',
             headerName: 'ΑΤ (ID)',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             pinned: isMobile ? null : 'left',
             width: isMobile ? 100 : 120,
             hide: false
@@ -76,7 +75,7 @@ export default function DataGrid() {
             field: 'first_name',
             headerName: 'Όνομα',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 120 : 150,
             hide: false
         },
@@ -84,7 +83,7 @@ export default function DataGrid() {
             field: 'last_name',
             headerName: 'Επώνυμο',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 120 : 150,
             hide: false
         },
@@ -92,7 +91,7 @@ export default function DataGrid() {
             field: 'mobile_phone',
             headerName: 'Κινητό',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 110 : 140,
             hide: isMobile
         },
@@ -100,7 +99,7 @@ export default function DataGrid() {
             field: 'department',
             headerName: 'Τμήμα',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 140 : 200,
             hide: isMobile
         },
@@ -108,7 +107,7 @@ export default function DataGrid() {
             field: 'admission_year',
             headerName: 'Έτος Εισδοχής',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 100 : 140,
             hide: isMobile
         },
@@ -116,7 +115,7 @@ export default function DataGrid() {
             field: 'academic_level',
             headerName: 'Επίπεδο',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 100 : 150,
             hide: isMobile
         },
@@ -124,7 +123,7 @@ export default function DataGrid() {
             field: 'ucid',
             headerName: 'UCID',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 100 : 120,
             hide: isMobile
         },
@@ -132,7 +131,7 @@ export default function DataGrid() {
             field: 'contact_person_1',
             headerName: 'Άτομο 1',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 120 : 150,
             hide: isMobile
         },
@@ -140,7 +139,7 @@ export default function DataGrid() {
             field: 'contact_person_2',
             headerName: 'Άτομο 2',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 120 : 150,
             hide: isMobile
         },
@@ -148,7 +147,7 @@ export default function DataGrid() {
             field: 'member',
             headerName: 'Μέλος',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 100 : 120,
             hide: isMobile
         },
@@ -156,7 +155,7 @@ export default function DataGrid() {
             field: 'prediction_symbol',
             headerName: 'Σύμβολο Πρόβλεψης',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 120 : 160,
             hide: isMobile
         },
@@ -164,7 +163,7 @@ export default function DataGrid() {
             field: 'voted',
             headerName: 'Ψήφισε',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agSetColumnFilter',
             cellRenderer: (params) => params.value ? 'Ναι' : 'Όχι',
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: {
@@ -179,7 +178,7 @@ export default function DataGrid() {
             field: 'notes',
             headerName: 'Σημειώσεις',
             editable: true,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             cellEditor: 'agLargeTextCellEditor',
             width: isMobile ? 150 : 200,
             hide: isMobile
@@ -188,7 +187,7 @@ export default function DataGrid() {
             field: 'dataset_id',
             headerName: 'Dataset ID',
             editable: false,
-            filter: AccessStyleFilter,
+            filter: 'agTextColumnFilter',
             width: isMobile ? 120 : 150,
             cellStyle: { backgroundColor: '#f8fafc', color: '#64748b' },
             hide: true
@@ -197,7 +196,7 @@ export default function DataGrid() {
             field: 'created_date',
             headerName: 'Δημιουργήθηκε',
             editable: false,
-            filter: false,
+            filter: 'agDateColumnFilter',
             valueFormatter: (params) => {
                 if (!params.value) return '-';
                 return new Date(params.value).toLocaleString('el-GR');
@@ -208,49 +207,44 @@ export default function DataGrid() {
         }
     ], [isMobile]);
 
-    // Infinite scroll state
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(100);
     const [sortModel, setSortModel] = useState([{ colId: 'created_date', sort: 'desc' }]);
     const [filterModel, setFilterModel] = useState({});
-    const [loadedRowsCount, setLoadedRowsCount] = useState(0);
 
-    // Datasource for infinite scrolling
-    const datasource = useMemo(() => ({
-        getRows: async (params) => {
-            try {
-                const sortField = sortModel.length > 0 ? sortModel[0].colId : 'created_date';
-                const sortDirection = sortModel.length > 0 ? sortModel[0].sort : 'desc';
+    // Fetch data with React Query
+    const { data: gridData, isLoading, refetch } = useQuery({
+        queryKey: ['personGrid', page, pageSize, sortModel, filterModel, searchQuery],
+        queryFn: async () => {
+            const sortField = sortModel.length > 0 ? sortModel[0].colId : 'created_date';
+            const sortDirection = sortModel.length > 0 ? sortModel[0].sort : 'desc';
 
-                const filters = {};
-                Object.entries(filterModel).forEach(([key, value]) => {
-                    if (value.filterType === 'text') {
-                        filters[key] = { operator: value.type, value: value.filter };
-                    } else if (value.filterType === 'set') {
-                        filters[key] = { operator: 'in', value: value.values };
-                    } else if (value.filterType === 'date') {
-                        filters[key] = { operator: value.type, value: value.dateFrom };
-                    }
-                });
+            const filters = {};
+            Object.entries(filterModel).forEach(([key, value]) => {
+                if (value.filterType === 'text') {
+                    filters[key] = { operator: value.type, value: value.filter };
+                } else if (value.filterType === 'set') {
+                    filters[key] = { operator: 'in', value: value.values };
+                } else if (value.filterType === 'date') {
+                    filters[key] = { operator: value.type, value: value.dateFrom };
+                }
+            });
 
-                const { data } = await base44.functions.invoke('personGridFetch', {
-                    startRow: params.startRow,
-                    endRow: params.endRow,
-                    sortField,
-                    sortDirection,
-                    search: searchQuery,
-                    filters: JSON.stringify(filters)
-                });
-                
-                setLastSync(new Date().toISOString());
-                setGridTotal(data.lastRow || 0);
-                setLoadedRowsCount(params.endRow);
-                
-                params.successCallback(data.rows, data.lastRow);
-            } catch (error) {
-                console.error('Error fetching rows:', error);
-                params.failCallback();
-            }
+            const { data } = await base44.functions.invoke('personGridFetch', {
+                page,
+                pageSize,
+                sortField,
+                sortDirection,
+                search: searchQuery,
+                filters: JSON.stringify(filters)
+            });
+            
+            setLastSync(new Date().toISOString());
+            setGridTotal(data.total);
+            return data;
         }
-    }), [sortModel, filterModel, searchQuery]);
+    });
 
     // Default grid options
     const defaultColDef = useMemo(() => ({
@@ -279,16 +273,14 @@ export default function DataGrid() {
             .filter(col => col.sort != null)
             .map(col => ({ colId: col.colId, sort: col.sort }));
         setSortModel(sortModel);
+        setPage(1);
     }, []);
 
     // Handle filter changes
     const onFilterChanged = useCallback((params) => {
         const filterModel = params.api.getFilterModel();
         setFilterModel(filterModel);
-        
-        // Count active filters
-        const activeFilters = Object.keys(filterModel).length;
-        console.log('Active filters:', activeFilters, filterModel);
+        setPage(1);
     }, []);
 
     // Cell edit mutation
@@ -412,7 +404,7 @@ export default function DataGrid() {
             await refetchPreferences();
             if (gridApi) {
                 gridApi.setColumnState([]);
-                gridApi.purgeInfiniteCache();
+                gridApi.setServerSideDatasource(serverSideDatasource);
             }
             toast.success('Το layout επαναφέρθηκε');
         } catch (error) {
@@ -420,19 +412,10 @@ export default function DataGrid() {
         }
     };
 
-    // Refresh datasource when filters/sort/search change
-    useEffect(() => {
-        if (gridApi) {
-            gridApi.purgeInfiniteCache();
-        }
-    }, [gridApi, sortModel, filterModel, searchQuery]);
-
     // Conflict resolution handlers
     const handleReloadLatest = () => {
         setConflictDialog(null);
-        if (gridApi) {
-            gridApi.purgeInfiniteCache();
-        }
+        refetch();
         setGridStatus('idle');
     };
 
@@ -535,7 +518,7 @@ export default function DataGrid() {
                         <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={() => gridApi?.purgeInfiniteCache()}
+                            onClick={() => refetch()}
                             className="h-10"
                         >
                             <RefreshCw className="h-4 w-4 mr-1.5" />
@@ -563,6 +546,7 @@ export default function DataGrid() {
                 }}>
                     <AgGridReact
                         ref={gridRef}
+                        rowData={gridData?.data || []}
                         columnDefs={columnDefs}
                         defaultColDef={defaultColDef}
                         onGridReady={onGridReady}
@@ -581,11 +565,10 @@ export default function DataGrid() {
                         undoRedoCellEditing={true}
                         undoRedoCellEditingLimit={20}
                         getRowId={(params) => params.data.id}
-                        rowModelType='infinite'
-                        datasource={datasource}
-                        cacheBlockSize={100}
-                        maxBlocksInCache={10}
-                        blockLoadDebounceMillis={100}
+                        pagination={true}
+                        paginationPageSize={pageSize}
+                        suppressPaginationPanel={true}
+                        loading={isLoading}
                         overlayLoadingTemplate='<span class="ag-overlay-loading-center">Φόρτωση δεδομένων...</span>'
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Δεν βρέθηκαν εγγραφές</span>'
                     />
@@ -595,11 +578,31 @@ export default function DataGrid() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 bg-slate-50 border-t text-xs text-slate-600 gap-2">
                     <div className="flex items-center gap-4">
                         <span>
-                            Φορτωμένες: <strong>{loadedRowsCount}</strong>
+                            Σύνολο Εγγραφών: <strong>{gridTotal}</strong>
                         </span>
                         <span>
-                            Σύνολο: <strong>{gridTotal}</strong>
+                            Σελίδα: <strong>{page}</strong> / <strong>{Math.ceil(gridTotal / pageSize)}</strong>
                         </span>
+                        <div className="flex gap-1">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1 || isLoading}
+                                className="h-7 px-2"
+                            >
+                                Προηγ.
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.min(Math.ceil(gridTotal / pageSize), p + 1))}
+                                disabled={page >= Math.ceil(gridTotal / pageSize) || isLoading}
+                                className="h-7 px-2"
+                            >
+                                Επόμ.
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
