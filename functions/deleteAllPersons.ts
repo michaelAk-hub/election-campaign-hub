@@ -30,9 +30,9 @@ Deno.serve(async (req) => {
         const result = await base44.asServiceRole.entities.Person.deleteMany({});
         await base44.asServiceRole.entities.Dataset.deleteMany({});
 
-        console.log("✅ [deleteAllPersons] Bulk deleted all persons and datasets");
+        console.log("✅ [deleteAllPersons] Deleted all persons and datasets. Count:", result.deleted);
 
-        return Response.json({ success: true, deleted_count: 'all' });
+        return Response.json({ success: true, deleted_count: result.deleted });
     } catch (error) {
         console.error('Delete all persons error:', error);
         return Response.json({ 
