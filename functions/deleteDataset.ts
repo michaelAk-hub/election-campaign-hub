@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
         const { dataset_id } = body;
 
         // Bulk delete all Person records associated with this dataset
-        await base44.asServiceRole.entities.Person.bulkDelete({ dataset_id });
+        await base44.asServiceRole.entities.Person.deleteMany({ dataset_id });
 
         // Delete the dataset
         await base44.asServiceRole.entities.Dataset.delete(dataset_id);

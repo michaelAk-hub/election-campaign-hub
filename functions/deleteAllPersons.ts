@@ -26,13 +26,9 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Count before deleting
-        const allPersons = await base44.asServiceRole.entities.Person.filter({}, '-created_date', 1, 0);
-        // Use bulk delete - delete all at once
-        await base44.asServiceRole.entities.Person.bulkDelete({});
-
-        // Also delete all datasets
-        await base44.asServiceRole.entities.Dataset.bulkDelete({});
+        // Bulk delete all persons and datasets
+        const result = await base44.asServiceRole.entities.Person.deleteMany({});
+        await base44.asServiceRole.entities.Dataset.deleteMany({});
 
         console.log("✅ [deleteAllPersons] Bulk deleted all persons and datasets");
 
