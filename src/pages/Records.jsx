@@ -193,7 +193,8 @@ export default function Records() {
             member: { type: 'string' },
             prediction_symbol: { type: 'string' },
             voted: { type: 'boolean' },
-            notes: { type: 'string' }
+            notes: { type: 'string' },
+            monadikos_kanali: { type: 'string' }
           }
         }
       });
