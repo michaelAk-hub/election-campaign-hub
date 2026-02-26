@@ -168,7 +168,8 @@ export default function Dashboard() {
       'member',
       'prediction_symbol',
       'voted',
-      'notes'
+      'notes',
+      'monadikos_kanali'
     ];
     
     const csv = '\uFEFF' + headers.join(',') + '\n';
