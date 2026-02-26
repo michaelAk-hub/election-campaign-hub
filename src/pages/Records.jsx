@@ -60,6 +60,7 @@ const COLUMNS = [
       {val ? 'ΝΑΙ' : 'ΟΧΙ'}
     </Badge>
   )},
+  { key: 'monadikos_kanali', label: 'Μοναδικός Κανάλι' },
   { key: 'notes', label: 'Σημειώσεις', render: (val) => (
     <span className="truncate max-w-[150px] block">{val || '-'}</span>
   )}
