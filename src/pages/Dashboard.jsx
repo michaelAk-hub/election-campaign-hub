@@ -264,6 +264,20 @@ export default function Dashboard() {
     }
   };
 
+  const handleMarkHalfVotedX = async () => {
+    if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Χ ως ψηφίσαντες. Συνέχεια;')) return;
+    setIsMarkingVotedX(true);
+    try {
+      const response = await base44.functions.invoke('markHalfVotedX', {});
+      toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές (Χ) ως ψηφίσαντες`);
+      refetch();
+    } catch (error) {
+      toast.error('Σφάλμα: ' + error.message);
+    } finally {
+      setIsMarkingVotedX(false);
+    }
+  };
+
   const handleMarkHalfVoted = async () => {
     if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Σ, Ο, Π ως ψηφίσαντες. Συνέχεια;')) return;
     setIsMarkingVoted(true);
