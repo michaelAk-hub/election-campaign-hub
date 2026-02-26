@@ -5,6 +5,7 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         const body = await req.json();
         
+        // Validate session
         const sessionToken = body.session_token;
         if (!sessionToken) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,13 +27,25 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Bulk delete all persons and datasets
-        const result = await base44.asServiceRole.entities.Person.deleteMany({});
-        await base44.asServiceRole.entities.Dataset.deleteMany({});
+        // Get all Person records
+        let allPersons = [];
+        let skip = 0;
+        const limit = 5000;
+        let hasMore = true;
 
-        console.log("✅ [deleteAllPersons] Deleted all persons and datasets. Count:", result.deleted);
+        while (hasMore) {
+            const batch = await base44.asServiceRole.entities.Person.filter({}, '-created_date', limit, skip);
+            allPersons = allPersons.concat(batch);
+            skip += limit;
+            hasMore = batch.length === limit;
+        }
+        
+        // Delete all Person records
+        for (const person of allPersons) {
+            await base44.asServiceRole.entities.Person.delete(person.id);
+        }
 
-        return Response.json({ success: true, deleted_count: result.deleted });
+        return Response.json({ success: true, deleted_count: allPersons.length });
     } catch (error) {
         console.error('Delete all persons error:', error);
         return Response.json({ 
