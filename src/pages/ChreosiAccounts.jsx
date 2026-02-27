@@ -503,6 +503,38 @@ export default function ChreosiAccounts() {
               />
               <Label>Ενεργός</Label>
             </div>
+            <div className="space-y-2">
+              <Label>Επιτρεπόμενα Σύμβολα Πρόβλεψης</Label>
+              <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                {availableSymbols.length === 0 ? (
+                  <p className="text-sm text-slate-500">Δεν βρέθηκαν σύμβολα</p>
+                ) : (
+                  availableSymbols.map(symbol => {
+                    const selected = (formData.allowed_prediction_symbols || []).includes(symbol);
+                    return (
+                      <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={(e) => {
+                            const current = formData.allowed_prediction_symbols || [];
+                            const updated = e.target.checked
+                              ? [...current, symbol]
+                              : current.filter(s => s !== symbol);
+                            setFormData({...formData, allowed_prediction_symbols: updated});
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-sm font-medium">{symbol}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              {(formData.allowed_prediction_symbols || []).length === 0 && (
+                <p className="text-xs text-amber-600">⚠️ Κανένα σύμβολο δεν επιλέχθηκε — ο χρήστης θα βλέπει όλες τις εγγραφές.</p>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
