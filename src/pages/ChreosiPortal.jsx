@@ -75,17 +75,34 @@ export default function ChreosiPortal() {
     toast.success('Αποσυνδεθήκατε επιτυχώς');
   };
 
+  const { data: chreosiAccount = null } = useQuery({
+    queryKey: ['chreosi-account', session?.username],
+    queryFn: async () => {
+      if (!session) return null;
+      const accounts = await base44.entities.ChreosiAccount.filter({ username: session.username });
+      return accounts[0] || null;
+    },
+    enabled: !!session,
+  });
+
   const { data: assignedPeople = [] } = useQuery({
-    queryKey: ['assigned-people', session?.username],
+    queryKey: ['assigned-people', session?.username, chreosiAccount?.allowed_prediction_symbols],
     queryFn: async () => {
       if (!session) return [];
       const all = await base44.entities.Person.list();
-      return all.filter(p => 
-        !p.voted && 
-        (p.contact_person_1 === session.username || p.contact_person_2 === session.username)
-      );
+      const allowedSymbols = chreosiAccount?.allowed_prediction_symbols;
+      return all.filter(p => {
+        if (p.voted) return false;
+        const assignedToMe = p.contact_person_1 === session.username || p.contact_person_2 === session.username;
+        if (!assignedToMe) return false;
+        // If allowed_prediction_symbols is set and non-empty, filter by it
+        if (allowedSymbols && allowedSymbols.length > 0) {
+          return allowedSymbols.includes(p.prediction_symbol);
+        }
+        return true;
+      });
     },
-    enabled: !!session,
+    enabled: !!session && chreosiAccount !== undefined,
     initialData: [],
   });
 
