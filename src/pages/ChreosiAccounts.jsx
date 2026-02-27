@@ -286,6 +286,14 @@ export default function ChreosiAccounts() {
               Απενεργοποίηση
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setBulkSymbols([]); setBulkSymbolDialog(true); }}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Ορισμός Συμβόλων
+            </Button>
+            <Button
               variant="destructive"
               size="sm"
               onClick={() => setDeleteDialog({ open: true, ids: selectedIds, single: false, username: '' })}
