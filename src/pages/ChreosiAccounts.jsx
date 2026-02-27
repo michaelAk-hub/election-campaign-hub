@@ -486,6 +486,67 @@ export default function ChreosiAccounts() {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk Symbol Assignment Dialog */}
+      <Dialog open={bulkSymbolDialog} onOpenChange={setBulkSymbolDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ορισμός Συμβόλων σε {selectedIds.length} Χρήστες</DialogTitle>
+            <DialogDescription>
+              Επιλέξτε τα σύμβολα που θα ανατεθούν σε όλους τους επιλεγμένους χρήστες.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="border rounded-md p-3 space-y-2 max-h-60 overflow-y-auto">
+              {availableSymbols.length === 0 ? (
+                <p className="text-sm text-slate-500">Δεν βρέθηκαν σύμβολα</p>
+              ) : (
+                availableSymbols.map(symbol => {
+                  const selected = bulkSymbols.includes(symbol);
+                  return (
+                    <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(e) => {
+                          setBulkSymbols(e.target.checked
+                            ? [...bulkSymbols, symbol]
+                            : bulkSymbols.filter(s => s !== symbol));
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm font-medium">{symbol}</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            {bulkSymbols.length === 0 && (
+              <p className="text-xs text-amber-600">⚠️ Κανένα σύμβολο — οι χρήστες θα βλέπουν όλες τις εγγραφές.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkSymbolDialog(false)}>Ακύρωση</Button>
+            <Button
+              disabled={isBulkUpdating}
+              onClick={async () => {
+                setIsBulkUpdating(true);
+                for (const id of selectedIds) {
+                  const account = accounts.find(a => a.id === id);
+                  await base44.entities.ChreosiAccount.update(id, { ...account, allowed_prediction_symbols: bulkSymbols });
+                }
+                queryClient.invalidateQueries(['chreosi-accounts']);
+                setIsBulkUpdating(false);
+                setBulkSymbolDialog(false);
+                setSelectedIds([]);
+                toast.success(`Ενημερώθηκαν ${selectedIds.length} λογαριασμοί`);
+              }}
+            >
+              {isBulkUpdating ? 'Αποθήκευση...' : 'Εφαρμογή'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={editDialog.open} onOpenChange={(open) => {
         if (!open) setEditDialog({ open: false, account: null });
