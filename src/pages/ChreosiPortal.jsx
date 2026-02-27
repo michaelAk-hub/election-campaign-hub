@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -38,12 +37,10 @@ export default function ChreosiPortal() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoggingIn(true);
-
     try {
       const accounts = await base44.entities.ChreosiAccount.filter({ 
         username: username.trim().replace(/\s+/g, ' ')
       });
-      
       if (accounts.length > 0 && accounts[0].is_active) {
         const sessionData = {
           session_token: Math.random().toString(36),
@@ -52,7 +49,6 @@ export default function ChreosiPortal() {
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           is_active: true
         };
-        
         const newSession = await base44.entities.PortalSession.create(sessionData);
         setSession(newSession);
         toast.success('Επιτυχής σύνδεση!');
@@ -74,23 +70,24 @@ export default function ChreosiPortal() {
     toast.success('Αποσυνδεθήκατε επιτυχώς');
   };
 
+  // Step 1: Load the chreosi account (to get allowed_prediction_symbols)
   const { data: chreosiAccount = null } = useQuery({
     queryKey: ['chreosi-account', session?.username],
     queryFn: async () => {
-      if (!session) return null;
       const accounts = await base44.entities.ChreosiAccount.filter({ username: session.username });
       return accounts[0] || null;
     },
     enabled: !!session,
   });
 
-  const { data: assignedPeople = [] } = useQuery({
-    queryKey: ['assigned-people', session?.username, chreosiAccount?.allowed_prediction_symbols],
+  // Step 2: Only load people AFTER chreosiAccount is loaded
+  const { data: assignedPeople = [], isLoading: loadingPeople } = useQuery({
+    queryKey: ['assigned-people', session?.username, chreosiAccount?.id],
     queryFn: async () => {
-      if (!session) return [];
       const allowedSymbols = chreosiAccount?.allowed_prediction_symbols;
+      const uname = session.username;
 
-      // Fetch all pages to get all records
+      // Fetch all pages
       let all = [];
       let page = 0;
       const pageSize = 1000;
@@ -103,22 +100,21 @@ export default function ChreosiPortal() {
 
       return all.filter(p => {
         if (p.voted) return false;
-        const assignedToMe = p.contact_person_1 === session.username || p.contact_person_2 === session.username;
+        const assignedToMe = p.contact_person_1 === uname || p.contact_person_2 === uname;
         if (!assignedToMe) return false;
-        if (allowedSymbols && allowedSymbols.length > 0) {
-          return allowedSymbols.includes(p.prediction_symbol);
-        }
-        return true;
+        // Always enforce symbol filter — if no symbols configured, show nothing (safety default)
+        if (!allowedSymbols || allowedSymbols.length === 0) return false;
+        return allowedSymbols.includes(p.prediction_symbol);
       });
     },
-    enabled: !!session && chreosiAccount !== undefined,
+    // CRITICAL: only run after chreosiAccount is fully loaded (not null/undefined state)
+    enabled: !!session && chreosiAccount !== null,
     initialData: [],
   });
 
   const { data: checkmarks = [] } = useQuery({
     queryKey: ['checkmarks', session?.username],
     queryFn: async () => {
-      if (!session) return [];
       return await base44.entities.ChreosiCheckmark.filter({ 
         chreosi_username: session.username 
       });
@@ -140,7 +136,6 @@ export default function ChreosiPortal() {
   const toggleCheckmarkMutation = useMutation({
     mutationFn: async ({ personId, currentlyChecked }) => {
       const existing = checkmarks.find(c => c.person_record_id === personId);
-      
       if (existing) {
         return await base44.entities.ChreosiCheckmark.update(existing.id, {
           checked: !currentlyChecked
@@ -163,10 +158,8 @@ export default function ChreosiPortal() {
       person.first_name?.toLowerCase().includes(search.toLowerCase()) ||
       person.last_name?.toLowerCase().includes(search.toLowerCase()) ||
       person.mobile_phone?.includes(search);
-
     const matchesDepartment = departmentFilter === 'all' || person.department === departmentFilter;
     const matchesYear = yearFilter === 'all' || person.admission_year === yearFilter;
-
     return matchesSearch && matchesDepartment && matchesYear;
   });
 
@@ -315,72 +308,78 @@ export default function ChreosiPortal() {
           </CardContent>
         </Card>
 
+        {loadingPeople && (
+          <div className="text-center py-8 text-slate-500">Φόρτωση εγγραφών...</div>
+        )}
+
         {/* People List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredPeople.map(person => (
-            <Card key={person.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={isChecked(person.id)}
-                      onChange={() => toggleCheckmarkMutation.mutate({
-                        personId: person.id,
-                        currentlyChecked: isChecked(person.id)
-                      })}
-                      className="w-5 h-5 text-blue-900 rounded"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900">
-                          {person.last_name} {person.first_name}
-                        </h3>
-                        <div className="mt-2 space-y-1">
-                          <p className="text-sm text-slate-600">
-                            <span className="font-medium">Τμήμα:</span> {person.department}
-                          </p>
-                          <p className="text-sm text-slate-600">
-                            <span className="font-medium">Έτος:</span> {person.admission_year}
-                          </p>
-                          {person.mobile_phone && (
-                            <a 
-                              href={`tel:${person.mobile_phone}`}
-                              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
-                            >
-                              <Phone className="w-4 h-4" />
-                              {person.mobile_phone}
-                            </a>
-                          )}
+        {!loadingPeople && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredPeople.map(person => (
+              <Card key={person.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={isChecked(person.id)}
+                        onChange={() => toggleCheckmarkMutation.mutate({
+                          personId: person.id,
+                          currentlyChecked: isChecked(person.id)
+                        })}
+                        className="w-5 h-5 text-blue-900 rounded"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900">
+                            {person.last_name} {person.first_name}
+                          </h3>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-sm text-slate-600">
+                              <span className="font-medium">Τμήμα:</span> {person.department}
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              <span className="font-medium">Έτος:</span> {person.admission_year}
+                            </p>
+                            {person.mobile_phone && (
+                              <a 
+                                href={`tel:${person.mobile_phone}`}
+                                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
+                              >
+                                <Phone className="w-4 h-4" />
+                                {person.mobile_phone}
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      {person.notes && (
+                        <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <p className="text-sm text-amber-900">{person.notes}</p>
+                        </div>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 w-full"
+                        onClick={() => {
+                          setEditingPerson(person);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        Επεξεργασία Σημειώσεων
+                      </Button>
                     </div>
-                    {person.notes && (
-                      <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                        <p className="text-sm text-amber-900">{person.notes}</p>
-                      </div>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-3 w-full"
-                      onClick={() => {
-                        setEditingPerson(person);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      Επεξεργασία Σημειώσεων
-                    </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        {filteredPeople.length === 0 && (
+        {!loadingPeople && filteredPeople.length === 0 && (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-slate-500">Δεν βρέθηκαν ανατεθειμένα άτομα</p>
