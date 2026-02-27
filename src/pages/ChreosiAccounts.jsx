@@ -225,6 +225,13 @@ export default function ChreosiAccounts() {
     )},
     { key: 'display_name', label: 'Εμφανιζόμενο Όνομα' },
     { key: 'phone', label: 'Τηλέφωνο' },
+    { key: 'allowed_prediction_symbols', label: 'Σύμβολα', render: (val) => (
+      <div className="flex flex-wrap gap-1">
+        {(val && val.length > 0) ? val.map(s => (
+          <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
+        )) : <span className="text-xs text-slate-400">Όλα</span>}
+      </div>
+    )},
     { key: 'is_active', label: 'Κατάσταση', render: (val) => (
       <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 text-emerald-700' : ''}>
         {val ? 'Ενεργός' : 'Ανενεργός'}
