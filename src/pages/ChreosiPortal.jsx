@@ -80,6 +80,10 @@ export default function ChreosiPortal() {
       const accounts = await base44.entities.ChreosiAccount.filter({ username: uname });
       const account = accounts[0] || null;
       const allowedSymbols = account?.allowed_prediction_symbols;
+      console.log("=== CHREOSI DEBUG ===");
+      console.log("Username:", uname);
+      console.log("Account found:", account);
+      console.log("Allowed Symbols:", allowedSymbols);
 
       // If no symbols configured, return empty (safety)
       if (!allowedSymbols || allowedSymbols.length === 0) return [];
