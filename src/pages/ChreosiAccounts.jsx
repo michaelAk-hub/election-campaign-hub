@@ -60,6 +60,9 @@ export default function ChreosiAccounts() {
   const [formData, setFormData] = useState({});
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, ids: [], single: false, username: '' });
+  const [bulkSymbolDialog, setBulkSymbolDialog] = useState(false);
+  const [bulkSymbols, setBulkSymbols] = useState([]);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['chreosi-accounts'],
