@@ -51,7 +51,39 @@ function ChreosiPortal({ username }) {
 
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['chreosi-people', normalizedUsername],
-    queryFn: () => base44.entities.Person.list('-created_date', 10000)
+    queryFn: async () => {
+      // Step 1: Load account to get allowed symbols
+      const accounts = await base44.entities.ChreosiAccount.filter({ username: normalizedUsername });
+      const account = accounts[0] || null;
+      const allowedSymbols = account?.allowed_prediction_symbols;
+
+      console.log("=== PORTAL DEBUG ===");
+      console.log("Username:", normalizedUsername);
+      console.log("Account:", account);
+      console.log("Allowed Symbols:", allowedSymbols);
+
+      if (!allowedSymbols || allowedSymbols.length === 0) return [];
+
+      // Step 2: Fetch all persons
+      let all = [];
+      let page = 0;
+      const pageSize = 1000;
+      while (true) {
+        const batch = await base44.entities.Person.list(null, pageSize, page * pageSize);
+        all = all.concat(batch);
+        if (batch.length < pageSize) break;
+        page++;
+      }
+
+      // Step 3: Filter by assignment + not voted + allowed symbols
+      return all.filter(p => {
+        if (p.voted) return false;
+        const cp1 = normalizeUsername(p.contact_person_1);
+        const cp2 = normalizeUsername(p.contact_person_2);
+        if (cp1 !== normalizedUsername && cp2 !== normalizedUsername) return false;
+        return allowedSymbols.includes(p.prediction_symbol);
+      });
+    }
   });
 
   const { data: checkmarks = [] } = useQuery({
@@ -86,12 +118,8 @@ function ChreosiPortal({ username }) {
     }
   });
 
-  // Filter people assigned to this user and not voted
-  const assignedPeople = people.filter(p => {
-    const cp1 = normalizeUsername(p.contact_person_1);
-    const cp2 = normalizeUsername(p.contact_person_2);
-    return (cp1 === normalizedUsername || cp2 === normalizedUsername) && !p.voted;
-  });
+  // assignedPeople is already filtered by the query
+  const assignedPeople = people;
 
   // Apply filters
   const filteredPeople = assignedPeople.filter(p => {
