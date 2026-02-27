@@ -45,7 +45,6 @@ export default function ChreosiPortal() {
       });
       
       if (accounts.length > 0 && accounts[0].is_active) {
-        // In production, validate password hash
         const sessionData = {
           session_token: Math.random().toString(36),
           username: accounts[0].username,
@@ -89,13 +88,23 @@ export default function ChreosiPortal() {
     queryKey: ['assigned-people', session?.username, chreosiAccount?.allowed_prediction_symbols],
     queryFn: async () => {
       if (!session) return [];
-      const all = await base44.entities.Person.list();
       const allowedSymbols = chreosiAccount?.allowed_prediction_symbols;
+
+      // Fetch all pages to get all records
+      let all = [];
+      let page = 0;
+      const pageSize = 1000;
+      while (true) {
+        const batch = await base44.entities.Person.list(null, pageSize, page * pageSize);
+        all = all.concat(batch);
+        if (batch.length < pageSize) break;
+        page++;
+      }
+
       return all.filter(p => {
         if (p.voted) return false;
         const assignedToMe = p.contact_person_1 === session.username || p.contact_person_2 === session.username;
         if (!assignedToMe) return false;
-        // If allowed_prediction_symbols is set and non-empty, filter by it
         if (allowedSymbols && allowedSymbols.length > 0) {
           return allowedSymbols.includes(p.prediction_symbol);
         }
