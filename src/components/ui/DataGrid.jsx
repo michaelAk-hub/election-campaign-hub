@@ -168,12 +168,12 @@ export default function DataGrid({
                   <TableHead className="w-12">
                     <input
                       type="checkbox"
-                      checked={pagedData.length > 0 && pagedData.every(row => selectedIds.includes(row.id))}
+                      checked={filteredData.length > 0 && filteredData.every(row => selectedIds.includes(row.id))}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          onSelectionChange?.([...new Set([...selectedIds, ...pagedData.map(r => r.id)])]);
+                          onSelectionChange?.(filteredData.map(r => r.id));
                         } else {
-                          onSelectionChange?.(selectedIds.filter(id => !pagedData.find(r => r.id === id)));
+                          onSelectionChange?.([]);
                         }
                       }}
                       className="rounded"
