@@ -97,6 +97,11 @@ export default function ChreosiAccounts() {
     }
   });
 
+  const availableSymbols = React.useMemo(() => {
+    const symbols = new Set(people.map(p => p.prediction_symbol).filter(Boolean));
+    return [...symbols].sort();
+  }, [people]);
+
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.ChreosiAccount.create(data),
     onSuccess: () => queryClient.invalidateQueries(['chreosi-accounts'])
