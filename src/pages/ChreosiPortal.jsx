@@ -70,24 +70,21 @@ export default function ChreosiPortal() {
     toast.success('Αποσυνδεθήκατε επιτυχώς');
   };
 
-  // Step 1: Load the chreosi account (to get allowed_prediction_symbols)
-  const { data: chreosiAccount = null } = useQuery({
-    queryKey: ['chreosi-account', session?.username],
-    queryFn: async () => {
-      const accounts = await base44.entities.ChreosiAccount.filter({ username: session.username });
-      return accounts[0] || null;
-    },
-    enabled: !!session,
-  });
-
-  // Step 2: Only load people AFTER chreosiAccount is loaded
+  // Single merged query: load account + people in one shot
   const { data: assignedPeople = [], isLoading: loadingPeople } = useQuery({
-    queryKey: ['assigned-people', session?.username, chreosiAccount?.id],
+    queryKey: ['assigned-people', session?.username],
     queryFn: async () => {
-      const allowedSymbols = chreosiAccount?.allowed_prediction_symbols;
       const uname = session.username;
 
-      // Fetch all pages
+      // Step 1: Load the chreosi account to get allowed symbols
+      const accounts = await base44.entities.ChreosiAccount.filter({ username: uname });
+      const account = accounts[0] || null;
+      const allowedSymbols = account?.allowed_prediction_symbols;
+
+      // If no symbols configured, return empty (safety)
+      if (!allowedSymbols || allowedSymbols.length === 0) return [];
+
+      // Step 2: Fetch all Person records (paginated)
       let all = [];
       let page = 0;
       const pageSize = 1000;
@@ -98,17 +95,15 @@ export default function ChreosiPortal() {
         page++;
       }
 
+      // Step 3: Filter
       return all.filter(p => {
         if (p.voted) return false;
         const assignedToMe = p.contact_person_1 === uname || p.contact_person_2 === uname;
         if (!assignedToMe) return false;
-        // Always enforce symbol filter — if no symbols configured, show nothing (safety default)
-        if (!allowedSymbols || allowedSymbols.length === 0) return false;
         return allowedSymbols.includes(p.prediction_symbol);
       });
     },
-    // CRITICAL: only run after chreosiAccount is fully loaded (not null/undefined state)
-    enabled: !!session && chreosiAccount !== null,
+    enabled: !!session,
     initialData: [],
   });
 
@@ -221,7 +216,6 @@ export default function ChreosiPortal() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
       <nav className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -238,7 +232,6 @@ export default function ChreosiPortal() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardContent className="pt-6">
@@ -268,7 +261,6 @@ export default function ChreosiPortal() {
           </Card>
         </div>
 
-        {/* Filters */}
         <Card className="mb-6">
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -312,7 +304,6 @@ export default function ChreosiPortal() {
           <div className="text-center py-8 text-slate-500">Φόρτωση εγγραφών...</div>
         )}
 
-        {/* People List */}
         {!loadingPeople && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredPeople.map(person => (
@@ -331,29 +322,25 @@ export default function ChreosiPortal() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-900">
-                            {person.last_name} {person.first_name}
-                          </h3>
-                          <div className="mt-2 space-y-1">
-                            <p className="text-sm text-slate-600">
-                              <span className="font-medium">Τμήμα:</span> {person.department}
-                            </p>
-                            <p className="text-sm text-slate-600">
-                              <span className="font-medium">Έτος:</span> {person.admission_year}
-                            </p>
-                            {person.mobile_phone && (
-                              <a 
-                                href={`tel:${person.mobile_phone}`}
-                                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
-                              >
-                                <Phone className="w-4 h-4" />
-                                {person.mobile_phone}
-                              </a>
-                            )}
-                          </div>
-                        </div>
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {person.last_name} {person.first_name}
+                      </h3>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm text-slate-600">
+                          <span className="font-medium">Τμήμα:</span> {person.department}
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          <span className="font-medium">Έτος:</span> {person.admission_year}
+                        </p>
+                        {person.mobile_phone && (
+                          <a 
+                            href={`tel:${person.mobile_phone}`}
+                            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            <Phone className="w-4 h-4" />
+                            {person.mobile_phone}
+                          </a>
+                        )}
                       </div>
                       {person.notes && (
                         <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
@@ -388,7 +375,6 @@ export default function ChreosiPortal() {
         )}
       </div>
 
-      {/* Edit Notes Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
