@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../components/common/PageHeader';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import EmptyState from '../components/common/EmptyState';
+import RuleTreeBuilder, { newCond, newGroup } from '../components/queries/RuleTreeBuilder';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,13 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Search, Plus, Play, Trash2, Download, FileText, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+// ─── CONSTANTS ─────────────────────────────────────────────────────────────────
 
 const AVAILABLE_COLUMNS = [
   { key: 'person_id', label: 'ΑΤ (ID)', type: 'text' },
@@ -51,18 +49,12 @@ const OPERATORS = {
   ]
 };
 
-const FIELD_KEYS = new Set([
-  'person_id','last_name','first_name','department','admission_year','academic_level','ucid',
-  'mobile_phone','contact_person_1','contact_person_2','voted','member','prediction_symbol','notes'
-]);
-
-// ─── SAFE EXPRESSION ENGINE (no eval) ────────────────────────────────────────
+// ─── RULE TREE EVALUATOR ───────────────────────────────────────────────────────
 
 function normalizeVoted(v) {
   if (typeof v === 'boolean') return v;
   const s = (v ?? '').toString().trim().toUpperCase();
-  if (['YES','ΝΑΙ','TRUE','1'].includes(s)) return true;
-  if (['NO','ΟΧΙ','FALSE','0'].includes(s)) return false;
+  if (['YES', 'ΝΑΙ', 'TRUE', '1'].includes(s)) return true;
   return false;
 }
 
@@ -71,11 +63,102 @@ function getPersonField(person, field) {
   return person?.[field] ?? '';
 }
 
+function evalCond(person, cond) {
+  const fieldVal = getPersonField(person, cond.field);
+
+  if (cond.field === 'voted') {
+    const left = normalizeVoted(fieldVal);
+    const raw = String(cond.value).trim().toLowerCase();
+    const right = raw === 'true' || raw === 'yes' || raw === 'ναι';
+    if (cond.operator === '=') return left === right;
+    if (cond.operator === '!=') return left !== right;
+    return false;
+  }
+
+  const left = String(fieldVal ?? '');
+  const right = String(cond.value ?? '');
+  if (cond.operator === '=') return left === right;
+  if (cond.operator === '!=') return left !== right;
+  if (cond.operator === 'contains') return left.toLowerCase().includes(right.toLowerCase());
+  return false;
+}
+
+function matchesRuleTree(person, node) {
+  if (!node) return true;
+  if (node.type === 'cond') return evalCond(person, node);
+  if (node.type === 'not') return !matchesRuleTree(person, node.child);
+  if (node.type === 'group') {
+    const children = node.children || [];
+    if (children.length === 0) return true;
+    if (node.op === 'OR') return children.some(ch => matchesRuleTree(person, ch));
+    return children.every(ch => matchesRuleTree(person, ch));
+  }
+  return true;
+}
+
+// ─── EXPRESSION PREVIEW (human-readable) ──────────────────────────────────────
+
+function escapeQ(s) { return String(s ?? '').replaceAll('"', '\\"'); }
+
+function nodeToExpression(node, isRoot = false) {
+  if (!node) return '';
+
+  if (node.type === 'cond') {
+    if (node.operator === 'contains') return `${node.field} contains "${escapeQ(node.value)}"`;
+    if (node.field === 'voted') {
+      const raw = String(node.value).trim().toLowerCase();
+      const b = (raw === 'true' || raw === 'yes' || raw === 'ναι') ? 'true' : 'false';
+      return `${node.field} ${node.operator} ${b}`;
+    }
+    return `${node.field} ${node.operator} "${escapeQ(node.value)}"`;
+  }
+
+  if (node.type === 'not') {
+    return `NOT (${nodeToExpression(node.child, true)})`;
+  }
+
+  if (node.type === 'group') {
+    const parts = (node.children || []).map(ch => nodeToExpression(ch, false)).filter(Boolean);
+    if (parts.length === 0) return '';
+    const joined = parts.join(` ${node.op} `);
+    return isRoot ? joined : `(${joined})`;
+  }
+
+  return '';
+}
+
+// ─── LEGACY COMPAT: flat conditions → rule_tree ────────────────────────────────
+
+function legacyConditionsToRuleTree(conditions) {
+  const list = (conditions || []).filter(c => c?.field && c?.operator && c.value !== undefined);
+  if (list.length === 0) return { type: 'group', op: 'AND', children: [] };
+
+  const orGroups = [];
+  let current = [];
+  for (let i = 0; i < list.length; i++) {
+    current.push(list[i]);
+    if ((list[i].connector || 'AND').toUpperCase() === 'OR') { orGroups.push(current); current = []; }
+  }
+  if (current.length) orGroups.push(current);
+
+  const orChildren = orGroups.map(g => ({
+    type: 'group',
+    op: 'AND',
+    children: g.map(c => ({ type: 'cond', field: c.field, operator: c.operator, value: c.value }))
+  }));
+
+  return orChildren.length === 1 ? orChildren[0] : { type: 'group', op: 'OR', children: orChildren };
+}
+
+// ─── SAFE MANUAL EXPRESSION PARSER (no eval, NOT>AND>OR) ──────────────────────
+
+const FIELD_KEYS_SET = new Set(AVAILABLE_COLUMNS.map(c => c.key));
+
 function tokenizeExpr(input) {
   const s = (input || '').trim();
   const tokens = [];
   let i = 0;
-  const isSpace = (c) => c === ' ' || c === '\n' || c === '\t' || c === '\r';
+  const isSpace = (c) => /\s/.test(c);
 
   while (i < s.length) {
     const c = s[i];
@@ -85,240 +168,92 @@ function tokenizeExpr(input) {
 
     if (c === '"') {
       let j = i + 1, buf = '';
-      while (j < s.length) {
-        if (s[j] === '"' && s[j-1] !== '\\') break;
-        buf += s[j]; j++;
-      }
+      while (j < s.length && !(s[j] === '"' && s[j - 1] !== '\\')) { buf += s[j]; j++; }
       if (j >= s.length) throw new Error('Λείπει κλείσιμο " στην έκφραση.');
       tokens.push({ t: 'STR', v: buf.replaceAll('\\"', '"') });
       i = j + 1;
       continue;
     }
 
-    if (c === '!' && s[i+1] === '=') { tokens.push({ t: 'OP', v: '!=' }); i += 2; continue; }
-    if (c === '=') { tokens.push({ t: 'OP', v: '=' }); i += 1; continue; }
+    if (c === '!' && s[i + 1] === '=') { tokens.push({ t: 'OP', v: '!=' }); i += 2; continue; }
+    if (c === '=') { tokens.push({ t: 'OP', v: '=' }); i++; continue; }
 
     let j = i;
     while (j < s.length && !isSpace(s[j]) && s[j] !== '(' && s[j] !== ')') j++;
     const w = s.slice(i, j);
     const up = w.toUpperCase();
 
-    if (up === 'AND' || up === 'OR' || up === 'NOT') {
-      tokens.push({ t: up });
-    } else if (up === 'CONTAINS') {
-      tokens.push({ t: 'OP', v: 'contains' });
-    } else if (up === 'TRUE' || up === 'FALSE') {
-      tokens.push({ t: 'BOOL', v: up === 'TRUE' });
-    } else if (FIELD_KEYS.has(w)) {
-      tokens.push({ t: 'FIELD', v: w });
-    } else {
-      tokens.push({ t: 'BARE', v: w });
-    }
+    if (['AND', 'OR', 'NOT'].includes(up)) tokens.push({ t: up });
+    else if (up === 'CONTAINS') tokens.push({ t: 'OP', v: 'contains' });
+    else if (up === 'TRUE') tokens.push({ t: 'BOOL', v: true });
+    else if (up === 'FALSE') tokens.push({ t: 'BOOL', v: false });
+    else if (FIELD_KEYS_SET.has(w)) tokens.push({ t: 'FIELD', v: w });
+    else tokens.push({ t: 'BARE', v: w });
     i = j;
   }
   return tokens;
 }
 
-function parseExpr(tokens) {
+function parseTokens(tokens) {
   let p = 0;
   const peek = () => tokens[p];
   const consume = () => tokens[p++];
 
   function parsePrimary() {
     const tok = peek();
-    if (!tok) throw new Error('Η έκφραση είναι κενή/ελλιπής.');
-
+    if (!tok) throw new Error('Ελλιπής έκφραση.');
     if (tok.t === 'LP') {
       consume();
       const node = parseOr();
       const close = consume();
-      if (!close || close.t !== 'RP') throw new Error('Λείπει κλείσιμο παρένθεσης ).');
+      if (!close || close.t !== 'RP') throw new Error('Λείπει ) παρένθεση.');
       return node;
     }
-
     if (tok.t === 'FIELD') {
       const field = consume().v;
       const opTok = consume();
       if (!opTok || opTok.t !== 'OP') throw new Error('Περίμενα τελεστή (=, !=, contains).');
       const valTok = consume();
-      if (!valTok) throw new Error('Περίμενα τιμή μετά τον τελεστή.');
-      let value;
-      if (valTok.t === 'STR') value = valTok.v;
-      else if (valTok.t === 'BOOL') value = valTok.v;
-      else if (valTok.t === 'BARE') value = valTok.v;
-      else throw new Error('Μη έγκυρη τιμή.');
-      return { type: 'COND', field, op: opTok.v, value };
+      if (!valTok) throw new Error('Περίμενα τιμή.');
+      const value = (valTok.t === 'STR' || valTok.t === 'BOOL' || valTok.t === 'BARE') ? valTok.v : (() => { throw new Error('Μη έγκυρη τιμή.'); })();
+      return { type: 'cond', field, operator: opTok.v, value };
     }
-
-    throw new Error(`Μη αναμενόμενο token: ${tok.t}`);
+    throw new Error(`Μη αναμενόμενο: ${tok.t}`);
   }
 
   function parseNot() {
-    if (peek()?.t === 'NOT') { consume(); return { type: 'NOT', expr: parseNot() }; }
+    if (peek()?.t === 'NOT') { consume(); return { type: 'not', child: parseNot() }; }
     return parsePrimary();
   }
 
   function parseAnd() {
     let node = parseNot();
-    while (peek()?.t === 'AND') { consume(); node = { type: 'AND', left: node, right: parseNot() }; }
+    while (peek()?.t === 'AND') { consume(); node = { type: 'group', op: 'AND', children: [node, parseNot()] }; }
     return node;
   }
 
   function parseOr() {
     let node = parseAnd();
-    while (peek()?.t === 'OR') { consume(); node = { type: 'OR', left: node, right: parseAnd() }; }
+    while (peek()?.t === 'OR') { consume(); node = { type: 'group', op: 'OR', children: [node, parseAnd()] }; }
     return node;
   }
 
   const ast = parseOr();
-  if (p < tokens.length) throw new Error('Υπάρχει υπόλοιπο κείμενο που δεν αναγνωρίζεται.');
+  if (p < tokens.length) throw new Error('Υπάρχει μη αναγνωρίσιμο κείμενο.');
   return ast;
 }
 
-function compileExpression(expressionText) {
-  const text = (expressionText || '').trim();
-  if (!text) return null;
-  return parseExpr(tokenizeExpr(text));
+function compileManualExpression(text) {
+  const t = (text || '').trim();
+  if (!t) return null;
+  return parseTokens(tokenizeExpr(t));
 }
 
-function evalAst(person, ast) {
-  if (!ast) return true;
-  switch (ast.type) {
-    case 'OR':  return evalAst(person, ast.left) || evalAst(person, ast.right);
-    case 'AND': return evalAst(person, ast.left) && evalAst(person, ast.right);
-    case 'NOT': return !evalAst(person, ast.expr);
-    case 'COND': {
-      const fieldVal = getPersonField(person, ast.field);
-      if (ast.field === 'voted') {
-        const left = normalizeVoted(fieldVal);
-        const right = typeof ast.value === 'boolean'
-          ? ast.value
-          : ['true','ναι'].includes(String(ast.value).trim().toLowerCase());
-        if (ast.op === '=') return left === right;
-        if (ast.op === '!=') return left !== right;
-        return false;
-      }
-      const left = String(fieldVal ?? '');
-      const right = String(ast.value ?? '');
-      if (ast.op === '=') return left === right;
-      if (ast.op === '!=') return left !== right;
-      if (ast.op === 'contains') return left.toLowerCase().includes(right.toLowerCase());
-      return false;
-    }
-    default: return true;
-  }
-}
+// ─── DEFAULT TREE ──────────────────────────────────────────────────────────────
 
-// ─── VISUAL BUILDER → EXPRESSION STRING WITH PRECEDENCE PARENTHESES ──────────
+const DEFAULT_TREE = () => ({ type: 'group', op: 'AND', children: [newCond()] });
 
-function conditionToText(cond) {
-  if (!cond?.field) return '';
-  if (cond.operator === 'contains') return `${cond.field} contains "${(cond.value || '').replaceAll('"', '\\"')}"`;
-  if (cond.field === 'voted') {
-    const b = String(cond.value).trim().toLowerCase() === 'true' ? 'true' : 'false';
-    return `${cond.field} ${cond.operator} ${b}`;
-  }
-  return `${cond.field} ${cond.operator} "${(cond.value || '').replaceAll('"', '\\"')}"`;
-}
-
-function buildExpressionFromConditionsWithPrecedence(conditionsList) {
-  const list = (conditionsList || []).filter(c => c?.field && c?.operator && c.value !== undefined && c.value !== '');
-  if (list.length === 0) return '';
-
-  // Split into OR-separated groups (AND-chains)
-  const orGroups = [];
-  let current = [];
-  for (let i = 0; i < list.length; i++) {
-    current.push(list[i]);
-    if ((list[i].connector || 'AND').toUpperCase() === 'OR') {
-      orGroups.push(current);
-      current = [];
-    }
-  }
-  if (current.length) orGroups.push(current);
-
-  const groupTexts = orGroups.map(g => {
-    const andParts = g.map(conditionToText).filter(Boolean);
-    const txt = andParts.join(' AND ');
-    return (orGroups.length > 1 && andParts.length > 1) ? `(${txt})` : txt;
-  });
-
-  return groupTexts.join(' OR ');
-}
-
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-
-const defaultCondition = () => ({ field: 'department', operator: '=', value: '', connector: 'AND' });
-
-// ─── CONDITION ROW COMPONENT ──────────────────────────────────────────────────
-
-function ConditionRow({ condition, idx, total, onUpdate, onRemove, onConnectorChange }) {
-  const fieldType = AVAILABLE_COLUMNS.find(c => c.key === condition.field)?.type || 'text';
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2 flex-wrap">
-        <Select
-          value={condition.field}
-          onValueChange={(value) => {
-            const ft = AVAILABLE_COLUMNS.find(c => c.key === value)?.type || 'text';
-            onUpdate({ ...condition, field: value, operator: OPERATORS[ft][0].value, value: '' });
-          }}
-        >
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {AVAILABLE_COLUMNS.map(col => (
-              <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={condition.operator} onValueChange={(value) => onUpdate({ ...condition, operator: value })}>
-          <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {OPERATORS[fieldType].map(op => (
-              <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {condition.field === 'voted' ? (
-          <Select value={String(condition.value)} onValueChange={(value) => onUpdate({ ...condition, value })}>
-            <SelectTrigger className="flex-1 min-w-[80px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="true">Ναι</SelectItem>
-              <SelectItem value="false">Όχι</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            value={condition.value}
-            onChange={(e) => onUpdate({ ...condition, value: e.target.value })}
-            placeholder="Τιμή..."
-            className="flex-1 min-w-[80px]"
-          />
-        )}
-
-        <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-red-400 hover:text-red-600 shrink-0">
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {idx < total - 1 && (
-        <div className="flex items-center gap-2 pl-2">
-          <Select value={condition.connector} onValueChange={onConnectorChange}>
-            <SelectTrigger className="w-[90px] h-7 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="AND">AND</SelectItem>
-              <SelectItem value="OR">OR</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+// ─── PAGE COMPONENT ────────────────────────────────────────────────────────────
 
 export default function SavedQueries() {
   const queryClient = useQueryClient();
@@ -330,7 +265,7 @@ export default function SavedQueries() {
     columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
     filters: {}, logicalExpression: ''
   });
-  const [conditions, setConditions] = useState([defaultCondition()]);
+  const [ruleTree, setRuleTree] = useState(DEFAULT_TREE());
   const [useVisualBuilder, setUseVisualBuilder] = useState(true);
   const [exprError, setExprError] = useState('');
 
@@ -346,35 +281,31 @@ export default function SavedQueries() {
 
   const resetDialog = () => {
     setFormData({ name: '', description: '', columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'], filters: {}, logicalExpression: '' });
-    setConditions([defaultCondition()]);
+    setRuleTree(DEFAULT_TREE());
     setUseVisualBuilder(true);
     setExprError('');
   };
 
-  // ── Preview expression (shown in the dark box) ──
-  const previewExpression = useMemo(() => {
-    if (useVisualBuilder) return buildExpressionFromConditionsWithPrecedence(conditions);
-    return formData.logicalExpression;
-  }, [useVisualBuilder, conditions, formData.logicalExpression]);
-
-  // ── Live count via AST (no eval) ──
+  // ── Live preview count ──
   const previewCount = useMemo(() => {
     if (!people.length) return 0;
-    if (!previewExpression || !previewExpression.trim()) return people.length;
 
+    if (useVisualBuilder) {
+      return people.filter(p => matchesRuleTree(p, ruleTree)).length;
+    }
+
+    // Manual mode: safe parse
+    if (!formData.logicalExpression?.trim()) return people.length;
     let ast = null;
     try {
-      ast = compileExpression(previewExpression);
+      ast = compileManualExpression(formData.logicalExpression);
       setExprError('');
     } catch (e) {
       setExprError(e.message);
       return 0;
     }
-
-    let count = 0;
-    for (const person of people) { if (evalAst(person, ast)) count++; }
-    return count;
-  }, [people, previewExpression]);
+    return people.filter(p => matchesRuleTree(p, ast)).length;
+  }, [people, useVisualBuilder, ruleTree, formData.logicalExpression]);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.SavedQuery.create(data),
@@ -393,27 +324,28 @@ export default function SavedQueries() {
 
   const runQuery = (query) => {
     let results = [...people];
-    const expr = buildExpressionFromConditionsWithPrecedence(query.conditions || []) || query.logicalExpression;
 
-    if (expr && expr.trim()) {
+    if (query.rule_tree?.type) {
+      results = results.filter(p => matchesRuleTree(p, query.rule_tree));
+    } else if (query.conditions?.length) {
+      const tree = legacyConditionsToRuleTree(query.conditions);
+      results = results.filter(p => matchesRuleTree(p, tree));
+    } else if (query.logicalExpression?.trim()) {
       let ast = null;
       try {
-        ast = compileExpression(expr);
+        ast = compileManualExpression(query.logicalExpression);
       } catch (e) {
         toast.error(`Λάθος σύνταξης: ${e.message}`);
         setQueryResults([]);
         setRunDialog({ open: true, query });
         return;
       }
-      results = results.filter(person => evalAst(person, ast));
+      results = results.filter(p => matchesRuleTree(p, ast));
     } else if (query.filters) {
       Object.entries(query.filters).forEach(([key, value]) => {
         if (value !== undefined && value !== '' && value !== 'all') {
-          if (key === 'voted') {
-            results = results.filter(p => p.voted === (value === 'true'));
-          } else {
-            results = results.filter(p => String(p[key] || '').toLowerCase().includes(String(value).toLowerCase()));
-          }
+          if (key === 'voted') results = results.filter(p => p.voted === (value === 'true'));
+          else results = results.filter(p => String(p[key] || '').toLowerCase().includes(String(value).toLowerCase()));
         }
       });
     }
@@ -446,12 +378,13 @@ export default function SavedQueries() {
   const handleSave = () => {
     if (!formData.name) { toast.error('Εισάγετε όνομα'); return; }
     const finalExpression = useVisualBuilder
-      ? buildExpressionFromConditionsWithPrecedence(conditions)
+      ? nodeToExpression(ruleTree, true)
       : formData.logicalExpression;
     createMutation.mutate({
       ...formData,
-      conditions: useVisualBuilder ? conditions : [],
-      logicalExpression: finalExpression
+      logicalExpression: finalExpression,
+      rule_tree: useVisualBuilder ? ruleTree : { type: 'group', op: 'AND', children: [] },
+      conditions: []
     });
   };
 
@@ -490,11 +423,9 @@ export default function SavedQueries() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center justify-between">
                   {query.name}
-                  <Button
-                    variant="ghost" size="icon"
+                  <Button variant="ghost" size="icon"
                     onClick={() => { if (confirm('Διαγραφή αυτού του ερωτήματος;')) deleteMutation.mutate(query.id); }}
-                    className="text-red-500 hover:text-red-600"
-                  >
+                    className="text-red-500 hover:text-red-600">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </CardTitle>
@@ -538,6 +469,7 @@ export default function SavedQueries() {
               </div>
             </div>
 
+            {/* Columns */}
             <div className="space-y-2">
               <Label>Στήλες αποτελεσμάτων</Label>
               <div className="grid grid-cols-2 gap-2 border rounded-lg p-3 bg-slate-50">
@@ -559,13 +491,14 @@ export default function SavedQueries() {
               </div>
             </div>
 
+            {/* Logical Expression */}
             <div className="space-y-3 border-t pt-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold">Λογική Έκφραση</Label>
                 <div className="flex items-center gap-2">
                   <Button type="button" variant={useVisualBuilder ? "default" : "outline"} size="sm"
                     onClick={() => { setUseVisualBuilder(true); setExprError(''); }}>
-                    Οπτικό
+                    Οπτικό (Groups)
                   </Button>
                   <Button type="button" variant={!useVisualBuilder ? "default" : "outline"} size="sm"
                     onClick={() => setUseVisualBuilder(false)}>
@@ -575,42 +508,19 @@ export default function SavedQueries() {
               </div>
 
               {useVisualBuilder ? (
-                <div className="space-y-2">
-                  {conditions.map((condition, idx) => (
-                    <ConditionRow
-                      key={idx}
-                      condition={condition}
-                      idx={idx}
-                      total={conditions.length}
-                      onUpdate={(newCond) => {
-                        const next = conditions.map((c, i) => i === idx ? newCond : c);
-                        setConditions(next);
-                      }}
-                      onRemove={() => {
-                        const next = conditions.filter((_, i) => i !== idx);
-                        setConditions(next.length > 0 ? next : [defaultCondition()]);
-                      }}
-                      onConnectorChange={(connector) => {
-                        const next = conditions.map((c, i) => i === idx ? { ...c, connector } : c);
-                        setConditions(next);
-                      }}
-                    />
-                  ))}
+                <div className="space-y-3">
+                  <RuleTreeBuilder
+                    tree={ruleTree}
+                    setTree={setRuleTree}
+                    availableColumns={AVAILABLE_COLUMNS}
+                    operatorsByType={OPERATORS}
+                  />
 
-                  <Button
-                    type="button" variant="outline" size="sm"
-                    onClick={() => setConditions([...conditions, defaultCondition()])}
-                    className="w-full border-dashed"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Προσθήκη Συνθήκης
-                  </Button>
-
-                  {/* Expression preview — shows parentheses so user understands precedence */}
-                  <div className="bg-slate-900 text-green-400 p-3 rounded-lg border text-xs">
-                    <div className="text-slate-500 mb-1 text-[10px] uppercase tracking-wider">Έκφραση (NOT {'>'} AND {'>'} OR):</div>
+                  {/* Expression preview */}
+                  <div className="bg-slate-900 text-green-400 p-3 rounded-lg text-xs">
+                    <div className="text-slate-500 mb-1 text-[10px] uppercase tracking-wider">Έκφραση:</div>
                     <div className="font-mono break-all">
-                      {buildExpressionFromConditionsWithPrecedence(conditions) || <span className="text-slate-500">Καμία έκφραση</span>}
+                      {nodeToExpression(ruleTree, true) || <span className="text-slate-500">Καμία έκφραση</span>}
                     </div>
                   </div>
                 </div>
@@ -624,8 +534,7 @@ export default function SavedQueries() {
                     className="font-mono text-sm"
                   />
                   <p className="text-xs text-slate-500">
-                    Χρησιμοποιήστε: AND, OR, NOT, =, !=, contains, παρενθέσεις () και ονόματα πεδίων.
-                    Προτεραιότητα: NOT {'>'} AND {'>'} OR.
+                    Χρησιμοποιήστε: AND, OR, NOT, =, !=, contains, παρενθέσεις (). Προτεραιότητα: NOT {'>'} AND {'>'} OR.
                   </p>
                 </div>
               )}
