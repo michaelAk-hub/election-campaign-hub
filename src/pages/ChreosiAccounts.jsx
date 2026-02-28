@@ -184,7 +184,7 @@ export default function ChreosiAccounts() {
         is_active: true
       });
       newAccounts.push({ username, password });
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 600));
     }
 
     setCreatedAccounts(newAccounts);
