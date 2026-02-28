@@ -179,11 +179,12 @@ export default function ChreosiAccounts() {
       const password = generatePassword();
       await createMutation.mutateAsync({
         username,
-        password_hash: password, // In production, hash this
+        password_hash: password,
         display_name: username,
         is_active: true
       });
       newAccounts.push({ username, password });
+      await new Promise(r => setTimeout(r, 200));
     }
 
     setCreatedAccounts(newAccounts);
