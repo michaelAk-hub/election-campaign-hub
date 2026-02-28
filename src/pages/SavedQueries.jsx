@@ -597,11 +597,27 @@ export default function SavedQueries() {
             <DialogTitle>Αποτελέσματα: {runDialog.query?.name}</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-slate-500">{queryResults.length} εγγραφές</span>
-            <Button variant="outline" onClick={exportResults}>
-              <Download className="h-4 w-4 mr-2" />
-              Εξαγωγή
-            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600 font-medium">{queryResults.length.toLocaleString()} εγγραφές</span>
+              {queryResults.length > 100 && (
+                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                  Εμφανίζονται οι πρώτες 100 — εξάγετε για όλες
+                </span>
+              )}
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" onClick={exportResults} disabled={queryResults.length === 0}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Εξαγωγή CSV
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs">
+                  Κατεβάζει <strong>όλα</strong> τα αποτελέσματα (όχι μόνο τις 100 που φαίνονται) σε αρχείο CSV, το οποίο ανοίγει απευθείας στο Excel.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="overflow-auto max-h-[50vh] border rounded-lg">
             <table className="w-full text-sm">
