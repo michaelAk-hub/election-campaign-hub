@@ -532,16 +532,45 @@ export default function ChreosiAccounts() {
             <Button
               disabled={isBulkUpdating}
               onClick={async () => {
+                if (selectedIds.length === 0) return;
                 setIsBulkUpdating(true);
-                await base44.functions.invoke('bulkUpdateChreosiSymbols', {
-                  accountIds: selectedIds,
-                  symbolsToAssign: bulkSymbols
-                });
-                queryClient.invalidateQueries(['chreosi-accounts']);
-                setIsBulkUpdating(false);
-                setBulkSymbolDialog(false);
-                setSelectedIds([]);
-                toast.success(`Ενημερώθηκαν ${selectedIds.length} λογαριασμοί`);
+                try {
+                  let start = 0;
+                  let totalUpdated = 0;
+                  let allFailed = [];
+
+                  while (start < selectedIds.length) {
+                    const resp = await base44.functions.invoke('bulkUpdateChreosiSymbols', {
+                      accountIds: selectedIds,
+                      symbolsToAssign: bulkSymbols,
+                      start,
+                      max: 80,
+                      delayMs: 350
+                    });
+
+                    if (!resp?.data?.ok) {
+                      throw new Error(resp?.data?.error || 'Bulk update failed');
+                    }
+
+                    totalUpdated += resp.data.updated || 0;
+                    if (resp.data.failed?.length) allFailed = allFailed.concat(resp.data.failed);
+                    start = resp.data.nextStart ?? selectedIds.length;
+                  }
+
+                  queryClient.invalidateQueries(['chreosi-accounts']);
+                  setBulkSymbolDialog(false);
+                  setSelectedIds([]);
+
+                  if (allFailed.length > 0) {
+                    toast.warning(`Ολοκληρώθηκε με σφάλματα: ${allFailed.length} λογαριασμοί δεν ενημερώθηκαν`);
+                  } else {
+                    toast.success(`Ενημερώθηκαν ${totalUpdated} λογαριασμοί`);
+                  }
+                } catch (e) {
+                  toast.error(e?.message || 'Σφάλμα στην ομαδική ενημέρωση');
+                } finally {
+                  setIsBulkUpdating(false);
+                }
               }}
             >
               {isBulkUpdating ? 'Αποθήκευση...' : 'Εφαρμογή'}
