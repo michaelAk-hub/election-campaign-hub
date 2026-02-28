@@ -34,7 +34,8 @@ import {
   FileText,
   X,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Brackets
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -67,6 +68,246 @@ const OPERATORS = {
   ]
 };
 
+const defaultCondition = () => ({ field: 'department', operator: '=', value: '', connector: 'AND' });
+const defaultGroup = () => ({ connector: 'AND', conditions: [defaultCondition()] });
+
+// Build expression for a single group → "(cond1 AND cond2 ...)"
+function buildGroupExpression(group) {
+  const { conditions } = group;
+  if (!conditions || conditions.length === 0) return '';
+  const parts = conditions.map((cond, idx) => {
+    let expr = '';
+    if (cond.operator === 'contains') {
+      expr = `${cond.field} contains "${cond.value}"`;
+    } else if (cond.field === 'voted') {
+      const boolValue = cond.value === 'true' || cond.value === true;
+      expr = `${cond.field} ${cond.operator} ${boolValue}`;
+    } else {
+      expr = `${cond.field} ${cond.operator} "${cond.value}"`;
+    }
+    if (idx < conditions.length - 1) {
+      expr += ` ${cond.connector} `;
+    }
+    return expr;
+  });
+  const inner = parts.join('');
+  return conditions.length > 1 ? `(${inner})` : inner;
+}
+
+// Build full expression from groups array → "(g1) AND (g2) OR (g3)"
+function buildExpressionFromGroups(groups) {
+  if (!groups || groups.length === 0) return '';
+  return groups.map((group, idx) => {
+    const groupExpr = buildGroupExpression(group);
+    if (idx < groups.length - 1) {
+      return `${groupExpr} ${group.connector} `;
+    }
+    return groupExpr;
+  }).join('');
+}
+
+// Legacy: build from flat conditions (for backward compat when running old saved queries)
+function buildExpressionFromConditions(conditionsList) {
+  if (!conditionsList || conditionsList.length === 0) return '';
+  return conditionsList.map((cond, idx) => {
+    let expr = '';
+    if (cond.operator === 'contains') {
+      expr = `${cond.field} contains "${cond.value}"`;
+    } else if (cond.field === 'voted') {
+      const boolValue = cond.value === 'true' || cond.value === true;
+      expr = `${cond.field} ${cond.operator} ${boolValue}`;
+    } else {
+      expr = `${cond.field} ${cond.operator} "${cond.value}"`;
+    }
+    if (idx < conditionsList.length - 1) {
+      expr += ` ${cond.connector} `;
+    }
+    return expr;
+  }).join('');
+}
+
+function evaluateExpression(person, expression) {
+  if (!expression || !expression.trim()) return true;
+  try {
+    let expr = expression;
+    expr = expr.replace(/(\w+)\s+contains\s+"([^"]*)"/gi, (match, field, value) => {
+      const fieldValue = String(person[field] || '').toLowerCase();
+      return fieldValue.includes(value.toLowerCase()) ? 'true' : 'false';
+    });
+    const fieldPattern = /\b(person_id|last_name|first_name|department|admission_year|academic_level|ucid|mobile_phone|contact_person_1|contact_person_2|voted|member|prediction_symbol|notes)\b/g;
+    expr = expr.replace(fieldPattern, (match) => {
+      const value = person[match];
+      if (match === 'voted') return value ? 'true' : 'false';
+      return typeof value === 'string' ? `"${value}"` : (value || '""');
+    });
+    expr = expr.replace(/\bAND\b/gi, '&&');
+    expr = expr.replace(/\bOR\b/gi, '||');
+    expr = expr.replace(/\bNOT\b/gi, '!');
+    expr = expr.replace(/=/g, '==');
+    expr = expr.replace(/!===/g, '!==');
+    expr = expr.replace(/====/g, '===');
+    return eval(expr);
+  } catch (e) {
+    return true;
+  }
+}
+
+// ---- ConditionRow component ----
+function ConditionRow({ condition, idx, total, onUpdate, onRemove, onConnectorChange }) {
+  const fieldType = AVAILABLE_COLUMNS.find(c => c.key === condition.field)?.type || 'text';
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <Select
+          value={condition.field}
+          onValueChange={(value) => {
+            const ft = AVAILABLE_COLUMNS.find(c => c.key === value)?.type || 'text';
+            onUpdate({ ...condition, field: value, operator: OPERATORS[ft][0].value, value: '' });
+          }}
+        >
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {AVAILABLE_COLUMNS.map(col => (
+              <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={condition.operator}
+          onValueChange={(value) => onUpdate({ ...condition, operator: value })}
+        >
+          <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {OPERATORS[fieldType].map(op => (
+              <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {condition.field === 'voted' ? (
+          <Select
+            value={String(condition.value)}
+            onValueChange={(value) => onUpdate({ ...condition, value })}
+          >
+            <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">Ναι</SelectItem>
+              <SelectItem value="false">Όχι</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            value={condition.value}
+            onChange={(e) => onUpdate({ ...condition, value: e.target.value })}
+            placeholder="Τιμή..."
+            className="flex-1"
+          />
+        )}
+
+        <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-red-400 hover:text-red-600">
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {idx < total - 1 && (
+        <div className="flex items-center gap-2 pl-2">
+          <Select value={condition.connector} onValueChange={onConnectorChange}>
+            <SelectTrigger className="w-[90px] h-7 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="AND">AND</SelectItem>
+              <SelectItem value="OR">OR</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- GroupBlock component ----
+function GroupBlock({ group, groupIdx, totalGroups, onChange, onRemove, onGroupConnectorChange }) {
+  const updateCondition = (condIdx, newCond) => {
+    const newConditions = group.conditions.map((c, i) => i === condIdx ? newCond : c);
+    onChange({ ...group, conditions: newConditions });
+  };
+
+  const removeCondition = (condIdx) => {
+    const newConditions = group.conditions.filter((_, i) => i !== condIdx);
+    onChange({ ...group, conditions: newConditions.length > 0 ? newConditions : [defaultCondition()] });
+  };
+
+  const addCondition = () => {
+    onChange({ ...group, conditions: [...group.conditions, defaultCondition()] });
+  };
+
+  const updateConnector = (condIdx, connector) => {
+    const newConditions = group.conditions.map((c, i) => i === condIdx ? { ...c, connector } : c);
+    onChange({ ...group, conditions: newConditions });
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="border-2 border-blue-200 bg-blue-50/40 rounded-xl p-3 space-y-2">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-blue-700 flex items-center gap-1">
+            <span className="font-mono text-blue-500">(</span>
+            Ομάδα {groupIdx + 1}
+            <span className="font-mono text-blue-500">)</span>
+          </span>
+          {totalGroups > 1 && (
+            <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="h-6 w-6 text-red-400 hover:text-red-600">
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+
+        {group.conditions.map((cond, condIdx) => (
+          <ConditionRow
+            key={condIdx}
+            condition={cond}
+            idx={condIdx}
+            total={group.conditions.length}
+            onUpdate={(newCond) => updateCondition(condIdx, newCond)}
+            onRemove={() => removeCondition(condIdx)}
+            onConnectorChange={(connector) => updateConnector(condIdx, connector)}
+          />
+        ))}
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={addCondition}
+          className="w-full text-blue-600 border border-dashed border-blue-300 hover:bg-blue-100 text-xs"
+        >
+          <Plus className="h-3 w-3 mr-1" />
+          Προσθήκη Συνθήκης στην Ομάδα
+        </Button>
+      </div>
+
+      {/* Inter-group connector */}
+      {groupIdx < totalGroups - 1 && (
+        <div className="flex items-center gap-2 justify-center py-1">
+          <div className="h-px flex-1 bg-slate-200" />
+          <Select value={group.connector} onValueChange={onGroupConnectorChange}>
+            <SelectTrigger className="w-[90px] h-8 border-slate-400 font-semibold text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="AND">AND</SelectItem>
+              <SelectItem value="OR">OR</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SavedQueries() {
   const queryClient = useQueryClient();
   const [createDialog, setCreateDialog] = useState(false);
@@ -80,16 +321,9 @@ export default function SavedQueries() {
     logicalExpression: '',
     conditions: []
   });
-  const [testCount, setTestCount] = useState(null);
-  const [isTestLoading, setIsTestLoading] = useState(false);
-  // groups structure: [{ connector: 'AND'|'OR', conditions: [{field, operator, value, connector}] }]
-  // connector on group = how this group connects to the NEXT group
-  const [groups, setGroups] = useState([
-    { connector: 'AND', conditions: [{ field: 'department', operator: '=', value: '', connector: 'AND' }] }
-  ]);
-  const [conditions, setConditions] = useState([
-    { field: 'department', operator: '=', value: '', connector: 'AND' }
-  ]);
+
+  // groups: array of { connector: 'AND'|'OR', conditions: [...] }
+  const [groups, setGroups] = useState([defaultGroup()]);
   const [useVisualBuilder, setUseVisualBuilder] = useState(true);
 
   const { data: savedQueries = [], isLoading } = useQuery({
@@ -102,109 +336,29 @@ export default function SavedQueries() {
     queryFn: () => base44.entities.Person.list('-created_date', 10000)
   });
 
-  const buildExpressionFromConditions = (conditionsList) => {
-    if (!conditionsList || conditionsList.length === 0) return '';
-    
-    return conditionsList.map((cond, idx) => {
-      let expr = '';
-      
-      if (cond.operator === 'contains') {
-        expr = `${cond.field} contains "${cond.value}"`;
-      } else if (cond.field === 'voted') {
-        const boolValue = cond.value === 'true' || cond.value === true;
-        expr = `${cond.field} ${cond.operator} ${boolValue}`;
-      } else {
-        expr = `${cond.field} ${cond.operator} "${cond.value}"`;
-      }
-      
-      if (idx < conditionsList.length - 1) {
-        expr += ` ${cond.connector} `;
-      }
-      
-      return expr;
-    }).join('');
-  };
+  const previewExpression = useMemo(() => {
+    if (useVisualBuilder) return buildExpressionFromGroups(groups);
+    return formData.logicalExpression;
+  }, [useVisualBuilder, groups, formData.logicalExpression]);
 
-  const evaluateExpression = (person, expression) => {
-    if (!expression || !expression.trim()) return true;
-    
-    try {
-      let expr = expression;
-      
-      // Handle contains operator
-      expr = expr.replace(/(\w+)\s+contains\s+"([^"]*)"/gi, (match, field, value) => {
-        const fieldValue = String(person[field] || '').toLowerCase();
-        const searchValue = value.toLowerCase();
-        return fieldValue.includes(searchValue) ? 'true' : 'false';
-      });
-      
-      // Replace field references with values
-      const fieldPattern = /\b(person_id|last_name|first_name|department|admission_year|academic_level|ucid|mobile_phone|contact_person_1|contact_person_2|voted|member|prediction_symbol|notes)\b/g;
-      expr = expr.replace(fieldPattern, (match) => {
-        const value = person[match];
-        if (match === 'voted') return value ? 'true' : 'false';
-        return typeof value === 'string' ? `"${value}"` : (value || '""');
-      });
-      
-      // Replace operators
-      expr = expr.replace(/\bAND\b/gi, '&&');
-      expr = expr.replace(/\bOR\b/gi, '||');
-      expr = expr.replace(/\bNOT\b/gi, '!');
-      expr = expr.replace(/=/g, '==');
-      expr = expr.replace(/!===/g, '!==');
-      expr = expr.replace(/====/g, '===');
-      
-      return eval(expr);
-    } catch (e) {
-      console.error('Expression evaluation error:', e);
-      return true;
-    }
-  };
-
-  const testQuery = () => {
-    setIsTestLoading(true);
-    setTimeout(() => {
-      const expr = buildExpressionFromConditions(formData.conditions) || formData.logicalExpression;
-      let results = [...people];
-      
-      if (expr && expr.trim()) {
-        results = results.filter(person => evaluateExpression(person, expr));
-      }
-      
-      setTestCount(results.length);
-      setIsTestLoading(false);
-    }, 300);
-  };
-
-  // Real-time count preview
   const previewCount = useMemo(() => {
     if (!people.length) return 0;
-    
-    const expression = useVisualBuilder 
-      ? buildExpressionFromConditions(conditions)
-      : formData.logicalExpression;
-    
-    if (!expression || !expression.trim()) return people.length;
-    
-    return people.filter(person => evaluateExpression(person, expression)).length;
-  }, [people, conditions, formData.logicalExpression, useVisualBuilder]);
+    if (!previewExpression || !previewExpression.trim()) return people.length;
+    return people.filter(person => evaluateExpression(person, previewExpression)).length;
+  }, [people, previewExpression]);
+
+  const resetDialog = () => {
+    setFormData({ name: '', description: '', columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'], filters: {}, logicalExpression: '', conditions: [] });
+    setGroups([defaultGroup()]);
+    setUseVisualBuilder(true);
+  };
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.SavedQuery.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries(['saved-queries']);
       setCreateDialog(false);
-      setFormData({
-        name: '',
-        description: '',
-        columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
-        filters: {},
-        logicalExpression: '',
-        conditions: []
-      });
-      setTestCount(null);
-      setConditions([{ field: 'department', operator: '=', value: '', connector: 'AND' }]);
-      setUseVisualBuilder(true);
+      resetDialog();
       toast.success('Το ερώτημα αποθηκεύτηκε');
     }
   });
@@ -219,45 +373,36 @@ export default function SavedQueries() {
 
   const runQuery = (query) => {
     let results = [...people];
-    
-    // Build expression from conditions or use direct expression
-    const expr = buildExpressionFromConditions(query.conditions || []) || query.logicalExpression;
-    
-    // Apply logical expression
+    // Support both new groups-based and legacy conditions/logicalExpression
+    const expr = query.logicalExpression || buildExpressionFromConditions(query.conditions || []);
     if (expr && expr.trim()) {
       results = results.filter(person => evaluateExpression(person, expr));
     } else if (query.filters) {
-      // Fallback to old filters
       Object.entries(query.filters).forEach(([key, value]) => {
         if (value !== undefined && value !== '' && value !== 'all') {
           if (key === 'voted') {
             results = results.filter(p => p.voted === (value === 'true'));
           } else {
-            results = results.filter(p => 
-              String(p[key] || '').toLowerCase().includes(String(value).toLowerCase())
-            );
+            results = results.filter(p => String(p[key] || '').toLowerCase().includes(String(value).toLowerCase()));
           }
         }
       });
     }
-
     setQueryResults(results);
     setRunDialog({ open: true, query });
   };
 
   const exportResults = () => {
     if (!runDialog.query || queryResults.length === 0) return;
-
     const cols = runDialog.query.columns || AVAILABLE_COLUMNS.map(c => c.key);
     const headers = cols.map(k => AVAILABLE_COLUMNS.find(c => c.key === k)?.label || k).join(',');
-    const rows = queryResults.map(p => 
+    const rows = queryResults.map(p =>
       cols.map(k => {
         let val = p[k];
         if (k === 'voted') val = val ? 'ΝΑΙ' : 'ΟΧΙ';
         return `"${String(val || '').replace(/"/g, '""')}"`;
       }).join(',')
     ).join('\n');
-    
     const csv = '\uFEFF' + headers + '\n' + rows;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -268,9 +413,13 @@ export default function SavedQueries() {
     toast.success('Εξαγωγή ολοκληρώθηκε');
   };
 
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
+  const handleSave = () => {
+    if (!formData.name) { toast.error('Εισάγετε όνομα'); return; }
+    const finalExpression = useVisualBuilder ? buildExpressionFromGroups(groups) : formData.logicalExpression;
+    createMutation.mutate({ ...formData, logicalExpression: finalExpression, conditions: [] });
+  };
+
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">
@@ -308,11 +457,7 @@ export default function SavedQueries() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => {
-                      if (confirm('Διαγραφή αυτού του ερωτήματος;')) {
-                        deleteMutation.mutate(query.id);
-                      }
-                    }}
+                    onClick={() => { if (confirm('Διαγραφή αυτού του ερωτήματος;')) deleteMutation.mutate(query.id); }}
                     className="text-red-500 hover:text-red-600"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -320,9 +465,7 @@ export default function SavedQueries() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {query.description && (
-                  <p className="text-sm text-slate-500 mb-4">{query.description}</p>
-                )}
+                {query.description && <p className="text-sm text-slate-500 mb-4">{query.description}</p>}
                 <div className="text-xs text-slate-400 mb-4">
                   <div>{(query.columns || []).length} στήλες</div>
                   {query.logicalExpression && (
@@ -331,10 +474,7 @@ export default function SavedQueries() {
                     </div>
                   )}
                 </div>
-                <Button 
-                  className="w-full" 
-                  onClick={() => runQuery(query)}
-                >
+                <Button className="w-full" onClick={() => runQuery(query)}>
                   <Play className="h-4 w-4 mr-2" />
                   Εκτέλεση
                 </Button>
@@ -345,33 +485,29 @@ export default function SavedQueries() {
       )}
 
       {/* Create Query Dialog */}
-      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
+      <Dialog open={createDialog} onOpenChange={(open) => { if (!open) resetDialog(); setCreateDialog(open); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Νέο Ερώτημα</DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            <div className="space-y-2">
-              <Label>Όνομα *</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                placeholder="Όνομα ερωτήματος"
-              />
+
+          <div className="space-y-4 py-2 max-h-[65vh] overflow-y-auto pr-1">
+            {/* Name & Description */}
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1">
+                <Label>Όνομα *</Label>
+                <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Όνομα ερωτήματος" />
+              </div>
+              <div className="space-y-1">
+                <Label>Περιγραφή</Label>
+                <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Περιγραφή" rows={2} />
+              </div>
             </div>
+
+            {/* Columns */}
             <div className="space-y-2">
-              <Label>Περιγραφή</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="Περιγραφή"
-                rows={2}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Στήλες</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <Label>Στήλες αποτελεσμάτων</Label>
+              <div className="grid grid-cols-2 gap-2 border rounded-lg p-3 bg-slate-50">
                 {AVAILABLE_COLUMNS.map(col => (
                   <div key={col.key} className="flex items-center gap-2">
                     <Checkbox
@@ -381,202 +517,67 @@ export default function SavedQueries() {
                         const newCols = checked
                           ? [...(formData.columns || []), col.key]
                           : (formData.columns || []).filter(c => c !== col.key);
-                        setFormData({...formData, columns: newCols});
+                        setFormData({ ...formData, columns: newCols });
                       }}
                     />
-                    <Label htmlFor={col.key} className="text-sm">{col.label}</Label>
+                    <Label htmlFor={col.key} className="text-sm cursor-pointer">{col.label}</Label>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Φίλτρα</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">Τμήμα</Label>
-                  <Input
-                    value={formData.filters?.department || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      filters: {...formData.filters, department: e.target.value}
-                    })}
-                    placeholder="Φίλτρο τμήματος"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Ψήφισε</Label>
-                  <select
-                    value={formData.filters?.voted || 'all'}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      filters: {...formData.filters, voted: e.target.value}
-                    })}
-                    className="w-full h-10 px-3 rounded-md border"
-                  >
-                    <option value="all">Όλα</option>
-                    <option value="true">Ναι</option>
-                    <option value="false">Όχι</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+
+            {/* Logical Expression */}
             <div className="space-y-3 border-t pt-4">
               <div className="flex items-center justify-between">
-                <Label className="text-base">Λογική Έκφραση</Label>
+                <Label className="text-base font-semibold">Λογική Έκφραση</Label>
                 <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant={useVisualBuilder ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setUseVisualBuilder(true);
-                      setFormData({...formData, logicalExpression: buildExpressionFromConditions(conditions)});
-                    }}
-                  >
+                  <Button type="button" variant={useVisualBuilder ? "default" : "outline"} size="sm"
+                    onClick={() => { setUseVisualBuilder(true); setFormData({ ...formData, logicalExpression: buildExpressionFromGroups(groups) }); }}>
                     Οπτικό
                   </Button>
-                  <Button
-                    type="button"
-                    variant={!useVisualBuilder ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setUseVisualBuilder(false)}
-                  >
+                  <Button type="button" variant={!useVisualBuilder ? "default" : "outline"} size="sm"
+                    onClick={() => setUseVisualBuilder(false)}>
                     Κώδικας
                   </Button>
                 </div>
               </div>
 
               {useVisualBuilder ? (
-                <div className="space-y-3">
-                  {conditions.map((condition, idx) => (
-                    <div key={idx} className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={condition.field}
-                          onValueChange={(value) => {
-                            const newConditions = [...conditions];
-                            newConditions[idx].field = value;
-                            const fieldType = AVAILABLE_COLUMNS.find(c => c.key === value)?.type || 'text';
-                            newConditions[idx].operator = OPERATORS[fieldType][0].value;
-                            setConditions(newConditions);
-                          }}
-                        >
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {AVAILABLE_COLUMNS.map(col => (
-                              <SelectItem key={col.key} value={col.key}>
-                                {col.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={condition.operator}
-                          onValueChange={(value) => {
-                            const newConditions = [...conditions];
-                            newConditions[idx].operator = value;
-                            setConditions(newConditions);
-                          }}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {OPERATORS[AVAILABLE_COLUMNS.find(c => c.key === condition.field)?.type || 'text'].map(op => (
-                              <SelectItem key={op.value} value={op.value}>
-                                {op.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {condition.field === 'voted' ? (
-                          <Select
-                            value={String(condition.value)}
-                            onValueChange={(value) => {
-                              const newConditions = [...conditions];
-                              newConditions[idx].value = value;
-                              setConditions(newConditions);
-                            }}
-                          >
-                            <SelectTrigger className="flex-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">Ναι</SelectItem>
-                              <SelectItem value="false">Όχι</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={condition.value}
-                            onChange={(e) => {
-                              const newConditions = [...conditions];
-                              newConditions[idx].value = e.target.value;
-                              setConditions(newConditions);
-                            }}
-                            placeholder="Τιμή..."
-                            className="flex-1"
-                          />
-                        )}
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            const newConditions = conditions.filter((_, i) => i !== idx);
-                            setConditions(newConditions.length > 0 ? newConditions : [{ field: 'department', operator: '=', value: '', connector: 'AND' }]);
-                          }}
-                          className="text-red-500"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      {idx < conditions.length - 1 && (
-                        <div className="flex items-center gap-2 pl-4">
-                          <Select
-                            value={condition.connector}
-                            onValueChange={(value) => {
-                              const newConditions = [...conditions];
-                              newConditions[idx].connector = value;
-                              setConditions(newConditions);
-                            }}
-                          >
-                            <SelectTrigger className="w-[100px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="AND">AND</SelectItem>
-                              <SelectItem value="OR">OR</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    </div>
+                <div className="space-y-2">
+                  {groups.map((group, groupIdx) => (
+                    <GroupBlock
+                      key={groupIdx}
+                      group={group}
+                      groupIdx={groupIdx}
+                      totalGroups={groups.length}
+                      onChange={(newGroup) => {
+                        const newGroups = groups.map((g, i) => i === groupIdx ? newGroup : g);
+                        setGroups(newGroups);
+                      }}
+                      onRemove={() => setGroups(groups.filter((_, i) => i !== groupIdx))}
+                      onGroupConnectorChange={(connector) => {
+                        const newGroups = groups.map((g, i) => i === groupIdx ? { ...g, connector } : g);
+                        setGroups(newGroups);
+                      }}
+                    />
                   ))}
 
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setConditions([...conditions, { field: 'department', operator: '=', value: '', connector: 'AND' }]);
-                    }}
-                    className="w-full"
+                    onClick={() => setGroups([...groups, defaultGroup()])}
+                    className="w-full border-dashed text-slate-600"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Προσθήκη Συνθήκης
+                    Προσθήκη Ομάδας (παρένθεση)
                   </Button>
 
-                  <div className="bg-slate-50 p-3 rounded-lg border">
-                    <div className="text-xs text-slate-500 mb-1">Προεπισκόπηση:</div>
-                    <div className="font-mono text-sm text-slate-700">
-                      {buildExpressionFromConditions(conditions) || 'Καμία έκφραση'}
+                  {/* Preview */}
+                  <div className="bg-slate-900 text-green-400 p-3 rounded-lg border text-xs">
+                    <div className="text-slate-500 mb-1 text-[10px] uppercase tracking-wider">Έκφραση:</div>
+                    <div className="font-mono break-all">
+                      {buildExpressionFromGroups(groups) || <span className="text-slate-500">Καμία έκφραση</span>}
                     </div>
                   </div>
                 </div>
@@ -584,18 +585,18 @@ export default function SavedQueries() {
                 <div className="space-y-2">
                   <Textarea
                     value={formData.logicalExpression}
-                    onChange={(e) => setFormData({...formData, logicalExpression: e.target.value})}
-                    placeholder='π.χ. department = "CS" AND (voted = true OR member = "Ναι")'
+                    onChange={(e) => setFormData({ ...formData, logicalExpression: e.target.value })}
+                    placeholder='π.χ. (department = "ΝΟΜ" AND voted = false) OR (department = "ΗΜΥ" AND prediction_symbol = "Π")'
                     rows={4}
                     className="font-mono text-sm"
                   />
                   <p className="text-xs text-slate-500">
-                    Χρησιμοποιήστε: AND, OR, NOT, =, !=, contains και ονόματα πεδίων
+                    Χρησιμοποιήστε: AND, OR, NOT, =, !=, contains, παρενθέσεις () και ονόματα πεδίων
                   </p>
                 </div>
               )}
 
-              {/* Real-time count */}
+              {/* Live count */}
               <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
                 <div className="flex items-center gap-2">
                   {previewCount > 0 ? (
@@ -603,9 +604,7 @@ export default function SavedQueries() {
                   ) : (
                     <AlertCircle className="h-5 w-5 text-amber-600" />
                   )}
-                  <span className="text-sm font-medium text-slate-700">
-                    Αποτελέσματα:
-                  </span>
+                  <span className="text-sm font-medium text-slate-700">Αποτελέσματα:</span>
                 </div>
                 <Badge variant="default" className="text-base px-3 py-1">
                   {previewCount.toLocaleString()} / {people.length.toLocaleString()}
@@ -615,27 +614,8 @@ export default function SavedQueries() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialog(false)}>
-              Ακύρωση
-            </Button>
-            <Button 
-              onClick={() => {
-                if (!formData.name) {
-                  toast.error('Εισάγετε όνομα');
-                  return;
-                }
-                
-                const finalExpression = useVisualBuilder 
-                  ? buildExpressionFromConditions(conditions)
-                  : formData.logicalExpression;
-                
-                createMutation.mutate({
-                  ...formData,
-                  logicalExpression: finalExpression
-                });
-              }}
-              disabled={createMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => { resetDialog(); setCreateDialog(false); }}>Ακύρωση</Button>
+            <Button onClick={handleSave} disabled={createMutation.isPending}>
               Αποθήκευση ({previewCount} εγγραφές)
             </Button>
           </DialogFooter>
@@ -646,21 +626,15 @@ export default function SavedQueries() {
       <Dialog open={runDialog.open} onOpenChange={(open) => setRunDialog({ open, query: null })}>
         <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>
-              Αποτελέσματα: {runDialog.query?.name}
-            </DialogTitle>
+            <DialogTitle>Αποτελέσματα: {runDialog.query?.name}</DialogTitle>
           </DialogHeader>
-          
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-slate-500">
-              {queryResults.length} εγγραφές
-            </span>
+            <span className="text-sm text-slate-500">{queryResults.length} εγγραφές</span>
             <Button variant="outline" onClick={exportResults}>
               <Download className="h-4 w-4 mr-2" />
               Εξαγωγή
             </Button>
           </div>
-
           <div className="overflow-auto max-h-[50vh] border rounded-lg">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 sticky top-0">
@@ -685,7 +659,6 @@ export default function SavedQueries() {
               </tbody>
             </table>
           </div>
-          
           {queryResults.length > 100 && (
             <p className="text-sm text-slate-500 text-center">
               Εμφανίζονται οι πρώτες 100 εγγραφές. Εξάγετε για να δείτε όλα τα αποτελέσματα.
