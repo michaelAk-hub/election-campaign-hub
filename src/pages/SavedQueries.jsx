@@ -405,6 +405,17 @@ export default function SavedQueries() {
         }
       />
 
+      {/* Page description */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-1">
+        <p className="font-semibold">📋 Πώς λειτουργεί η σελίδα:</p>
+        <ul className="list-disc list-inside space-y-1 text-blue-700">
+          <li><strong>Νέο Ερώτημα:</strong> Δημιουργήστε ένα ερώτημα με οπτικό builder (groups/παρενθέσεις) ή χειροκίνητη έκφραση. Επιλέξτε ποιες στήλες θέλετε να εμφανίζονται.</li>
+          <li><strong>Εκτέλεση:</strong> Εφαρμόζει τα φίλτρα του ερωτήματος σε όλα τα πρόσωπα και εμφανίζει τα αποτελέσματα σε πίνακα.</li>
+          <li><strong>Εξαγωγή:</strong> Κατεβάζει τα αποτελέσματα ως αρχείο CSV (συμβατό με Excel) με τις επιλεγμένες στήλες.</li>
+          <li>Τα αποτελέσματα εμφανίζονται αυτόματα — δεν χρειάζεται αποθήκευση.</li>
+        </ul>
+      </div>
+
       {savedQueries.length === 0 ? (
         <EmptyState
           icon={FileText}
