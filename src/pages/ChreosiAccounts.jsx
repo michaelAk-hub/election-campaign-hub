@@ -329,7 +329,7 @@ export default function ChreosiAccounts() {
                 await base44.entities.Notification.create({
                   recipient_type: 'chreosi',
                   recipient_username: row.username,
-                  type: 'warning',
+                  type: 'info',
                   category: 'password_change',
                   title: 'Ο κωδικός σας άλλαξε',
                   message: `Ο κωδικός πρόσβασής σας επαναφέρθηκε. Νέος κωδικός: ${newPassword}`
