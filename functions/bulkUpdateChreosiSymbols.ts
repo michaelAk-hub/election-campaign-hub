@@ -23,27 +23,28 @@ Deno.serve(async (req) => {
 
         const operationId = operation.id;
 
-        // Build the response immediately, then process in background using waitUntil
-        const responsePromise = Response.json({ success: true, operation_id: operationId, total: account_ids.length });
-
-        // Process in background - use EdgeRuntime.waitUntil if available, otherwise just fire
-        const backgroundWork = (async () => {
+        // Run the updates in the background (no await - fire and forget)
+        (async () => {
             let processed = 0;
             try {
-                // Process in batches of 20 concurrently for speed
-                const batchSize = 20;
-                for (let i = 0; i < account_ids.length; i += batchSize) {
-                    const batch = account_ids.slice(i, i + batchSize);
-                    await Promise.all(batch.map(id =>
-                        base44.asServiceRole.entities.ChreosiAccount.update(id, {
+                for (const id of account_ids) {
+                    // Fetch current account data
+                    const accounts = await base44.asServiceRole.entities.ChreosiAccount.filter({ id });
+                    const account = accounts[0];
+                    if (account) {
+                        await base44.asServiceRole.entities.ChreosiAccount.update(id, {
+                            ...account,
                             allowed_prediction_symbols: symbols
-                        })
-                    ));
-                    processed += batch.length;
-                    await base44.asServiceRole.entities.BulkOperation.update(operationId, {
-                        processed,
-                        status: processed >= account_ids.length ? 'completed' : 'running'
-                    });
+                        });
+                    }
+                    processed++;
+                    // Update progress every 5 records or at the end
+                    if (processed % 5 === 0 || processed === account_ids.length) {
+                        await base44.asServiceRole.entities.BulkOperation.update(operationId, {
+                            processed,
+                            status: processed === account_ids.length ? 'completed' : 'running'
+                        });
+                    }
                 }
             } catch (err) {
                 await base44.asServiceRole.entities.BulkOperation.update(operationId, {
@@ -53,14 +54,8 @@ Deno.serve(async (req) => {
             }
         })();
 
-        // Try to use EdgeRuntime.waitUntil to keep function alive after response
-        try {
-            EdgeRuntime.waitUntil(backgroundWork);
-        } catch (_) {
-            // If not available, just let it run (fire and forget)
-        }
-
-        return responsePromise;
+        // Return immediately with the operationId
+        return Response.json({ success: true, operation_id: operationId, total: account_ids.length });
 
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
