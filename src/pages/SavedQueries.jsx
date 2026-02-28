@@ -452,10 +452,19 @@ export default function SavedQueries() {
                     </div>
                   )}
                 </div>
-                <Button className="w-full" onClick={() => runQuery(query)}>
-                  <Play className="h-4 w-4 mr-2" />
-                  Εκτέλεση
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button className="w-full" onClick={() => runQuery(query)}>
+                        <Play className="h-4 w-4 mr-2" />
+                        Εκτέλεση
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs text-center">
+                      Εφαρμόζει τα φίλτρα του ερωτήματος και εμφανίζει τα αποτελέσματα σε πίνακα. Από εκεί μπορείτε να τα εξάγετε σε Excel (CSV).
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </CardContent>
             </Card>
           ))}
