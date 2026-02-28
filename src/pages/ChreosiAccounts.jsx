@@ -492,11 +492,7 @@ export default function ChreosiAccounts() {
 
       {/* Bulk Symbol Assignment Dialog */}
       <Dialog open={bulkSymbolDialog} onOpenChange={(open) => {
-        if (!open) {
-          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-          setBulkProgress(null);
-          setIsBulkUpdating(false);
-        }
+        if (!open) setIsBulkUpdating(false);
         setBulkSymbolDialog(open);
       }}>
         <DialogContent>
@@ -535,70 +531,74 @@ export default function ChreosiAccounts() {
               <p className="text-xs text-amber-600">⚠️ Κανένα σύμβολο — οι χρήστες θα βλέπουν όλες τις εγγραφές.</p>
             )}
           </div>
-          {bulkProgress && (
-            <div className="space-y-2 px-1">
-              <div className="flex justify-between text-sm text-slate-600">
-                <span className="flex items-center gap-2">
-                  {bulkProgress.status === 'running' && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {bulkProgress.status === 'completed' && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                  {bulkProgress.status === 'running' ? 'Εφαρμογή συμβόλων...' : 'Ολοκληρώθηκε!'}
-                </span>
-                <span>{bulkProgress.processed} / {bulkProgress.total}</span>
-              </div>
-              <Progress value={bulkProgress.total > 0 ? (bulkProgress.processed / bulkProgress.total) * 100 : 0} />
-            </div>
-          )}
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-                setBulkSymbolDialog(false);
-                setBulkProgress(null);
-              }}
-            >
-              {bulkProgress?.status === 'completed' ? 'Κλείσιμο' : 'Ακύρωση'}
+            <Button variant="outline" onClick={() => setBulkSymbolDialog(false)}>
+              Ακύρωση
             </Button>
-            {!bulkProgress && (
-              <Button
-                disabled={isBulkUpdating}
-                onClick={async () => {
-                  setIsBulkUpdating(true);
-                  const { data } = await base44.functions.invoke('bulkUpdateChreosiSymbols', {
-                    account_ids: selectedIds,
-                    symbols: bulkSymbols
-                  });
-                  setIsBulkUpdating(false);
-                  if (data?.operation_id) {
-                    setBulkProgress({ operationId: data.operation_id, total: data.total, processed: 0, status: 'running' });
-                    progressIntervalRef.current = setInterval(async () => {
-                      const { data: prog } = await base44.functions.invoke('getBulkOperationProgress', {
-                        operation_id: data.operation_id
-                      });
-                      if (prog) {
-                        setBulkProgress(prev => ({ ...prev, processed: prog.processed, status: prog.status, total: prog.total }));
-                        if (prog.status === 'completed' || prog.status === 'failed') {
-                          clearInterval(progressIntervalRef.current);
-                          queryClient.invalidateQueries(['chreosi-accounts']);
-                          setSelectedIds([]);
-                          if (prog.status === 'completed') {
-                            toast.success(`Ενημερώθηκαν ${prog.total} λογαριασμοί`);
-                          } else {
-                            toast.error('Αποτυχία ενημέρωσης');
-                          }
+            <Button
+              disabled={isBulkUpdating}
+              onClick={async () => {
+                setIsBulkUpdating(true);
+                const { data } = await base44.functions.invoke('bulkUpdateChreosiSymbols', {
+                  account_ids: selectedIds,
+                  symbols: bulkSymbols
+                });
+                setIsBulkUpdating(false);
+                setBulkSymbolDialog(false);
+                if (data?.operation_id) {
+                  setBulkProgress({ operationId: data.operation_id, total: data.total, processed: 0, status: 'running' });
+                  progressIntervalRef.current = setInterval(async () => {
+                    const { data: prog } = await base44.functions.invoke('getBulkOperationProgress', {
+                      operation_id: data.operation_id
+                    });
+                    if (prog) {
+                      setBulkProgress(prev => ({ ...prev, processed: prog.processed, status: prog.status, total: prog.total }));
+                      if (prog.status === 'completed' || prog.status === 'failed') {
+                        clearInterval(progressIntervalRef.current);
+                        queryClient.invalidateQueries(['chreosi-accounts']);
+                        setSelectedIds([]);
+                        if (prog.status === 'completed') {
+                          toast.success(`Ενημερώθηκαν ${prog.total} λογαριασμοί`);
+                        } else {
+                          toast.error('Αποτυχία ενημέρωσης');
                         }
                       }
-                    }, 2000);
-                  }
-                }}
-              >
-                {isBulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Εφαρμογή
-              </Button>
-            )}
+                    }
+                  }, 2000);
+                }
+              }}
+            >
+              {isBulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Εφαρμογή
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Floating Progress Bar - shown on page while bulk operation runs */}
+      {bulkProgress && (
+        <div className="fixed bottom-6 right-6 z-50 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              {bulkProgress.status === 'running' && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
+              {bulkProgress.status === 'completed' && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              {bulkProgress.status === 'running' ? 'Εφαρμογή συμβόλων...' : 'Ολοκληρώθηκε!'}
+            </div>
+            {bulkProgress.status !== 'running' && (
+              <button
+                onClick={() => setBulkProgress(null)}
+                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <Progress value={bulkProgress.total > 0 ? (bulkProgress.processed / bulkProgress.total) * 100 : 0} />
+          <div className="text-xs text-slate-500 text-right">
+            {bulkProgress.processed} / {bulkProgress.total} λογαριασμοί
+          </div>
+        </div>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={editDialog.open} onOpenChange={(open) => {
