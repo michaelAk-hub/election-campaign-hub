@@ -82,6 +82,10 @@ export default function SavedQueries() {
   });
   const [testCount, setTestCount] = useState(null);
   const [isTestLoading, setIsTestLoading] = useState(false);
+  // groups: array of { connector: 'AND'|'OR', conditions: [...] }
+  const [groups, setGroups] = useState([
+    { connector: 'AND', conditions: [{ field: 'department', operator: '=', value: '', connector: 'AND' }] }
+  ]);
   const [conditions, setConditions] = useState([
     { field: 'department', operator: '=', value: '', connector: 'AND' }
   ]);
