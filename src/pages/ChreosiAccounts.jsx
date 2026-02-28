@@ -144,7 +144,8 @@ export default function ChreosiAccounts() {
   const bulkActivateMutation = useMutation({
     mutationFn: async ({ ids, active }) => {
       for (const id of ids) {
-        await base44.entities.ChreosiAccount.update(id, { is_active: active });
+        const account = accounts.find(a => a.id === id);
+        await base44.entities.ChreosiAccount.update(id, { ...account, is_active: active });
       }
     },
     onSuccess: (_, { ids, active }) => {
@@ -328,7 +329,7 @@ export default function ChreosiAccounts() {
                 await base44.entities.Notification.create({
                   recipient_type: 'chreosi',
                   recipient_username: row.username,
-                  type: 'info',
+                  type: 'warning',
                   category: 'password_change',
                   title: 'Ο κωδικός σας άλλαξε',
                   message: `Ο κωδικός πρόσβασής σας επαναφέρθηκε. Νέος κωδικός: ${newPassword}`
@@ -343,7 +344,7 @@ export default function ChreosiAccounts() {
               <DropdownMenuItem onClick={() => {
                 updateMutation.mutate({
                   id: row.id,
-                  data: { is_active: !row.is_active }
+                  data: { ...row, is_active: !row.is_active }
                 });
               }}>
                 {row.is_active ? (
@@ -531,7 +532,7 @@ export default function ChreosiAccounts() {
                 setIsBulkUpdating(true);
                 for (const id of selectedIds) {
                   const account = accounts.find(a => a.id === id);
-                  await base44.entities.ChreosiAccount.update(id, { allowed_prediction_symbols: bulkSymbols });
+                  await base44.entities.ChreosiAccount.update(id, { ...account, allowed_prediction_symbols: bulkSymbols });
                 }
                 queryClient.invalidateQueries(['chreosi-accounts']);
                 setIsBulkUpdating(false);
