@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Plus, Play, Trash2, Download, FileText, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Plus, Play, Trash2, Download, FileText, X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from 'sonner';
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────────
