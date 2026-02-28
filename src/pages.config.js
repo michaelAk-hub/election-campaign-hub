@@ -48,6 +48,7 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import AdminLogin from './pages/AdminLogin';
+import ChreosiAccounts from './pages/ChreosiAccounts';
 import ChreosiPortal from './pages/ChreosiPortal';
 import CompareMerge from './pages/CompareMerge';
 import CreateTestUser from './pages/CreateTestUser';
@@ -65,12 +66,12 @@ import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import SendMessage from './pages/SendMessage';
 import UserManagement from './pages/UserManagement';
-import ChreosiAccounts from './pages/ChreosiAccounts';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "AdminLogin": AdminLogin,
+    "ChreosiAccounts": ChreosiAccounts,
     "ChreosiPortal": ChreosiPortal,
     "CompareMerge": CompareMerge,
     "CreateTestUser": CreateTestUser,
@@ -88,7 +89,6 @@ export const PAGES = {
     "SavedQueries": SavedQueries,
     "SendMessage": SendMessage,
     "UserManagement": UserManagement,
-    "ChreosiAccounts": ChreosiAccounts,
 }
 
 export const pagesConfig = {

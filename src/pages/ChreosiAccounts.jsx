@@ -533,11 +533,10 @@ export default function ChreosiAccounts() {
               disabled={isBulkUpdating}
               onClick={async () => {
                 setIsBulkUpdating(true);
-                for (const id of selectedIds) {
-                  const account = accounts.find(a => a.id === id);
-                  await base44.entities.ChreosiAccount.update(id, { ...account, allowed_prediction_symbols: bulkSymbols });
-                  await new Promise(r => setTimeout(r, 150));
-                }
+                await base44.functions.invoke('bulkUpdateChreosiSymbols', {
+                  accountIds: selectedIds,
+                  symbolsToAssign: bulkSymbols
+                });
                 queryClient.invalidateQueries(['chreosi-accounts']);
                 setIsBulkUpdating(false);
                 setBulkSymbolDialog(false);
