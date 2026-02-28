@@ -130,11 +130,9 @@ export default function ChreosiAccounts() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids) => {
-      const BATCH = 5;
-      for (let i = 0; i < ids.length; i += BATCH) {
-        const chunk = ids.slice(i, i + BATCH);
-        await Promise.all(chunk.map(id => base44.entities.ChreosiAccount.delete(id)));
-        if (i + BATCH < ids.length) await new Promise(r => setTimeout(r, 300));
+      for (const id of ids) {
+        await base44.entities.ChreosiAccount.delete(id);
+        await new Promise(r => setTimeout(r, 150));
       }
     },
     onSuccess: (_, ids) => {
