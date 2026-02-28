@@ -491,7 +491,14 @@ export default function ChreosiAccounts() {
       </Dialog>
 
       {/* Bulk Symbol Assignment Dialog */}
-      <Dialog open={bulkSymbolDialog} onOpenChange={setBulkSymbolDialog}>
+      <Dialog open={bulkSymbolDialog} onOpenChange={(open) => {
+        if (!open) {
+          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+          setBulkProgress(null);
+          setIsBulkUpdating(false);
+        }
+        setBulkSymbolDialog(open);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ορισμός Συμβόλων σε {selectedIds.length} Χρήστες</DialogTitle>
