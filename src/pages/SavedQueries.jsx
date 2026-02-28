@@ -643,11 +643,7 @@ export default function SavedQueries() {
               </tbody>
             </table>
           </div>
-          {queryResults.length > 100 && (
-            <p className="text-sm text-slate-500 text-center">
-              Εμφανίζονται οι πρώτες 100 εγγραφές. Εξάγετε για να δείτε όλα τα αποτελέσματα.
-            </p>
-          )}
+
         </DialogContent>
       </Dialog>
     </div>
