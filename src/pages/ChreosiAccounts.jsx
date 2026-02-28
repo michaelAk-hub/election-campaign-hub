@@ -144,8 +144,7 @@ export default function ChreosiAccounts() {
   const bulkActivateMutation = useMutation({
     mutationFn: async ({ ids, active }) => {
       for (const id of ids) {
-        const account = accounts.find(a => a.id === id);
-        await base44.entities.ChreosiAccount.update(id, { ...account, is_active: active });
+        await base44.entities.ChreosiAccount.update(id, { is_active: active });
       }
     },
     onSuccess: (_, { ids, active }) => {
