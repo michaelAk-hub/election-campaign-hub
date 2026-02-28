@@ -24,7 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Progress } from "@/components/ui/progress";
 import {
   UserPlus,
   MoreHorizontal,
@@ -36,8 +35,7 @@ import {
   Copy,
   CheckCircle2,
   Trash2,
-  AlertTriangle,
-  Loader2
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -65,8 +63,6 @@ export default function ChreosiAccounts() {
   const [bulkSymbolDialog, setBulkSymbolDialog] = useState(false);
   const [bulkSymbols, setBulkSymbols] = useState([]);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
-  const [bulkProgress, setBulkProgress] = useState(null); // { operationId, total, processed, status }
-  const progressIntervalRef = React.useRef(null);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['chreosi-accounts'],
@@ -491,14 +487,7 @@ export default function ChreosiAccounts() {
       </Dialog>
 
       {/* Bulk Symbol Assignment Dialog */}
-      <Dialog open={bulkSymbolDialog} onOpenChange={(open) => {
-        if (!open) {
-          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-          setBulkProgress(null);
-          setIsBulkUpdating(false);
-        }
-        setBulkSymbolDialog(open);
-      }}>
+      <Dialog open={bulkSymbolDialog} onOpenChange={setBulkSymbolDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ορισμός Συμβόλων σε {selectedIds.length} Χρήστες</DialogTitle>
@@ -535,67 +524,25 @@ export default function ChreosiAccounts() {
               <p className="text-xs text-amber-600">⚠️ Κανένα σύμβολο — οι χρήστες θα βλέπουν όλες τις εγγραφές.</p>
             )}
           </div>
-          {bulkProgress && (
-            <div className="space-y-2 px-1">
-              <div className="flex justify-between text-sm text-slate-600">
-                <span className="flex items-center gap-2">
-                  {bulkProgress.status === 'running' && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {bulkProgress.status === 'completed' && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                  {bulkProgress.status === 'running' ? 'Εφαρμογή συμβόλων...' : 'Ολοκληρώθηκε!'}
-                </span>
-                <span>{bulkProgress.processed} / {bulkProgress.total}</span>
-              </div>
-              <Progress value={bulkProgress.total > 0 ? (bulkProgress.processed / bulkProgress.total) * 100 : 0} />
-            </div>
-          )}
           <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkSymbolDialog(false)}>Ακύρωση</Button>
             <Button
-              variant="outline"
-              onClick={() => {
-                if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+              disabled={isBulkUpdating}
+              onClick={async () => {
+                setIsBulkUpdating(true);
+                for (const id of selectedIds) {
+                  const account = accounts.find(a => a.id === id);
+                  await base44.entities.ChreosiAccount.update(id, { ...account, allowed_prediction_symbols: bulkSymbols });
+                }
+                queryClient.invalidateQueries(['chreosi-accounts']);
+                setIsBulkUpdating(false);
                 setBulkSymbolDialog(false);
-                setBulkProgress(null);
+                setSelectedIds([]);
+                toast.success(`Ενημερώθηκαν ${selectedIds.length} λογαριασμοί`);
               }}
             >
-              {bulkProgress?.status === 'completed' ? 'Κλείσιμο' : 'Ακύρωση'}
+              {isBulkUpdating ? 'Αποθήκευση...' : 'Εφαρμογή'}
             </Button>
-            {!bulkProgress && (
-              <Button
-                disabled={isBulkUpdating}
-                onClick={async () => {
-                  setIsBulkUpdating(true);
-                  const { data } = await base44.functions.invoke('bulkUpdateChreosiSymbols', {
-                    account_ids: selectedIds,
-                    symbols: bulkSymbols
-                  });
-                  setIsBulkUpdating(false);
-                  if (data?.operation_id) {
-                    setBulkProgress({ operationId: data.operation_id, total: data.total, processed: 0, status: 'running' });
-                    progressIntervalRef.current = setInterval(async () => {
-                      const { data: prog } = await base44.functions.invoke('getBulkOperationProgress', {
-                        operation_id: data.operation_id
-                      });
-                      if (prog) {
-                        setBulkProgress(prev => ({ ...prev, processed: prog.processed, status: prog.status, total: prog.total }));
-                        if (prog.status === 'completed' || prog.status === 'failed') {
-                          clearInterval(progressIntervalRef.current);
-                          queryClient.invalidateQueries(['chreosi-accounts']);
-                          setSelectedIds([]);
-                          if (prog.status === 'completed') {
-                            toast.success(`Ενημερώθηκαν ${prog.total} λογαριασμοί`);
-                          } else {
-                            toast.error('Αποτυχία ενημέρωσης');
-                          }
-                        }
-                      }
-                    }, 2000);
-                  }
-                }}
-              >
-                {isBulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Εφαρμογή
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
