@@ -65,6 +65,7 @@ import PushMessages from './pages/PushMessages';
 import Records from './pages/Records';
 import SendMessage from './pages/SendMessage';
 import UserManagement from './pages/UserManagement';
+import SavedQueries from './pages/SavedQueries';
 import __Layout from './Layout.jsx';
 
 
@@ -87,6 +88,7 @@ export const PAGES = {
     "Records": Records,
     "SendMessage": SendMessage,
     "UserManagement": UserManagement,
+    "SavedQueries": SavedQueries,
 }
 
 export const pagesConfig = {
