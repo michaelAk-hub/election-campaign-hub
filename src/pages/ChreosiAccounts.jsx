@@ -24,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Progress } from "@/components/ui/progress";
 import {
   UserPlus,
   MoreHorizontal,
@@ -35,7 +36,8 @@ import {
   Copy,
   CheckCircle2,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
