@@ -63,6 +63,8 @@ export default function ChreosiAccounts() {
   const [bulkSymbolDialog, setBulkSymbolDialog] = useState(false);
   const [bulkSymbols, setBulkSymbols] = useState([]);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(null); // { operationId, total, processed, status }
+  const progressIntervalRef = React.useRef(null);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['chreosi-accounts'],
