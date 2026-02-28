@@ -538,9 +538,14 @@ export default function ChreosiAccounts() {
               disabled={isBulkUpdating}
               onClick={async () => {
                 setIsBulkUpdating(true);
-                for (const id of selectedIds) {
-                  const account = accounts.find(a => a.id === id);
-                  await base44.entities.ChreosiAccount.update(id, { ...account, allowed_prediction_symbols: bulkSymbols });
+                const BATCH = 5;
+                for (let i = 0; i < selectedIds.length; i += BATCH) {
+                  const chunk = selectedIds.slice(i, i + BATCH);
+                  await Promise.all(chunk.map(id => {
+                    const account = accounts.find(a => a.id === id);
+                    return base44.entities.ChreosiAccount.update(id, { ...account, allowed_prediction_symbols: bulkSymbols });
+                  }));
+                  if (i + BATCH < selectedIds.length) await new Promise(r => setTimeout(r, 300));
                 }
                 queryClient.invalidateQueries(['chreosi-accounts']);
                 setIsBulkUpdating(false);
