@@ -28,18 +28,13 @@ Deno.serve(async (req) => {
             let processed = 0;
             try {
                 for (const id of account_ids) {
-                    // Fetch current account data
-                    const accounts = await base44.asServiceRole.entities.ChreosiAccount.filter({ id });
-                    const account = accounts[0];
-                    if (account) {
-                        await base44.asServiceRole.entities.ChreosiAccount.update(id, {
-                            ...account,
-                            allowed_prediction_symbols: symbols
-                        });
-                    }
+                    // Only update the symbols field - no need to fetch existing data
+                    await base44.asServiceRole.entities.ChreosiAccount.update(id, {
+                        allowed_prediction_symbols: symbols
+                    });
                     processed++;
-                    // Update progress every 5 records or at the end
-                    if (processed % 5 === 0 || processed === account_ids.length) {
+                    // Update progress every 10 records or at the end
+                    if (processed % 10 === 0 || processed === account_ids.length) {
                         await base44.asServiceRole.entities.BulkOperation.update(operationId, {
                             processed,
                             status: processed === account_ids.length ? 'completed' : 'running'
