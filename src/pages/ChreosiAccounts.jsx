@@ -343,7 +343,7 @@ export default function ChreosiAccounts() {
               <DropdownMenuItem onClick={() => {
                 updateMutation.mutate({
                   id: row.id,
-                  data: { ...row, is_active: !row.is_active }
+                  data: { is_active: !row.is_active }
                 });
               }}>
                 {row.is_active ? (
