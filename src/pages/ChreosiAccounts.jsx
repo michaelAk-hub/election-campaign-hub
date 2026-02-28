@@ -144,14 +144,10 @@ export default function ChreosiAccounts() {
 
   const bulkActivateMutation = useMutation({
     mutationFn: async ({ ids, active }) => {
-      const BATCH = 5;
-      for (let i = 0; i < ids.length; i += BATCH) {
-        const chunk = ids.slice(i, i + BATCH);
-        await Promise.all(chunk.map(id => {
-          const account = accounts.find(a => a.id === id);
-          return base44.entities.ChreosiAccount.update(id, { ...account, is_active: active });
-        }));
-        if (i + BATCH < ids.length) await new Promise(r => setTimeout(r, 300));
+      for (const id of ids) {
+        const account = accounts.find(a => a.id === id);
+        await base44.entities.ChreosiAccount.update(id, { ...account, is_active: active });
+        await new Promise(r => setTimeout(r, 150));
       }
     },
     onSuccess: (_, { ids, active }) => {
