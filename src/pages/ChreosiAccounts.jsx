@@ -703,8 +703,8 @@ export default function ChreosiAccounts() {
       </Dialog>
 
       {/* SMS Credentials Dialog */}
-      <Dialog open={smsDialog.open} onOpenChange={(open) => { if (!open) setSmsDialog({ open: false, mode: 'selected', username: null }); }}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={smsDialog.open} onOpenChange={(open) => { if (!open) { setSmsDialog({ open: false, mode: 'selected', username: null }); setSmsSearch(""); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Αποστολή SMS Credentials</DialogTitle>
             <DialogDescription>
