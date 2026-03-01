@@ -66,6 +66,7 @@ import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import SendMessage from './pages/SendMessage';
 import UserManagement from './pages/UserManagement';
+import ChreosiSmsCredentials from './pages/ChreosiSmsCredentials';
 import __Layout from './Layout.jsx';
 
 
@@ -89,6 +90,7 @@ export const PAGES = {
     "SavedQueries": SavedQueries,
     "SendMessage": SendMessage,
     "UserManagement": UserManagement,
+    "ChreosiSmsCredentials": ChreosiSmsCredentials,
 }
 
 export const pagesConfig = {
