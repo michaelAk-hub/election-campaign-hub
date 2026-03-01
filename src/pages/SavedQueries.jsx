@@ -289,6 +289,33 @@ export default function SavedQueries() {
     queryFn: () => base44.entities.Person.list('-created_date', 10000)
   });
 
+  useEffect(() => {
+    const validIds = new Set(savedQueries.map(q => q.id));
+    setSelectedQueryIds(prev => prev.filter(id => validIds.has(id)));
+  }, [savedQueries]);
+
+  const allSelected = savedQueries.length > 0 && selectedQueryIds.length === savedQueries.length;
+  const isIndeterminate = selectedQueryIds.length > 0 && !allSelected;
+
+  const toggleSelectAll = (checked) => {
+    if (checked) setSelectedQueryIds(savedQueries.map(q => q.id));
+    else setSelectedQueryIds([]);
+  };
+
+  const toggleOne = (id, checked) => {
+    setSelectedQueryIds(prev => {
+      const has = prev.includes(id);
+      if (checked && !has) return [...prev, id];
+      if (!checked && has) return prev.filter(x => x !== id);
+      return prev;
+    });
+  };
+
+  const _people_placeholder = null; // remove duplicate below
+    queryKey: ['people'],
+    queryFn: () => base44.entities.Person.list('-created_date', 10000)
+  });
+
   const resetDialog = () => {
     setFormData({ name: '', description: '', columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'], filters: {}, logicalExpression: '' });
     setRuleTree(DEFAULT_TREE());
