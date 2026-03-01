@@ -311,11 +311,6 @@ export default function SavedQueries() {
     });
   };
 
-  const _people_placeholder = null; // remove duplicate below
-    queryKey: ['people'],
-    queryFn: () => base44.entities.Person.list('-created_date', 10000)
-  });
-
   const resetDialog = () => {
     setFormData({ name: '', description: '', columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'], filters: {}, logicalExpression: '' });
     setRuleTree(DEFAULT_TREE());
