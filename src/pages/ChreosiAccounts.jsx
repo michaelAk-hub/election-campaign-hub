@@ -169,6 +169,13 @@ export default function ChreosiAccounts() {
     }
   });
 
+  const getSelectedUsernames = () => {
+    return selectedIds
+      .map(id => accounts.find(a => a.id === id))
+      .filter(Boolean)
+      .map(a => (a.username || '').trim());
+  };
+
   const handleSendSms = async () => {
     const { mode, username } = smsDialog;
     if (mode === 'selected' && selectedIds.length === 0 && !username) {
@@ -176,22 +183,10 @@ export default function ChreosiAccounts() {
       return;
     }
 
-    // If single user, check phone first
-    if (username) {
-      const acc = accounts.find(a => a.username === username);
-      if (!acc?.phone) {
-        toast.warning("Δεν υπάρχει τηλέφωνο — παραλείπεται");
-        setSmsDialog({ open: false, mode: 'selected', username: null });
-        return;
-      }
-    }
-
     setSmsSending(true);
     setSmsResult(null);
 
-    const usernames = username
-      ? [username]
-      : selectedIds.map(id => accounts.find(a => a.id === id)?.username).filter(Boolean);
+    const usernames = username ? [username] : getSelectedUsernames();
 
     const payload = {
       mode: mode === 'all_active' ? 'all_active' : 'selected',
@@ -200,8 +195,8 @@ export default function ChreosiAccounts() {
       title: smsTitle,
       portalUrl: smsPortalUrl,
       template: smsTemplate,
-      passwordLength: 8,
-      includeTitleLine: false,
+      passwordLength: smsPasswordLength,
+      includeTitleLine: smsIncludeTitleLine,
       throttleMs: 150,
     };
 
