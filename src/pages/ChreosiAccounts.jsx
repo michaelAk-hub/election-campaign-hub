@@ -766,6 +766,57 @@ export default function ChreosiAccounts() {
               />
             </div>
 
+            {/* Account selection (shown when not single-user mode) */}
+            {!smsDialog.username && smsDialog.mode === 'selected' && (
+              <div className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">Επιλογή Χρεωστικών</p>
+                    <p className="text-xs text-slate-500">
+                      Επιλεγμένοι: <b>{selectedIds.length}</b> • Χωρίς τηλέφωνο: <b>{smsNoPhoneCount}</b> (θα γίνουν skipped)
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button type="button" variant="outline" size="sm" onClick={selectAllVisible}>Επιλογή όλων</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={clearVisible}>Καθαρισμός</Button>
+                  </div>
+                </div>
+                <Input
+                  placeholder="Αναζήτηση (username / όνομα / τηλέφωνο)"
+                  value={smsSearch}
+                  onChange={(e) => setSmsSearch(e.target.value)}
+                />
+                <div className="max-h-56 overflow-auto border rounded p-1 space-y-0.5">
+                  {visibleSmsAccounts.length === 0 ? (
+                    <div className="text-sm text-slate-500 p-2">Δεν βρέθηκαν χρήστες.</div>
+                  ) : (
+                    visibleSmsAccounts.map((a) => {
+                      const checked = selectedSet.has(a.id);
+                      const hasPhone = !!(a.phone || "").trim();
+                      return (
+                        <label key={a.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => toggleSmsOne(a.id, e.target.checked)}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-sm truncate">{a.username}</span>
+                              {!a.is_active && <span className="text-xs text-red-500">(inactive)</span>}
+                              {!hasPhone && <span className="text-xs text-amber-500">(no phone)</span>}
+                            </div>
+                            <div className="text-xs text-slate-400 truncate">{a.display_name || '—'} • {a.phone || '—'}</div>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+                <p className="text-xs text-slate-400">Χρήστες χωρίς τηλέφωνο δεν θα λάβουν SMS (skipped).</p>
+              </div>
+            )}
+
             {smsResult && (
               <div className="rounded-lg border p-3 text-sm space-y-1">
                 <div className="flex gap-4 font-medium">
