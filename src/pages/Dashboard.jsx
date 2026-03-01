@@ -557,7 +557,7 @@ export default function Dashboard() {
           {smsLogs.length === 0 ? (
             <p className="text-slate-500 text-center py-8">Δεν υπάρχουν SMS ακόμα</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-96">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-xs text-slate-500">
