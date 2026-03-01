@@ -383,6 +383,123 @@ export default function SavedQueries() {
     toast.success('Εξαγωγή ολοκληρώθηκε');
   };
 
+  const colLabel = (k) => AVAILABLE_COLUMNS.find(c => c.key === k)?.label || k;
+
+  const escHtml = (val) => {
+    const s = String(val ?? '');
+    return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+  };
+
+  const openPrintSettings = () => {
+    const q = runDialog.query;
+    if (!q) return;
+    const fallbackCols = (q.columns?.length ? q.columns : AVAILABLE_COLUMNS.map(c => c.key));
+    const saved = q.print_settings || {};
+    const cols = (Array.isArray(saved.columns) && saved.columns.length) ? saved.columns : fallbackCols;
+    setPrintSettings({
+      columns: [...cols],
+      rowsPerPage: Number(saved.rowsPerPage) || 35,
+      orientation: saved.orientation || (cols.length > 7 ? 'landscape' : 'portrait')
+    });
+    setPrintDialog(true);
+  };
+
+  const moveCol = (idx, dir) => {
+    setPrintSettings(prev => {
+      const arr = [...prev.columns];
+      const j = idx + dir;
+      if (j < 0 || j >= arr.length) return prev;
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      return { ...prev, columns: arr };
+    });
+  };
+
+  const toggleCol = (key, checked) => {
+    setPrintSettings(prev => {
+      const exists = prev.columns.includes(key);
+      if (checked && !exists) return { ...prev, columns: [...prev.columns, key] };
+      if (!checked && exists) return { ...prev, columns: prev.columns.filter(c => c !== key) };
+      return prev;
+    });
+  };
+
+  const handlePrint = async () => {
+    const q = runDialog.query;
+    if (!q) return;
+    const cols = printSettings.columns || [];
+    if (cols.length === 0) { toast.error('Επίλεξε τουλάχιστον μία στήλη για εκτύπωση.'); return; }
+
+    try {
+      await base44.entities.SavedQuery.update(q.id, {
+        print_settings: { columns: cols, rowsPerPage: Number(printSettings.rowsPerPage) || 35, orientation: printSettings.orientation || 'landscape' }
+      });
+      setRunDialog(prev => ({ ...prev, query: { ...prev.query, print_settings: { columns: cols, rowsPerPage: Number(printSettings.rowsPerPage) || 35, orientation: printSettings.orientation || 'landscape' } } }));
+      queryClient.invalidateQueries(['saved-queries']);
+    } catch (e) {
+      toast.error('Δεν μπόρεσα να αποθηκεύσω τις ρυθμίσεις εκτύπωσης (θα εκτυπώσω κανονικά).');
+    }
+
+    const rowsPerPage = Math.max(10, Math.min(80, Number(printSettings.rowsPerPage) || 35));
+    const totalRows = queryResults.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('el-GR');
+    const timeStr = now.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' });
+    const orientationCss = printSettings.orientation === 'portrait' ? 'portrait' : 'landscape';
+
+    let pagesHtml = '';
+    for (let page = 1; page <= totalPages; page++) {
+      const start = (page - 1) * rowsPerPage;
+      const slice = queryResults.slice(start, Math.min(totalRows, start + rowsPerPage));
+      const thead = cols.map(k => `<th>${escHtml(colLabel(k))}</th>`).join('');
+      const tbody = slice.map(p => {
+        const tds = cols.map(k => {
+          let v = p[k];
+          if (k === 'voted') v = p[k] ? 'ΝΑΙ' : 'ΟΧΙ';
+          if (v === null || v === undefined || v === '') v = '-';
+          return `<td>${escHtml(v)}</td>`;
+        }).join('');
+        return `<tr>${tds}</tr>`;
+      }).join('');
+      pagesHtml += `
+        <div class="page">
+          <div class="header">
+            <div class="title">${escHtml(q.name)}</div>
+            <div class="meta">${escHtml(dateStr)} ${escHtml(timeStr)}</div>
+          </div>
+          <div class="subheader">
+            <div>Σύνολο αποτελεσμάτων: ${totalRows}</div>
+            <div>Σελίδα ${page} / ${totalPages}</div>
+          </div>
+          <table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
+          <div class="footer">
+            <div>Ερώτημα: ${escHtml(q.name)}</div>
+            <div>Σελίδα ${page} / ${totalPages}</div>
+          </div>
+        </div>`;
+    }
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>${escHtml(q.name)}</title>
+<style>
+@page{size:A4 ${orientationCss};margin:12mm}
+body{font-family:Arial,sans-serif;color:#111}
+.page{page-break-after:always}
+.header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.title{font-size:16px;font-weight:700}
+.meta{font-size:11px;color:#444}
+.subheader{display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px;color:#444}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #ddd;padding:4px 6px;font-size:10px;vertical-align:top}
+th{background:#f3f4f6;font-weight:700}
+.footer{margin-top:8px;display:flex;justify-content:space-between;font-size:10px;color:#555}
+</style></head><body>${pagesHtml}<script>window.onload=()=>{window.focus();window.print();};</script></body></html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) { toast.error('Το popup μπλοκαρίστηκε. Επιτρέψτε popups για εκτύπωση.'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    setPrintDialog(false);
+  };
+
   const handleSave = () => {
     if (!formData.name) { toast.error('Εισάγετε όνομα'); return; }
     const finalExpression = useVisualBuilder
