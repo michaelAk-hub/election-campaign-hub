@@ -815,7 +815,7 @@ th{background:#f3f4f6;font-weight:700}
               <Label>Σειρά στηλών εκτύπωσης</Label>
 
               <p className="text-sm text-slate-600">
-                Διάλεξε ποιες στήλες θα τυπωθούν και βάλε τη σειρά τους όπως θέλεις (1η, 2η, 3η…).
+                Τσέκαρε ποιες στήλες θα τυπωθούν. Ο αριθμός (1, 2, 3…) δείχνει τη σειρά εμφάνισης στο χαρτί.
               </p>
 
               <div className="border rounded-lg p-3 space-y-2 max-h-72 overflow-y-auto">
@@ -823,23 +823,40 @@ th{background:#f3f4f6;font-weight:700}
                   const checked = printSettings.columns.includes(c.key);
                   const idx = printSettings.columns.indexOf(c.key);
                   return (
-                    <div key={c.key} className="flex items-center gap-2">
+                    <div key={c.key} className="flex items-center gap-3">
                       <Checkbox checked={checked} onCheckedChange={(v) => toggleCol(c.key, !!v)} />
-                      <div className="flex-1 text-sm">{c.label}</div>
-                      <div className="flex gap-1">
-                        <Button type="button" variant="ghost" size="icon"
-                          disabled={!checked || idx <= 0}
-                          onClick={() => moveCol(idx, -1)}
-                          title="Μετακίνησε τη στήλη πιο πριν (θα πάει πιο αριστερά στο χαρτί)">
-                          <ArrowUp className="h-4 w-4" />
-                        </Button>
-                        <Button type="button" variant="ghost" size="icon"
-                          disabled={!checked || idx < 0 || idx >= printSettings.columns.length - 1}
-                          onClick={() => moveCol(idx, +1)}
-                          title="Μετακίνησε τη στήλη πιο μετά (θα πάει πιο δεξιά στο χαρτί)">
-                          <ArrowDown className="h-4 w-4" />
-                        </Button>
+                      <div className="w-7 text-center">
+                        {checked ? (
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                            {idx + 1}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-transparent text-slate-300 text-xs">
+                            –
+                          </span>
+                        )}
                       </div>
+                      <div className="flex-1 text-sm">{c.label}</div>
+                      {checked && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500">Θέση</span>
+                          <Select
+                            value={String(idx + 1)}
+                            onValueChange={(v) => setColPosition(c.key, Number(v))}
+                          >
+                            <SelectTrigger className="w-[90px] h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {printSettings.columns.map((_, i) => (
+                                <SelectItem key={i} value={String(i + 1)}>
+                                  {i + 1}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -847,8 +864,7 @@ th{background:#f3f4f6;font-weight:700}
 
               <div className="text-xs text-slate-500 space-y-1">
                 <div>✅ Τσέκαρε στήλες για να μπουν στην εκτύπωση</div>
-                <div>🔼🔽 Μετακίνησε μια στήλη πάνω/κάτω για να αλλάξει θέση</div>
-                <div>Η πρώτη στη λίστα θα είναι η πρώτη στήλη στο χαρτί</div>
+                <div>🔢 Άλλαξε τη "Θέση" για να αλλάξει η σειρά (1η στήλη = πρώτη στο χαρτί)</div>
               </div>
             </div>
           </div>
