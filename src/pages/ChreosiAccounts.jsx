@@ -664,6 +664,68 @@ export default function ChreosiAccounts() {
         </DialogContent>
       </Dialog>
 
+      {/* SMS Credentials Dialog */}
+      <Dialog open={smsDialog.open} onOpenChange={(open) => { if (!open) setSmsDialog({ open: false, mode: 'selected', username: null }); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Αποστολή SMS Credentials</DialogTitle>
+            <DialogDescription>
+              {smsDialog.username
+                ? `Αποστολή σε: ${smsDialog.username}`
+                : smsDialog.mode === 'all_active'
+                  ? 'Αποστολή σε όλους τους ενεργούς χρήστες'
+                  : `Αποστολή σε ${selectedIds.length} επιλεγμένους χρήστες`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>Τίτλος (UI/Logs)</Label>
+              <Input value={smsTitle} onChange={(e) => setSmsTitle(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Portal Login URL</Label>
+              <Input value={smsPortalUrl} onChange={(e) => setSmsPortalUrl(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Template <span className="text-xs text-slate-400">({"{USERNAME} {PASSWORD} {PORTAL_URL} {NAME}"})</span></Label>
+              <Textarea
+                value={smsTemplate}
+                onChange={(e) => setSmsTemplate(e.target.value)}
+                rows={4}
+                className="font-mono text-sm"
+              />
+            </div>
+
+            {smsResult && (
+              <div className="rounded-lg border p-3 text-sm space-y-1">
+                <div className="flex gap-4 font-medium">
+                  <span className="text-green-600">✓ Εστάλησαν: {smsResult.sent}</span>
+                  <span className="text-red-600">✗ Απέτυχαν: {smsResult.failed}</span>
+                  <span className="text-amber-600">⊘ Παραλείφθηκαν: {smsResult.skipped}</span>
+                </div>
+                {smsResult.results?.filter(r => r.status !== 'sent').map((r, i) => (
+                  <div key={i} className="text-xs text-slate-500">{r.username}: {r.error || r.reason}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSmsDialog({ open: false, mode: 'selected', username: null })}>
+              Κλείσιμο
+            </Button>
+            <Button onClick={handleSendSms} disabled={smsSending}>
+              {smsSending ? (
+                <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Αποστολή...</>
+              ) : (
+                <><Send className="h-4 w-4 mr-2" />Αποστολή SMS</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={editDialog.open} onOpenChange={(open) => {
         if (!open) setEditDialog({ open: false, account: null });
