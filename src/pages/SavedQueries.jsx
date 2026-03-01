@@ -809,7 +809,12 @@ th{background:#f3f4f6;font-weight:700}
             </div>
 
             <div className="space-y-2">
-              <Label>Διάταξη στηλών στην εκτύπωση</Label>
+              <Label>Σειρά στηλών εκτύπωσης</Label>
+
+              <p className="text-sm text-slate-600">
+                Διάλεξε ποιες στήλες θα τυπωθούν και βάλε τη σειρά τους όπως θέλεις (1η, 2η, 3η…).
+              </p>
+
               <div className="border rounded-lg p-3 space-y-2 max-h-72 overflow-y-auto">
                 {AVAILABLE_COLUMNS.map((c) => {
                   const checked = printSettings.columns.includes(c.key);
@@ -822,13 +827,13 @@ th{background:#f3f4f6;font-weight:700}
                         <Button type="button" variant="ghost" size="icon"
                           disabled={!checked || idx <= 0}
                           onClick={() => moveCol(idx, -1)}
-                          title="Μετακίνηση πιο πριν (θα πάει πιο αριστερά στο χαρτί)">
+                          title="Μετακίνησε τη στήλη πιο πριν (θα πάει πιο αριστερά στο χαρτί)">
                           <ArrowUp className="h-4 w-4" />
                         </Button>
                         <Button type="button" variant="ghost" size="icon"
                           disabled={!checked || idx < 0 || idx >= printSettings.columns.length - 1}
                           onClick={() => moveCol(idx, +1)}
-                          title="Μετακίνηση πιο μετά (θα πάει πιο δεξιά στο χαρτί)">
+                          title="Μετακίνησε τη στήλη πιο μετά (θα πάει πιο δεξιά στο χαρτί)">
                           <ArrowDown className="h-4 w-4" />
                         </Button>
                       </div>
@@ -836,15 +841,12 @@ th{background:#f3f4f6;font-weight:700}
                   );
                 })}
               </div>
-              <p className="text-xs text-slate-500">
-                Παράδειγμα: <span className="font-medium">ΑΤ, Επίθετο, Όνομα, Τμήμα</span> → έτσι θα εμφανιστούν στο χαρτί από <span className="font-medium">αριστερά προς δεξιά</span>.
-              </p>
-              <p className="text-xs text-slate-500">
-                Χρησιμοποίησε τα βελάκια 🔼🔽 για να αλλάξεις τη σειρά.
-              </p>
-              <p className="text-xs text-slate-400">
-                Οι ρυθμίσεις αποθηκεύονται αυτόματα στο ερώτημα όταν πατήσεις "Εκτύπωση".
-              </p>
+
+              <div className="text-xs text-slate-500 space-y-1">
+                <div>✅ Τσέκαρε στήλες για να μπουν στην εκτύπωση</div>
+                <div>🔼🔽 Μετακίνησε μια στήλη πάνω/κάτω για να αλλάξει θέση</div>
+                <div>Η πρώτη στη λίστα θα είναι η πρώτη στήλη στο χαρτί</div>
+              </div>
             </div>
           </div>
 
