@@ -404,13 +404,16 @@ export default function SavedQueries() {
     setPrintDialog(true);
   };
 
-  const moveCol = (idx, dir) => {
+  const setColPosition = (key, newPos1) => {
     setPrintSettings(prev => {
-      const arr = [...prev.columns];
-      const j = idx + dir;
-      if (j < 0 || j >= arr.length) return prev;
-      [arr[idx], arr[j]] = [arr[j], arr[idx]];
-      return { ...prev, columns: arr };
+      const cols = [...prev.columns];
+      const from = cols.indexOf(key);
+      if (from < 0) return prev;
+      const maxPos = cols.length;
+      const targetPos = Math.max(1, Math.min(maxPos, Number(newPos1) || 1));
+      cols.splice(from, 1);
+      cols.splice(targetPos - 1, 0, key);
+      return { ...prev, columns: cols };
     });
   };
 
