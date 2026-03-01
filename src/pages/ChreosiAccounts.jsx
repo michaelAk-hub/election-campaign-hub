@@ -317,10 +317,27 @@ export default function ChreosiAccounts() {
         subtitle={`${accounts.length} λογαριασμοί`}
         icon={UserPlus}
         actions={
-          <Button onClick={() => setCreateDialog(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Δημιουργία Χρεωστικών
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => { setSmsResult(null); setSmsDialog({ open: true, mode: 'selected', username: null }); }}
+              disabled={selectedIds.length === 0}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              SMS ({selectedIds.length})
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setSmsResult(null); setSmsDialog({ open: true, mode: 'all_active', username: null }); }}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              SMS σε όλους
+            </Button>
+            <Button onClick={() => setCreateDialog(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Δημιουργία Χρεωστικών
+            </Button>
+          </div>
         }
       />
 
