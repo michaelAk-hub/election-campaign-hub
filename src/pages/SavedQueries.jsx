@@ -776,6 +776,80 @@ th{background:#f3f4f6;font-weight:700}
 
         </DialogContent>
       </Dialog>
+      {/* Print Settings Dialog */}
+      <Dialog open={printDialog} onOpenChange={setPrintDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5" />
+              Ρυθμίσεις Εκτύπωσης
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Γραμμές ανά σελίδα</Label>
+                <Input
+                  type="number" min={10} max={80}
+                  value={printSettings.rowsPerPage}
+                  onChange={(e) => setPrintSettings(prev => ({ ...prev, rowsPerPage: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Προσανατολισμός</Label>
+                <Select value={printSettings.orientation} onValueChange={(v) => setPrintSettings(prev => ({ ...prev, orientation: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="portrait">Portrait</SelectItem>
+                    <SelectItem value="landscape">Landscape</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Στήλες (σειρά αριστερά → δεξιά)</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-72 overflow-y-auto">
+                {AVAILABLE_COLUMNS.map((c) => {
+                  const checked = printSettings.columns.includes(c.key);
+                  const idx = printSettings.columns.indexOf(c.key);
+                  return (
+                    <div key={c.key} className="flex items-center gap-2">
+                      <Checkbox checked={checked} onCheckedChange={(v) => toggleCol(c.key, !!v)} />
+                      <div className="flex-1 text-sm">{c.label}</div>
+                      <div className="flex gap-1">
+                        <Button type="button" variant="ghost" size="icon"
+                          disabled={!checked || idx <= 0}
+                          onClick={() => moveCol(idx, -1)}>
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon"
+                          disabled={!checked || idx < 0 || idx >= printSettings.columns.length - 1}
+                          onClick={() => moveCol(idx, +1)}>
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-500">
+                Οι ρυθμίσεις αποθηκεύονται αυτόματα στο ερώτημα όταν πατήσεις "Εκτύπωση".
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintDialog(false)}>Ακύρωση</Button>
+            <Button onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Εκτύπωση
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
