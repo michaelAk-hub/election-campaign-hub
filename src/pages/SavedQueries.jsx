@@ -702,10 +702,20 @@ th{background:#f3f4f6;font-weight:700}
         subtitle="Δημιουργία και εκτέλεση προσαρμοσμένων ερωτημάτων"
         icon={Search}
         actions={
-          <Button onClick={() => setCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Νέο Ερώτημα
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              disabled={selectedQueryIds.length === 0 || people.length === 0}
+              onClick={() => handlePrintSelected()}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Εκτύπωση Επιλεγμένων ({selectedQueryIds.length})
+            </Button>
+            <Button onClick={() => setCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Νέο Ερώτημα
+            </Button>
+          </div>
         }
       />
 
