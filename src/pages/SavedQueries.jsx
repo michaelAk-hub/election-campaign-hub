@@ -729,19 +729,25 @@ th{background:#f3f4f6;font-weight:700}
                 </span>
               )}
             </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" onClick={exportResults} disabled={queryResults.length === 0}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Εξαγωγή CSV
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-xs">
-                  Κατεβάζει <strong>όλα</strong> τα αποτελέσματα (όχι μόνο τις 100 που φαίνονται) σε αρχείο CSV, το οποίο ανοίγει απευθείας στο Excel.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={openPrintSettings} disabled={queryResults.length === 0}>
+                <Printer className="h-4 w-4 mr-2" />
+                Εκτύπωση
+              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" onClick={exportResults} disabled={queryResults.length === 0}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Εξαγωγή CSV
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    Κατεβάζει <strong>όλα</strong> τα αποτελέσματα (όχι μόνο τις 100 που φαίνονται) σε αρχείο CSV, το οποίο ανοίγει απευθείας στο Excel.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
           <div className="overflow-auto max-h-[50vh] border rounded-lg">
             <table className="w-full text-sm">
