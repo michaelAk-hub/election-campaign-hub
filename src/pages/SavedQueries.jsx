@@ -821,12 +821,14 @@ th{background:#f3f4f6;font-weight:700}
                       <div className="flex gap-1">
                         <Button type="button" variant="ghost" size="icon"
                           disabled={!checked || idx <= 0}
-                          onClick={() => moveCol(idx, -1)}>
+                          onClick={() => moveCol(idx, -1)}
+                          title="Μετακίνηση πιο πριν (θα πάει πιο αριστερά στο χαρτί)">
                           <ArrowUp className="h-4 w-4" />
                         </Button>
                         <Button type="button" variant="ghost" size="icon"
                           disabled={!checked || idx < 0 || idx >= printSettings.columns.length - 1}
-                          onClick={() => moveCol(idx, +1)}>
+                          onClick={() => moveCol(idx, +1)}
+                          title="Μετακίνηση πιο μετά (θα πάει πιο δεξιά στο χαρτί)">
                           <ArrowDown className="h-4 w-4" />
                         </Button>
                       </div>
