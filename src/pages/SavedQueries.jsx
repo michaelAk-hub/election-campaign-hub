@@ -809,7 +809,7 @@ th{background:#f3f4f6;font-weight:700}
             </div>
 
             <div className="space-y-2">
-              <Label>Στήλες (σειρά αριστερά → δεξιά)</Label>
+              <Label>Διάταξη στηλών στην εκτύπωση</Label>
               <div className="border rounded-lg p-3 space-y-2 max-h-72 overflow-y-auto">
                 {AVAILABLE_COLUMNS.map((c) => {
                   const checked = printSettings.columns.includes(c.key);
