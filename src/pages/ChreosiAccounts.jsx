@@ -77,6 +77,7 @@ export default function ChreosiAccounts() {
   const [smsIncludeTitleLine, setSmsIncludeTitleLine] = useState(false);
   const [smsSending, setSmsSending] = useState(false);
   const [smsResult, setSmsResult] = useState(null);
+  const [smsSearch, setSmsSearch] = useState("");
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['chreosi-accounts'],
