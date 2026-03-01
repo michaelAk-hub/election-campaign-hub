@@ -35,6 +35,7 @@ const adminNavItems = [
   { name: 'Κανάλι', icon: Vote, page: 'KanaliAccounts' },
   { name: 'Αποτυχημένες Ψήφοι', icon: FileSpreadsheet, page: 'NotFoundVoters' },
   { name: 'Στείλε Μήνυμα', icon: MessageSquare, page: 'SendMessage' },
+  { name: 'SMS Χρεωστικών', icon: MessageSquare, page: 'ChreosiSmsCredentials' },
   { name: 'Οργανωτικοί (χρήστες)', icon: UserCog, page: 'UserManagement' },
   { name: 'Προτιμήσεις Ειδοποιήσεων', icon: Settings, page: 'NotificationPreferences' },
   { name: '🔐 Πύλη Χρηστών', icon: Users, page: 'PortalLogin', divider: true },
