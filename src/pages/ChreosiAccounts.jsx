@@ -69,6 +69,12 @@ export default function ChreosiAccounts() {
   const [bulkSymbolDialog, setBulkSymbolDialog] = useState(false);
   const [bulkSymbols, setBulkSymbols] = useState([]);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [smsDialog, setSmsDialog] = useState({ open: false, mode: 'selected', username: null });
+  const [smsTitle, setSmsTitle] = useState("Στοιχεία πρόσβασης");
+  const [smsPortalUrl, setSmsPortalUrl] = useState("https://votecontrol.info/PortalLogin");
+  const [smsTemplate, setSmsTemplate] = useState("Σύνδεση: {PORTAL_URL}\nUsername: {USERNAME}\nPassword: {PASSWORD}");
+  const [smsSending, setSmsSending] = useState(false);
+  const [smsResult, setSmsResult] = useState(null);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['chreosi-accounts'],
