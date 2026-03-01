@@ -50,6 +50,7 @@
 import AdminLogin from './pages/AdminLogin';
 import ChreosiAccounts from './pages/ChreosiAccounts';
 import ChreosiPortal from './pages/ChreosiPortal';
+import ChreosiSmsCredentials from './pages/ChreosiSmsCredentials';
 import CompareMerge from './pages/CompareMerge';
 import CreateTestUser from './pages/CreateTestUser';
 import Dashboard from './pages/Dashboard';
@@ -66,7 +67,6 @@ import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import SendMessage from './pages/SendMessage';
 import UserManagement from './pages/UserManagement';
-import ChreosiSmsCredentials from './pages/ChreosiSmsCredentials';
 import __Layout from './Layout.jsx';
 
 
@@ -74,6 +74,7 @@ export const PAGES = {
     "AdminLogin": AdminLogin,
     "ChreosiAccounts": ChreosiAccounts,
     "ChreosiPortal": ChreosiPortal,
+    "ChreosiSmsCredentials": ChreosiSmsCredentials,
     "CompareMerge": CompareMerge,
     "CreateTestUser": CreateTestUser,
     "Dashboard": Dashboard,
@@ -90,7 +91,6 @@ export const PAGES = {
     "SavedQueries": SavedQueries,
     "SendMessage": SendMessage,
     "UserManagement": UserManagement,
-    "ChreosiSmsCredentials": ChreosiSmsCredentials,
 }
 
 export const pagesConfig = {
