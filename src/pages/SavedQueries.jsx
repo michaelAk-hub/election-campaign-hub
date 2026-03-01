@@ -450,6 +450,159 @@ export default function SavedQueries() {
     });
   };
 
+  const computeResultsForQuery = (query) => {
+    let results = [...people];
+    if (query.rule_tree?.type) {
+      results = results.filter(p => matchesRuleTree(p, query.rule_tree));
+      return { results };
+    }
+    if (query.conditions?.length) {
+      const tree = legacyConditionsToRuleTree(query.conditions);
+      results = results.filter(p => matchesRuleTree(p, tree));
+      return { results };
+    }
+    if (query.logicalExpression?.trim()) {
+      try {
+        const ast = compileManualExpression(query.logicalExpression);
+        results = results.filter(p => matchesRuleTree(p, ast));
+        return { results };
+      } catch (e) {
+        return { error: `Λάθος σύνταξης: ${e.message}` };
+      }
+    }
+    if (query.filters) {
+      Object.entries(query.filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '' && value !== 'all') {
+          if (key === 'voted') results = results.filter(p => p.voted === (value === 'true'));
+          else results = results.filter(p => String(p[key] || '').toLowerCase().includes(String(value).toLowerCase()));
+        }
+      });
+    }
+    return { results };
+  };
+
+  const safeColsForQuery = (query) => {
+    const allowed = new Set(AVAILABLE_COLUMNS.map(c => c.key));
+    const psCols = query.print_settings?.columns;
+    const qCols = query.columns;
+    const cols =
+      (Array.isArray(psCols) && psCols.length ? psCols :
+       (Array.isArray(qCols) && qCols.length ? qCols : AVAILABLE_COLUMNS.map(c => c.key)))
+      .filter(k => allowed.has(k));
+    return cols.length ? cols : AVAILABLE_COLUMNS.map(c => c.key);
+  };
+
+  const rowsPerPageForQuery = (query) => {
+    const v = Number(query.print_settings?.rowsPerPage);
+    return Math.max(10, Math.min(80, Number.isFinite(v) ? v : 35));
+  };
+
+  const orientationForQuery = (query) => {
+    return (query.print_settings?.orientation === 'portrait') ? 'portrait' : 'landscape';
+  };
+
+  const buildPrintHtmlForQueries = ({ items, orientation }) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('el-GR');
+    const timeStr = now.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' });
+    let htmlPages = '';
+
+    items.forEach((item, idxQuery) => {
+      const q = item.query;
+      const results = item.results;
+      const cols = safeColsForQuery(q);
+      const rowsPerPage = rowsPerPageForQuery(q);
+      const totalRows = results.length;
+      const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+
+      for (let page = 1; page <= totalPages; page++) {
+        const start = (page - 1) * rowsPerPage;
+        const slice = results.slice(start, Math.min(totalRows, start + rowsPerPage));
+        const thead = cols.map(k => `<th>${escHtml(colLabel(k))}</th>`).join('');
+        const tbody = slice.length
+          ? slice.map(p => {
+              const tds = cols.map(k => {
+                let v = p[k];
+                if (k === 'voted') v = p[k] ? 'ΝΑΙ' : 'ΟΧΙ';
+                if (v === null || v === undefined || v === '') v = '-';
+                return `<td>${escHtml(v)}</td>`;
+              }).join('');
+              return `<tr>${tds}</tr>`;
+            }).join('')
+          : `<tr><td colspan="${cols.length}" style="padding:10px;color:#666;">Δεν υπάρχουν αποτελέσματα.</td></tr>`;
+
+        const breakBefore = (idxQuery > 0 && page === 1) ? 'style="page-break-before:always;"' : '';
+
+        htmlPages += `
+          <div class="page" ${breakBefore}>
+            <div class="header">
+              <div class="title">${escHtml(q.name)}</div>
+              <div class="meta">${escHtml(dateStr)} ${escHtml(timeStr)}</div>
+            </div>
+            <div class="subheader">
+              <div>Σύνολο αποτελεσμάτων: ${totalRows.toLocaleString()}</div>
+              <div>Σελίδα ${page} / ${totalPages}</div>
+            </div>
+            <table>
+              <thead><tr>${thead}</tr></thead>
+              <tbody>${tbody}</tbody>
+            </table>
+            <div class="footer">
+              <div>Ερώτημα: ${escHtml(q.name)}</div>
+              <div>Σελίδα ${page} / ${totalPages}</div>
+            </div>
+          </div>`;
+      }
+    });
+
+    return `<!doctype html><html><head><meta charset="utf-8"/><title>Εκτύπωση Ερωτημάτων</title>
+<style>
+@page{size:A4 ${orientation};margin:12mm}
+body{font-family:Arial,sans-serif;color:#111}
+.page{page-break-after:always}
+.header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.title{font-size:16px;font-weight:700}
+.meta{font-size:11px;color:#444}
+.subheader{display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px;color:#444}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #ddd;padding:4px 6px;font-size:10px;vertical-align:top}
+th{background:#f3f4f6;font-weight:700}
+.footer{margin-top:8px;display:flex;justify-content:space-between;font-size:10px;color:#555}
+</style></head><body>${htmlPages}<script>window.onload=()=>{window.focus();window.print();};</script></body></html>`;
+  };
+
+  const handlePrintSelected = () => {
+    if (selectedQueryIds.length === 0) { toast.info('Δεν έχεις επιλέξει ερωτήματα.'); return; }
+    if (!people.length) { toast.error('Δεν έχουν φορτωθεί τα δεδομένα Person.'); return; }
+
+    const selected = savedQueries.filter(q => selectedQueryIds.includes(q.id));
+    const computed = selected.map(q => {
+      const { results, error } = computeResultsForQuery(q);
+      return { query: q, results: results || [], error };
+    });
+
+    const errors = computed.filter(x => x.error);
+    const okItems = computed.filter(x => !x.error);
+    if (errors.length) toast.warning(`Κάποια ερωτήματα έχουν σφάλμα και θα αγνοηθούν: ${errors.length}`);
+    if (okItems.length === 0) { toast.error('Δεν υπάρχει κανένα έγκυρο ερώτημα για εκτύπωση.'); return; }
+
+    const portraitItems = okItems.filter(x => orientationForQuery(x.query) === 'portrait');
+    const landscapeItems = okItems.filter(x => orientationForQuery(x.query) === 'landscape');
+
+    if (portraitItems.length) {
+      const html = buildPrintHtmlForQueries({ items: portraitItems, orientation: 'portrait' });
+      const w = window.open('', '_blank');
+      if (!w) { toast.error('Το popup μπλοκαρίστηκε. Επιτρέψτε popups για εκτύπωση.'); return; }
+      w.document.open(); w.document.write(html); w.document.close();
+    }
+    if (landscapeItems.length) {
+      const html = buildPrintHtmlForQueries({ items: landscapeItems, orientation: 'landscape' });
+      const w = window.open('', '_blank');
+      if (!w) { toast.error('Το popup μπλοκαρίστηκε. Επιτρέψτε popups για εκτύπωση.'); return; }
+      w.document.open(); w.document.write(html); w.document.close();
+    }
+  };
+
   const handlePrint = async () => {
     const q = runDialog.query;
     if (!q) return;
