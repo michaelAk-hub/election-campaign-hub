@@ -270,6 +270,12 @@ export default function SavedQueries() {
   const [ruleTree, setRuleTree] = useState(DEFAULT_TREE());
   const [useVisualBuilder, setUseVisualBuilder] = useState(true);
   const [exprError, setExprError] = useState('');
+  const [printDialog, setPrintDialog] = useState(false);
+  const [printSettings, setPrintSettings] = useState({
+    columns: [],
+    rowsPerPage: 35,
+    orientation: 'landscape'
+  });
 
   const { data: savedQueries = [], isLoading } = useQuery({
     queryKey: ['saved-queries'],
