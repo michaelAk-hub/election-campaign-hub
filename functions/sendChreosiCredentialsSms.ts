@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
 
     let sent = 0;
     let failed = 0;
+    let skipped = 0;
     const results = [];
 
     for (const acc of targets) {
@@ -110,17 +111,17 @@ Deno.serve(async (req) => {
       const toDigits = normalizeCyPhoneToDigits(phoneRaw);
 
       if (!toDigits) {
-        failed++;
+        skipped++;
         await base44.asServiceRole.entities.SmsLog.create({
           category: "chreosi_credentials",
           title,
           to_phone: phoneRaw,
           to_username: username,
-          status: "failed",
-          error: "Invalid/missing phone",
+          status: "skipped",
+          error: phoneRaw ? "Invalid phone format" : "Missing phone",
           sent_by_user_id: user.id
         });
-        results.push({ username, status: "failed", error: "invalid phone", phone: phoneRaw });
+        results.push({ username, status: "skipped", reason: phoneRaw ? "Invalid phone format" : "Missing phone" });
         continue;
       }
 
@@ -201,7 +202,7 @@ Deno.serve(async (req) => {
       if (throttleMs > 0) await new Promise(r => setTimeout(r, throttleMs));
     }
 
-    return Response.json({ ok: true, sent, failed, results });
+    return Response.json({ ok: true, sent, failed, skipped, results });
   } catch (error) {
     return Response.json({ error: error?.message || String(error) }, { status: 500 });
   }
