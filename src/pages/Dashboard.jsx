@@ -132,6 +132,11 @@ export default function Dashboard() {
     }
   });
 
+  const { data: smsLogs = [] } = useQuery({
+    queryKey: ['sms-logs-dashboard'],
+    queryFn: () => base44.entities.SmsLog.list('-created_date', 50)
+  });
+
   const totalPeople = people.length;
   const votedCount = people.filter(p => p.voted).length;
   const notVotedCount = totalPeople - votedCount;
