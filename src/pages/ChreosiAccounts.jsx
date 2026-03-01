@@ -172,17 +172,57 @@ export default function ChreosiAccounts() {
     }
   });
 
+  // SMS popup helpers
+  const smsNormalize = (s) => (s || "").toString().trim().toLowerCase();
+
+  const visibleSmsAccounts = React.useMemo(() => {
+    const q = smsNormalize(smsSearch);
+    if (!q) return accounts;
+    return accounts.filter(a =>
+      smsNormalize(a.username).includes(q) ||
+      smsNormalize(a.display_name).includes(q) ||
+      smsNormalize(a.phone).includes(q)
+    );
+  }, [accounts, smsSearch]);
+
+  const selectedSet = new Set(selectedIds);
+  const selectedAccounts = accounts.filter(a => selectedSet.has(a.id));
+  const smsNoPhoneCount = selectedAccounts.filter(a => !(a.phone || "").trim()).length;
+
+  const toggleSmsOne = (id, checked) => {
+    setSelectedIds(prev => {
+      const s = new Set(prev);
+      if (checked) s.add(id); else s.delete(id);
+      return Array.from(s);
+    });
+  };
+
+  const selectAllVisible = () => {
+    setSelectedIds(prev => {
+      const s = new Set(prev);
+      visibleSmsAccounts.forEach(a => s.add(a.id));
+      return Array.from(s);
+    });
+  };
+
+  const clearVisible = () => {
+    setSelectedIds(prev => {
+      const s = new Set(prev);
+      visibleSmsAccounts.forEach(a => s.delete(a.id));
+      return Array.from(s);
+    });
+  };
+
   const getSelectedUsernames = () => {
-    return selectedIds
-      .map(id => accounts.find(a => a.id === id))
-      .filter(Boolean)
-      .map(a => (a.username || '').trim());
+    return [...new Set(
+      selectedAccounts.map(a => (a.username || '').trim().replace(/\s+/g, ' ')).filter(Boolean)
+    )];
   };
 
   const handleSendSms = async () => {
     const { mode, username } = smsDialog;
     if (mode === 'selected' && selectedIds.length === 0 && !username) {
-      toast.error("Δεν υπάρχουν επιλεγμένοι χρήστες");
+      toast.error("Επίλεξε τουλάχιστον 1 Χρεωστικό ή βάλε 'Όλοι οι ενεργοί'.");
       return;
     }
 
