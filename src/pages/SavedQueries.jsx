@@ -802,6 +802,7 @@ th{background:#f3f4f6;font-weight:700}
               </CardContent>
             </Card>
           ))}
+          </div>
         </div>
       )}
 
