@@ -399,6 +399,13 @@ export default function ChreosiAccounts() {
                 <Pencil className="h-4 w-4 mr-2" />
                 Επεξεργασία
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                setSmsResult(null);
+                setSmsDialog({ open: true, mode: 'selected', username: row.username });
+              }}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Στείλε SMS credentials
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={async () => {
                 const newPassword = generatePassword();
                 await updateMutation.mutateAsync({
