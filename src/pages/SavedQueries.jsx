@@ -835,6 +835,12 @@ th{background:#f3f4f6;font-weight:700}
                 })}
               </div>
               <p className="text-xs text-slate-500">
+                Παράδειγμα: <span className="font-medium">ΑΤ, Επίθετο, Όνομα, Τμήμα</span> → έτσι θα εμφανιστούν στο χαρτί από <span className="font-medium">αριστερά προς δεξιά</span>.
+              </p>
+              <p className="text-xs text-slate-500">
+                Χρησιμοποίησε τα βελάκια 🔼🔽 για να αλλάξεις τη σειρά.
+              </p>
+              <p className="text-xs text-slate-400">
                 Οι ρυθμίσεις αποθηκεύονται αυτόματα στο ερώτημα όταν πατήσεις "Εκτύπωση".
               </p>
             </div>
