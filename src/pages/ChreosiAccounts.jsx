@@ -169,6 +169,55 @@ export default function ChreosiAccounts() {
     }
   });
 
+  const handleSendSms = async () => {
+    const { mode, username } = smsDialog;
+    if (mode === 'selected' && selectedIds.length === 0 && !username) {
+      toast.error("Δεν υπάρχουν επιλεγμένοι χρήστες");
+      return;
+    }
+
+    // If single user, check phone first
+    if (username) {
+      const acc = accounts.find(a => a.username === username);
+      if (!acc?.phone) {
+        toast.warning("Δεν υπάρχει τηλέφωνο — παραλείπεται");
+        setSmsDialog({ open: false, mode: 'selected', username: null });
+        return;
+      }
+    }
+
+    setSmsSending(true);
+    setSmsResult(null);
+
+    const usernames = username
+      ? [username]
+      : selectedIds.map(id => accounts.find(a => a.id === id)?.username).filter(Boolean);
+
+    const payload = {
+      mode: mode === 'all_active' ? 'all_active' : 'selected',
+      usernames,
+      onlyActive: true,
+      title: smsTitle,
+      portalUrl: smsPortalUrl,
+      template: smsTemplate,
+      passwordLength: 8,
+      includeTitleLine: false,
+      throttleMs: 150,
+    };
+
+    const resp = await base44.functions.invoke("sendChreosiCredentialsSms", payload);
+    const data = resp.data;
+    setSmsResult(data);
+
+    if (data?.ok) {
+      toast.success(`SMS: ${data.sent} εστάλησαν, ${data.failed} απέτυχαν, ${data.skipped} παραλείφθηκαν`);
+      queryClient.invalidateQueries(['chreosi-accounts']);
+    } else {
+      toast.error(data?.error || "Αποτυχία αποστολής");
+    }
+    setSmsSending(false);
+  };
+
   const handleCreateAccounts = async () => {
     // Get unique contact persons
     const contactPersons = new Set();
