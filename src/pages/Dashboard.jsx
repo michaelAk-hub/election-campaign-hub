@@ -559,7 +559,7 @@ export default function Dashboard() {
           ) : (
             <div className="overflow-auto max-h-96">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b text-xs text-slate-500">
                     <th className="text-left py-2 pr-3 font-medium">Ημ/νία</th>
                     <th className="text-left py-2 pr-3 font-medium">Κατηγορία</th>
