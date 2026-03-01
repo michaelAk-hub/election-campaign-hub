@@ -743,12 +743,32 @@ th{background:#f3f4f6;font-weight:700}
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between border rounded-lg p-3 bg-slate-50">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={allSelected ? true : (isIndeterminate ? "indeterminate" : false)}
+                onCheckedChange={(v) => toggleSelectAll(!!v)}
+              />
+              <span className="text-sm font-medium">Επιλογή όλων</span>
+            </div>
+            <span className="text-sm text-slate-600">
+              Επιλεγμένα: <strong>{selectedQueryIds.length}</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {savedQueries.map(query => (
             <Card key={query.id} className="hover:shadow-lg transition-shadow">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  {query.name}
+                <CardTitle className="text-lg flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Checkbox
+                      checked={selectedQueryIds.includes(query.id)}
+                      onCheckedChange={(v) => toggleOne(query.id, !!v)}
+                    />
+                    <span className="truncate">{query.name}</span>
+                  </div>
                   <Button variant="ghost" size="icon"
                     onClick={() => { if (confirm('Διαγραφή αυτού του ερωτήματος;')) deleteMutation.mutate(query.id); }}
                     className="text-red-500 hover:text-red-600">
