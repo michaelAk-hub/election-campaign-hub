@@ -676,13 +676,44 @@ export default function ChreosiAccounts() {
           </DialogHeader>
 
           <div className="space-y-3 py-2">
+            {/* Audience info */}
+            {!smsDialog.username && (
+              <div className="rounded-md bg-slate-50 border px-3 py-2 text-sm flex gap-4">
+                {smsDialog.mode === 'all_active' ? (
+                  <span className="text-slate-700">Κοινό: <strong>Όλοι οι ενεργοί</strong></span>
+                ) : (
+                  <>
+                    <span className="text-slate-700">Επιλεγμένοι: <strong>{selectedIds.length}</strong></span>
+                    <span className="text-amber-600">
+                      Χωρίς τηλ.: <strong>
+                        {accounts.filter(a => selectedIds.includes(a.id) && !a.phone).length}
+                      </strong> (θα παραλειφθούν)
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="space-y-1">
               <Label>Τίτλος (UI/Logs)</Label>
               <Input value={smsTitle} onChange={(e) => setSmsTitle(e.target.value)} />
             </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={smsIncludeTitleLine} onCheckedChange={setSmsIncludeTitleLine} id="include-title" />
+              <Label htmlFor="include-title" className="cursor-pointer">Βάλε τον τίτλο ως 1η γραμμή στο SMS</Label>
+            </div>
             <div className="space-y-1">
               <Label>Portal Login URL</Label>
               <Input value={smsPortalUrl} onChange={(e) => setSmsPortalUrl(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Μήκος password (default 8)</Label>
+              <Input
+                type="number" min={6} max={16}
+                value={smsPasswordLength}
+                onChange={(e) => setSmsPasswordLength(Number(e.target.value))}
+                className="w-24"
+              />
             </div>
             <div className="space-y-1">
               <Label>Template <span className="text-xs text-slate-400">({"{USERNAME} {PASSWORD} {PORTAL_URL} {NAME}"})</span></Label>
