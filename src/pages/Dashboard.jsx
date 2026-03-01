@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
   Users,
@@ -30,7 +31,8 @@ import {
   Clock,
   CheckCircle2,
   Download,
-  Upload
+  Upload,
+  MessageSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
 
