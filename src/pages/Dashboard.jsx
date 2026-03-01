@@ -545,6 +545,57 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* SMS History */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <MessageSquare className="h-5 w-5 text-blue-600" />
+            SMS History (τελευταία 50)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {smsLogs.length === 0 ? (
+            <p className="text-slate-500 text-center py-8">Δεν υπάρχουν SMS ακόμα</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-xs text-slate-500">
+                    <th className="text-left py-2 pr-3 font-medium">Ημ/νία</th>
+                    <th className="text-left py-2 pr-3 font-medium">Κατηγορία</th>
+                    <th className="text-left py-2 pr-3 font-medium">Username</th>
+                    <th className="text-left py-2 pr-3 font-medium">Τηλέφωνο</th>
+                    <th className="text-left py-2 pr-3 font-medium">Κατάσταση</th>
+                    <th className="text-left py-2 font-medium">Σφάλμα</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {smsLogs.map(log => (
+                    <tr key={log.id} className="border-b last:border-0 hover:bg-slate-50">
+                      <td className="py-2 pr-3 text-xs text-slate-500 whitespace-nowrap">
+                        {new Date(log.created_date).toLocaleString('el-GR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
+                      </td>
+                      <td className="py-2 pr-3 text-xs text-slate-600">{log.category || '—'}</td>
+                      <td className="py-2 pr-3 font-medium truncate max-w-[120px]">{log.to_username || '—'}</td>
+                      <td className="py-2 pr-3 text-xs text-slate-500">{log.to_phone || '—'}</td>
+                      <td className="py-2 pr-3">
+                        <Badge className={log.status === 'sent'
+                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                          : 'bg-red-100 text-red-700 hover:bg-red-100'
+                        }>
+                          {log.status === 'sent' ? 'Εστάλη' : 'Απέτυχε'}
+                        </Badge>
+                      </td>
+                      <td className="py-2 text-xs text-red-500 truncate max-w-[150px]">{log.error || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Upload Dialog */}
       <Dialog open={uploadDialog} onOpenChange={setUploadDialog}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
