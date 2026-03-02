@@ -22,7 +22,6 @@ export default function ChreosiSmsCredentials() {
   const [includeTitleLine, setIncludeTitleLine] = useState(false);
   const [title, setTitle] = useState("Στοιχεία πρόσβασης");
   const [portalUrl, setPortalUrl] = useState(PORTAL_DEFAULT);
-  const [passwordLength, setPasswordLength] = useState(8);
   const [template, setTemplate] = useState(
     "Σύνδεση: {PORTAL_URL}\nUsername: {USERNAME}\nPassword: {PASSWORD}"
   );
