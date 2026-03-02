@@ -755,6 +755,7 @@ export default function ChreosiAccounts() {
                 rows={4}
                 className="font-mono text-sm"
               />
+              <p className="text-xs text-slate-500">Το SMS θα περιέχει τον ήδη υπάρχοντα κωδικό του χρήστη (δεν γίνεται αλλαγή κωδικού).</p>
             </div>
 
             {/* Account selection (shown when not single-user mode) */}
