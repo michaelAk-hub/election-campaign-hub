@@ -238,7 +238,6 @@ export default function ChreosiAccounts() {
       title: smsTitle,
       portalUrl: smsPortalUrl,
       template: smsTemplate,
-      passwordLength: smsPasswordLength,
       includeTitleLine: smsIncludeTitleLine,
       throttleMs: 150,
     };
