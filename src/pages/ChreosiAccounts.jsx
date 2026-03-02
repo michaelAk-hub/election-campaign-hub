@@ -748,15 +748,6 @@ export default function ChreosiAccounts() {
               <Input value={smsPortalUrl} onChange={(e) => setSmsPortalUrl(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Μήκος password (default 8)</Label>
-              <Input
-                type="number" min={6} max={16}
-                value={smsPasswordLength}
-                onChange={(e) => setSmsPasswordLength(Number(e.target.value))}
-                className="w-24"
-              />
-            </div>
-            <div className="space-y-1">
               <Label>Template <span className="text-xs text-slate-400">({"{USERNAME} {PASSWORD} {PORTAL_URL} {NAME}"})</span></Label>
               <Textarea
                 value={smsTemplate}
