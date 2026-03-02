@@ -176,18 +176,6 @@ export default function ChreosiSmsCredentials() {
             </div>
 
             <div className="space-y-1">
-              <Label>Μήκος κωδικού</Label>
-              <Input
-                type="number"
-                value={passwordLength}
-                onChange={(e) => setPasswordLength(e.target.value)}
-                min={6}
-                max={20}
-                className="w-24"
-              />
-            </div>
-
-            <div className="space-y-1">
               <Label>Template μηνύματος</Label>
               <Textarea
                 value={template}
