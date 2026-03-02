@@ -100,7 +100,6 @@ export default function ChreosiSmsCredentials() {
       title,
       portalUrl,
       template,
-      passwordLength: Number(passwordLength) || 8,
       includeTitleLine,
       throttleMs: 150,
     };
