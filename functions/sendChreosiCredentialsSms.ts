@@ -3,19 +3,10 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.6";
 function normalizeCyPhoneToE164(input) {
   if (!input) return null;
   let digits = input.trim().replace(/\D/g, "");
-
   if (digits.startsWith("00357")) digits = digits.slice(2);
   if (digits.length === 8) digits = "357" + digits;
   if (digits.startsWith("357") && digits.length === 11) return "+" + digits;
-
   return null;
-}
-
-function generatePassword(length = 8) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let out = "";
-  for (let i = 0; i < length; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
 }
 
 function maskPassword(text, password) {
@@ -37,7 +28,6 @@ async function twilioSendSms({ accountSid, authToken, toE164, body, messagingSer
   }
 
   const basic = btoa(`${accountSid}:${authToken}`);
-
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -51,10 +41,7 @@ async function twilioSendSms({ accountSid, authToken, toE164, body, messagingSer
   let payload;
   try { payload = JSON.parse(raw); } catch { payload = { raw }; }
 
-  if (!res.ok) {
-    throw new Error(`Twilio send failed: ${payload?.code || res.status} ${payload?.message || raw}`);
-  }
-
+  if (!res.ok) throw new Error(`Twilio send failed: ${payload?.code || res.status} ${payload?.message || raw}`);
   return payload;
 }
 
@@ -73,7 +60,6 @@ Deno.serve(async (req) => {
     const template =
       (body.template && String(body.template).trim()) ||
       "Σύνδεση: {PORTAL_URL}\nUsername: {USERNAME}\nPassword: {PASSWORD}";
-    const passwordLength = Number(body.passwordLength || 8);
     const includeTitleLine = !!body.includeTitleLine;
     const onlyActive = body.onlyActive !== false;
     const throttleMs = Number(body.throttleMs || 150);
@@ -134,20 +120,33 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const oldPass = acc.password_hash;
-      const newPass = generatePassword(passwordLength);
+      // Use existing password — no rotation
+      const passwordToSend = (acc.password_hash || "").toString().trim();
+
+      if (!passwordToSend) {
+        skipped++;
+        await base44.asServiceRole.entities.SmsLog.create({
+          category: "chreosi_credentials",
+          title,
+          to_phone: toE164,
+          to_username: username,
+          status: "skipped",
+          error: "Missing password",
+          sent_by_user_id: user.id,
+        });
+        results.push({ username, status: "skipped", reason: "Missing password" });
+        continue;
+      }
 
       let msg = template
         .replaceAll("{PORTAL_URL}", portalUrl)
         .replaceAll("{USERNAME}", username)
-        .replaceAll("{PASSWORD}", newPass)
+        .replaceAll("{PASSWORD}", passwordToSend)
         .replaceAll("{NAME}", acc.display_name || username);
 
       if (includeTitleLine && title) msg = `${title}\n${msg}`;
 
       try {
-        await base44.asServiceRole.entities.ChreosiAccount.update(acc.id, { password_hash: newPass });
-
         const tw = await twilioSendSms({
           accountSid,
           authToken,
@@ -163,7 +162,7 @@ Deno.serve(async (req) => {
           title,
           to_phone: toE164,
           to_username: username,
-          message_preview: maskPassword(msg, newPass).slice(0, 240),
+          message_preview: maskPassword(msg, passwordToSend).slice(0, 240),
           provider: "twilio",
           provider_message_id: tw?.sid || "",
           status: "sent",
@@ -171,15 +170,11 @@ Deno.serve(async (req) => {
         });
         results.push({ username, status: "sent", messageId: tw?.sid || "" });
       } catch (e) {
-        try {
-          await base44.asServiceRole.entities.ChreosiAccount.update(acc.id, { password_hash: oldPass });
-        } catch {}
-
         failed++;
         await base44.asServiceRole.entities.SmsLog.create({
           category: "chreosi_credentials",
           title,
-          to_phone: toE164 || phoneRaw,
+          to_phone: toE164,
           to_username: username,
           provider: "twilio",
           status: "failed",
