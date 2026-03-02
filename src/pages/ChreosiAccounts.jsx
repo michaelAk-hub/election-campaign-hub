@@ -73,7 +73,6 @@ export default function ChreosiAccounts() {
   const [smsTitle, setSmsTitle] = useState("Στοιχεία πρόσβασης");
   const [smsPortalUrl, setSmsPortalUrl] = useState("https://votecontrol.info/PortalLogin");
   const [smsTemplate, setSmsTemplate] = useState("Σύνδεση: {PORTAL_URL}\nUsername: {USERNAME}\nPassword: {PASSWORD}");
-  const [smsPasswordLength, setSmsPasswordLength] = useState(8);
   const [smsIncludeTitleLine, setSmsIncludeTitleLine] = useState(false);
   const [smsSending, setSmsSending] = useState(false);
   const [smsResult, setSmsResult] = useState(null);
