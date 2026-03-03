@@ -248,7 +248,7 @@ export default function DataGrid() {
                 params.failCallback();
             }
         }
-    }), [sortModel, filterModel, searchQuery]);
+    }), [sortModel, filterModel, searchQuery, partition]);
 
     // Default grid options
     const defaultColDef = useMemo(() => ({
