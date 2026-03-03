@@ -201,7 +201,12 @@ export default function Records() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Person.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['people'] }); toast.success('Η εγγραφή διαγράφηκε'); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['people'] });
+      queryClient.invalidateQueries({ queryKey: ['people', activeDatasetId] });
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      toast.success('Η εγγραφή διαγράφηκε');
+    },
     onError: (e) => {
       if (e?.message?.includes('not found')) {
         queryClient.invalidateQueries({ queryKey: ['people'] });
