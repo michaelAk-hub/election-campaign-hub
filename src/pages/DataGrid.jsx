@@ -553,6 +553,7 @@ export default function DataGrid() {
                 }}>
                     <AgGridReact
                         ref={gridRef}
+                        context={{ partition }}
                         columnDefs={columnDefs}
                         defaultColDef={defaultColDef}
                         onGridReady={onGridReady}
@@ -562,7 +563,9 @@ export default function DataGrid() {
                         onColumnVisible={onColumnVisible}
                         onSortChanged={onSortChanged}
                         onFilterChanged={onFilterChanged}
-                        animateRows={true}
+                        cellClassRules={cellClassRules}
+                        animateRows={false}
+                        maxConcurrentDatasourceRequests={1}
                         suppressMovableColumns={isMobile}
                         stopEditingWhenCellsLoseFocus={true}
                         singleClickEdit={isMobile}
@@ -574,7 +577,7 @@ export default function DataGrid() {
                         rowModelType='infinite'
                         datasource={datasource}
                         cacheBlockSize={100}
-                        maxBlocksInCache={10}
+                        maxBlocksInCache={6}
                         blockLoadDebounceMillis={100}
                         overlayLoadingTemplate='<span class="ag-overlay-loading-center">Φόρτωση δεδομένων...</span>'
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Δεν βρέθηκαν εγγραφές</span>'
