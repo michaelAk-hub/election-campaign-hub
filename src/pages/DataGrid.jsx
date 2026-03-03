@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
 import ConflictResolutionDialog from '../components/datagrid/ConflictResolutionDialog';
+import AccessStyleFilter from '../components/datagrid/AccessStyleFilter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
     Search, Filter, RefreshCw, RotateCcw,
