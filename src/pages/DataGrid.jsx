@@ -408,12 +408,14 @@ export default function DataGrid() {
         }
     };
 
-    // Refresh datasource when filters/sort/search change
+    // Refresh datasource when filters/sort/search/partition change
     useEffect(() => {
         if (gridApi) {
+            setLoadedRowsCount(0);
+            setGridTotal(null);
             gridApi.purgeInfiniteCache();
         }
-    }, [gridApi, sortModel, filterModel, searchQuery]);
+    }, [gridApi, sortModel, filterModel, searchQuery, partition]);
 
     // Conflict resolution handlers
     const handleReloadLatest = () => {
