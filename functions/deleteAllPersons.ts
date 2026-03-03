@@ -28,8 +28,10 @@ Deno.serve(async (req) => {
 
       for (let i = 0; i < batch.length; i += CONCURRENCY) {
         await Promise.all(batch.slice(i, i + CONCURRENCY).map(p => base44.asServiceRole.entities.Person.delete(p.id)));
+        await new Promise(r => setTimeout(r, DELAY_MS));
       }
       deletedCount += batch.length;
+      console.log(`[deleteAllPersons] deleted so far: ${deletedCount}`);
     }
 
     // Reset total_records on all datasets
