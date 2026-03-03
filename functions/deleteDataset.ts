@@ -1,29 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
-function sleep(ms) {
-  return new Promise((res) => setTimeout(res, ms));
-}
-
-function isRateLimitError(err) {
-  const msg = String(err?.message ?? err ?? '');
-  const status = err?.status ?? err?.statusCode ?? err?.code;
-  return status === 429 || msg.includes('429') || msg.toLowerCase().includes('rate limit');
-}
-
-async function retry(fn, attempts = 7) {
-  let delay = 200;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      if (!isRateLimitError(err) || i === attempts - 1) throw err;
-      await sleep(delay + Math.floor(Math.random() * 80));
-      delay = Math.min(delay * 2, 2000);
-    }
-  }
-  throw new Error('Retry failed');
-}
-
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -43,36 +19,19 @@ Deno.serve(async (req) => {
     const dataset_id = body.dataset_id;
     if (!dataset_id) return Response.json({ success: false, error: 'dataset_id is required' }, { status: 400 });
 
-    const LIMIT = 500;
-    const CONCURRENCY = 8;
-    const BATCH_DELAY_MS = 150;
-
-    let deletedCount = 0;
-    let failedDeletes = 0;
-
+    // Delete all persons for this dataset - loop until none remain
+    let totalDeleted = 0;
     while (true) {
-      const batch = await retry(() =>
-        base44.asServiceRole.entities.Person.filter({ dataset_id }, '-created_date', LIMIT, 0)
-      );
-      if (batch.length === 0) break;
-
-      for (let i = 0; i < batch.length; i += CONCURRENCY) {
-        const slice = batch.slice(i, i + CONCURRENCY);
-        const results = await Promise.allSettled(
-          slice.map((p) => retry(() => base44.asServiceRole.entities.Person.delete(p.id)))
-        );
-        for (const r of results) {
-          if (r.status === 'fulfilled') deletedCount++;
-          else failedDeletes++;
-        }
-        await sleep(BATCH_DELAY_MS);
-      }
-      console.log(`[deleteDataset] deleted so far: ${deletedCount}`);
+      const r = await base44.asServiceRole.entities.Person.deleteMany({ dataset_id });
+      const count = r?.deleted ?? 0;
+      totalDeleted += count;
+      if (!count) break;
     }
 
-    await retry(() => base44.asServiceRole.entities.Dataset.delete(dataset_id));
+    // Delete the dataset record
+    await base44.asServiceRole.entities.Dataset.delete(dataset_id);
 
-    return Response.json({ success: failedDeletes === 0, deleted_count: deletedCount, failed_deletes: failedDeletes });
+    return Response.json({ success: true, deleted_count: totalDeleted });
   } catch (error) {
     console.error('Delete dataset error:', error);
     return Response.json({ success: false, error: error?.message ?? String(error) }, { status: 500 });

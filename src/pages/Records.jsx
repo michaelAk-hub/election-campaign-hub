@@ -328,8 +328,9 @@ export default function Records() {
       const { data } = await base44.functions.invoke('deleteDataset', { dataset_id: datasetId, session_token: sessionToken });
       if (data.success) {
         toast.success(`Το dataset διαγράφηκε (${data.deleted_count ?? 0} εγγραφές)`);
-        queryClient.invalidateQueries({ queryKey: ['datasets'] });
+        queryClient.removeQueries({ queryKey: ['people', activeDatasetId] });
         queryClient.invalidateQueries({ queryKey: ['people'] });
+        queryClient.invalidateQueries({ queryKey: ['datasets'] });
       } else toast.error(data.error || 'Σφάλμα κατά τη διαγραφή');
     } catch (e) { toast.error('Σφάλμα: ' + e.message); }
   };
