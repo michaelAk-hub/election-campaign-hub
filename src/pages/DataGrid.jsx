@@ -393,16 +393,6 @@ export default function DataGrid() {
         savePreferences();
     }, [savePreferences]);
 
-    // Export to CSV
-    const handleExport = useCallback(() => {
-        if (gridApi) {
-            gridApi.exportDataAsCsv({
-                fileName: `person_data_${new Date().toISOString().split('T')[0]}.csv`
-            });
-            toast.success('Τα δεδομένα εξήχθησαν επιτυχώς');
-        }
-    }, [gridApi]);
-
     // Reset layout
     const handleResetLayout = async () => {
         try {
