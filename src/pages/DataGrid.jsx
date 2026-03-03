@@ -415,6 +415,7 @@ export default function DataGrid() {
         if (gridApi) {
             setLoadedRowsCount(0);
             setGridTotal(null);
+            setPartitionTotal(null);
             gridApi.purgeInfiniteCache();
         }
     }, [gridApi, sortModel, filterModel, searchQuery, partition]);
