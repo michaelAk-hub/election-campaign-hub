@@ -39,7 +39,8 @@ export default function DataGrid() {
     const [savingCells, setSavingCells] = useState(new Set());
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    const [gridTotal, setGridTotal] = useState(0);
+    const [gridTotal, setGridTotal] = useState(null);
+    const [partition, setPartition] = useState('0-4');
 
     // Detect mobile
     useEffect(() => {
