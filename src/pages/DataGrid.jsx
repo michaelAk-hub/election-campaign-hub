@@ -242,7 +242,8 @@ export default function DataGrid() {
                 setLastSync(new Date().toISOString());
                 setGridTotal(typeof data.lastRow === 'number' && data.lastRow >= 0 ? data.lastRow : null);
                 setLoadedRowsCount(params.startRow + (data.rows?.length || 0));
-                
+                if (data.partition_total != null) setPartitionTotal(data.partition_total);
+
                 params.successCallback(data.rows, data.lastRow);
             } catch (error) {
                 console.error('Error fetching rows:', error);
