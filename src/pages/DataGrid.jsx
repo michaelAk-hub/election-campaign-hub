@@ -3,14 +3,14 @@ import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
 import ConflictResolutionDialog from '../components/datagrid/ConflictResolutionDialog';
-import AccessStyleFilter from '../components/datagrid/AccessStyleFilter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
     Search, Filter, RefreshCw, RotateCcw,
@@ -19,14 +19,38 @@ import {
 
 const GRID_KEY = 'data_grid_person';
 
+// Set filter config: equality-based, OR logic, with Apply/Reset buttons
+const setFilter = {
+    filter: 'agSetColumnFilter',
+    filterParams: {
+        buttons: ['apply', 'reset'],
+        closeOnApply: true,
+    }
+};
+
+// Text filter config: equals only
+const textFilter = {
+    filter: 'agTextColumnFilter',
+    filterParams: {
+        buttons: ['apply', 'reset'],
+        closeOnApply: true,
+        filterOptions: ['equals'],
+        defaultOption: 'equals',
+    }
+};
+
 export default function DataGrid() {
     const gridRef = useRef();
-    const queryClient = useQueryClient();
     const [gridApi, setGridApi] = useState(null);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [partition, setPartition] = useState('postgrad');
+
+    const [rowData, setRowData] = useState([]);
+    const [loadingRows, setLoadingRows] = useState(false);
+    const [partitionTotal, setPartitionTotal] = useState(0);
+    const [shownCount, setShownCount] = useState(0);
 
     const [lastSync, setLastSync] = useState(null);
     const [gridStatus, setGridStatus] = useState('idle');
@@ -34,12 +58,6 @@ export default function DataGrid() {
     const [savingCells, setSavingCells] = useState(new Set());
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-
-    const [partitionTotal, setPartitionTotal] = useState(0);
-    const [loadedRowsCount, setLoadedRowsCount] = useState(0);
-
-    const [sortModel, setSortModel] = useState([{ colId: 'created_date', sort: 'desc' }]);
-    const [filterModel, setFilterModel] = useState({});
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 768);
@@ -56,28 +74,62 @@ export default function DataGrid() {
         }
     });
 
+    // Load all rows for the selected partition
+    const loadPartitionRows = useCallback(async () => {
+        setLoadingRows(true);
+        const sessionToken = localStorage.getItem('app_session_token');
+        try {
+            const { data } = await base44.functions.invoke('personGridLoadPartition', {
+                session_token: sessionToken,
+                partition,
+            });
+            const rows = data.rows || [];
+            setRowData(rows);
+            setPartitionTotal(rows.length);
+            setShownCount(rows.length);
+            setLastSync(new Date().toISOString());
+        } catch (e) {
+            console.error('Error loading partition rows:', e);
+            toast.error('Σφάλμα φόρτωσης δεδομένων');
+        } finally {
+            setLoadingRows(false);
+        }
+    }, [partition]);
+
+    useEffect(() => {
+        loadPartitionRows();
+    }, [loadPartitionRows]);
+
+    // Quick filter (global search)
+    useEffect(() => {
+        if (!gridApi) return;
+        gridApi.setGridOption('quickFilterText', searchQuery);
+        setShownCount(gridApi.getDisplayedRowCount());
+    }, [gridApi, searchQuery]);
+
     const columnDefs = useMemo(() => ([
-        { field: 'person_id', headerName: 'ΑΤ (ID)', editable: true, filter: AccessStyleFilter, pinned: isMobile ? null : 'left', width: isMobile ? 100 : 120 },
-        { field: 'first_name', headerName: 'Όνομα', editable: true, filter: AccessStyleFilter, width: isMobile ? 120 : 150 },
-        { field: 'last_name', headerName: 'Επώνυμο', editable: true, filter: AccessStyleFilter, width: isMobile ? 120 : 150 },
-        { field: 'mobile_phone', headerName: 'Κινητό', editable: true, filter: AccessStyleFilter, width: isMobile ? 110 : 140, hide: isMobile },
-        { field: 'department', headerName: 'Τμήμα', editable: true, filter: AccessStyleFilter, width: isMobile ? 140 : 200, hide: isMobile },
-        { field: 'admission_year', headerName: 'Έτος Εισδοχής', editable: true, filter: AccessStyleFilter, width: isMobile ? 100 : 140, hide: isMobile },
-        { field: 'academic_level', headerName: 'Επίπεδο', editable: true, filter: AccessStyleFilter, width: isMobile ? 120 : 150 },
-        { field: 'ucid', headerName: 'UCID', editable: true, filter: AccessStyleFilter, width: isMobile ? 100 : 120, hide: isMobile },
-        { field: 'contact_person_1', headerName: 'Άτομο 1', editable: true, filter: AccessStyleFilter, width: isMobile ? 120 : 150, hide: isMobile },
-        { field: 'contact_person_2', headerName: 'Άτομο 2', editable: true, filter: AccessStyleFilter, width: isMobile ? 120 : 150, hide: isMobile },
-        { field: 'member', headerName: 'Μέλος', editable: true, filter: AccessStyleFilter, width: isMobile ? 100 : 120, hide: isMobile },
-        { field: 'prediction_symbol', headerName: 'Σύμβολο Πρόβλεψης', editable: true, filter: AccessStyleFilter, width: isMobile ? 120 : 160, hide: isMobile },
+        { field: 'person_id', headerName: 'ΑΤ (ID)', editable: true, ...textFilter, pinned: isMobile ? null : 'left', width: isMobile ? 100 : 120 },
+        { field: 'first_name', headerName: 'Όνομα', editable: true, ...textFilter, width: isMobile ? 120 : 150 },
+        { field: 'last_name', headerName: 'Επώνυμο', editable: true, ...textFilter, width: isMobile ? 120 : 150 },
+        { field: 'mobile_phone', headerName: 'Κινητό', editable: true, ...textFilter, width: isMobile ? 110 : 140, hide: isMobile },
+        { field: 'department', headerName: 'Τμήμα', editable: true, ...setFilter, width: isMobile ? 140 : 200, hide: isMobile },
+        { field: 'admission_year', headerName: 'Έτος Εισδοχής', editable: true, ...setFilter, width: isMobile ? 100 : 140, hide: isMobile },
+        { field: 'academic_level', headerName: 'Επίπεδο', editable: true, ...setFilter, width: isMobile ? 120 : 150 },
+        { field: 'ucid', headerName: 'UCID', editable: true, ...textFilter, width: isMobile ? 100 : 120, hide: isMobile },
+        { field: 'contact_person_1', headerName: 'Άτομο 1', editable: true, ...setFilter, width: isMobile ? 120 : 150, hide: isMobile },
+        { field: 'contact_person_2', headerName: 'Άτομο 2', editable: true, ...setFilter, width: isMobile ? 120 : 150, hide: isMobile },
+        { field: 'member', headerName: 'Μέλος', editable: true, ...setFilter, width: isMobile ? 100 : 120, hide: isMobile },
+        { field: 'prediction_symbol', headerName: 'Σύμβολο Πρόβλεψης', editable: true, ...setFilter, width: isMobile ? 120 : 160, hide: isMobile },
         {
-            field: 'voted', headerName: 'Ψήφισε', editable: true, filter: AccessStyleFilter,
+            field: 'voted', headerName: 'Ψήφισε', editable: true,
+            ...setFilter,
             cellRenderer: (params) => params.value ? 'Ναι' : 'Όχι',
             cellEditor: 'agSelectCellEditor',
             cellEditorParams: { values: [true, false], formatValue: (v) => v ? 'Ναι' : 'Όχι' },
             width: isMobile ? 80 : 100
         },
-        { field: 'notes', headerName: 'Σημειώσεις', editable: true, filter: AccessStyleFilter, cellEditor: 'agLargeTextCellEditor', width: isMobile ? 150 : 200, hide: isMobile },
-        { field: 'monadikos_kanali', headerName: 'Μοναδικός Κανάλι', editable: true, filter: AccessStyleFilter, width: isMobile ? 140 : 180, hide: isMobile },
+        { field: 'notes', headerName: 'Σημειώσεις', editable: true, filter: false, cellEditor: 'agLargeTextCellEditor', width: isMobile ? 150 : 200, hide: isMobile },
+        { field: 'monadikos_kanali', headerName: 'Μοναδικός Κανάλι', editable: true, ...textFilter, width: isMobile ? 140 : 180, hide: isMobile },
         { field: 'dataset_id', headerName: 'Dataset ID', editable: false, hide: true },
         {
             field: 'created_date', headerName: 'Δημιουργήθηκε', editable: false, filter: false,
@@ -97,47 +149,6 @@ export default function DataGrid() {
         stopEditingWhenCellsLoseFocus: true
     }), [showFilters, isMobile]);
 
-    const datasource = useMemo(() => ({
-        getRows: async (params) => {
-            try {
-                const sortField = sortModel.length > 0 ? sortModel[0].colId : 'created_date';
-                const sortDirection = sortModel.length > 0 ? sortModel[0].sort : 'desc';
-
-                // Read directly from params (avoids React state-update race)
-                const fm = params.filterModel || params.api?.getFilterModel() || filterModel;
-                const filters = {};
-                Object.entries(fm).forEach(([key, value]) => {
-                    if (value.filterType === 'set') {
-                        filters[key] = { filterType: 'set', values: value.values || [], includeBlanks: !!value.includeBlanks };
-                    } else if (value.filterType === 'text') {
-                        filters[key] = { filterType: 'text', type: value.type, filter: value.filter };
-                    } else if (value.filterType === 'date') {
-                        filters[key] = { filterType: 'date', type: value.type, filter: value.dateFrom };
-                    }
-                });
-
-                const { data } = await base44.functions.invoke('personGridFetch', {
-                    startRow: params.startRow,
-                    endRow: params.endRow,
-                    sortField,
-                    sortDirection,
-                    search: searchQuery,
-                    filters: JSON.stringify(filters),
-                    partition,
-                });
-
-                setLastSync(new Date().toISOString());
-                setLoadedRowsCount(params.startRow + (data.rows?.length || 0));
-                setPartitionTotal(Number(data.partition_total || 0));
-
-                params.successCallback(data.rows, data.lastRow);
-            } catch (error) {
-                console.error('Error fetching rows:', error);
-                params.failCallback();
-            }
-        }
-    }), [sortModel, filterModel, searchQuery, partition]);
-
     const onGridReady = useCallback((params) => {
         setGridApi(params.api);
         if (preferences?.state_json?.columnState) {
@@ -149,26 +160,10 @@ export default function DataGrid() {
         }
     }, [preferences]);
 
-    const onSortChanged = useCallback((params) => {
-        const sm = params.api.getColumnState()
-            .filter(col => col.sort != null)
-            .map(col => ({ colId: col.colId, sort: col.sort }));
-        setSortModel(sm);
-    }, []);
-
-    const onFilterChanged = useCallback((params) => {
-        setFilterModel(params.api.getFilterModel());
-        // Force immediate re-fetch on infinite row model
-        params.api.purgeInfiniteCache();
-    }, []);
-
-    // Purge cache whenever partition/filters/search/sort change
-    useEffect(() => {
-        if (gridApi) {
-            setLoadedRowsCount(0);
-            gridApi.purgeInfiniteCache();
-        }
-    }, [gridApi, sortModel, filterModel, searchQuery, partition]);
+    const onFilterChanged = useCallback(() => {
+        if (!gridApi) return;
+        setShownCount(gridApi.getDisplayedRowCount());
+    }, [gridApi]);
 
     const savePreferences = useMemo(
         () => debounce(async () => {
@@ -196,7 +191,6 @@ export default function DataGrid() {
             await refetchPreferences();
             if (gridApi) {
                 gridApi.setColumnState([]);
-                gridApi.purgeInfiniteCache();
             }
             toast.success('Το layout επαναφέρθηκε');
         } catch {
@@ -276,7 +270,6 @@ export default function DataGrid() {
 
     const handleReloadLatest = () => {
         setConflictDialog(null);
-        gridApi?.purgeInfiniteCache();
         setGridStatus('idle');
     };
 
@@ -325,8 +318,12 @@ export default function DataGrid() {
                                     <Columns3 className="h-4 w-4 mr-1.5" />Στήλες
                                 </Button>
                             )}
-                            <Button variant="outline" size="sm" onClick={() => gridApi?.purgeInfiniteCache()} className="h-10">
-                                <RefreshCw className="h-4 w-4 mr-1.5" /><span className="hidden sm:inline">Ανανέωση</span>
+                            <Button variant="outline" size="sm" onClick={loadPartitionRows} disabled={loadingRows} className="h-10">
+                                {loadingRows
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <RefreshCw className="h-4 w-4 mr-1.5" />
+                                }
+                                <span className="hidden sm:inline">Ανανέωση</span>
                             </Button>
                             {!isMobile && (
                                 <Button variant="outline" size="sm" onClick={handleResetLayout} className="h-10">
@@ -337,6 +334,14 @@ export default function DataGrid() {
                     </div>
                 </div>
 
+                {/* Loading overlay */}
+                {loadingRows && (
+                    <div className="flex items-center justify-center gap-2 py-3 bg-blue-50 border-b text-sm text-blue-700">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Φόρτωση δεδομένων partition...
+                    </div>
+                )}
+
                 {/* AG Grid */}
                 <div className="ag-theme-alpine w-full" style={{
                     height: isMobile ? 'calc(100vh - 260px)' : 'calc(100vh - 230px)',
@@ -344,7 +349,7 @@ export default function DataGrid() {
                 }}>
                     <AgGridReact
                         ref={gridRef}
-                        context={{ partition }}
+                        rowData={rowData}
                         columnDefs={columnDefs}
                         defaultColDef={defaultColDef}
                         onGridReady={onGridReady}
@@ -352,11 +357,9 @@ export default function DataGrid() {
                         onColumnMoved={onColumnMoved}
                         onColumnResized={onColumnResized}
                         onColumnVisible={onColumnVisible}
-                        onSortChanged={onSortChanged}
                         onFilterChanged={onFilterChanged}
                         cellClassRules={cellClassRules}
                         animateRows={false}
-                        maxConcurrentDatasourceRequests={1}
                         suppressMovableColumns={isMobile}
                         stopEditingWhenCellsLoseFocus={true}
                         singleClickEdit={isMobile}
@@ -365,12 +368,6 @@ export default function DataGrid() {
                         undoRedoCellEditing={true}
                         undoRedoCellEditingLimit={20}
                         getRowId={(params) => params.data.id}
-                        rowModelType="infinite"
-                        datasource={datasource}
-                        cacheBlockSize={100}
-                        maxBlocksInCache={6}
-                        blockLoadDebounceMillis={100}
-                        overlayLoadingTemplate='<span class="ag-overlay-loading-center">Φόρτωση δεδομένων...</span>'
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Δεν βρέθηκαν εγγραφές</span>'
                     />
                 </div>
@@ -378,8 +375,8 @@ export default function DataGrid() {
                 {/* Status Bar */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 bg-slate-50 border-t text-xs text-slate-600 gap-2">
                     <div className="flex items-center gap-4">
-                        <span>Φορτωμένες: <strong>{loadedRowsCount}</strong></span>
-                        <span>Σύνολο: <strong>{partitionTotal || '—'}</strong></span>
+                        <span>Σύνολο: <strong>{partitionTotal}</strong></span>
+                        <span>Εμφανίζονται: <strong>{shownCount}</strong></span>
                         <span className="text-slate-400">Ομάδα: <strong>{getGroupLabel()}</strong></span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -425,14 +422,14 @@ export default function DataGrid() {
                 onOverwrite={handleOverwrite}
             />
 
-            <style jsx global>{`
+            <style>{`
                 .cell-saving { background-color: #dbeafe !important; border: 1px solid #3b82f6 !important; }
                 .ag-theme-alpine .ag-root-wrapper { border: none; }
                 .ag-theme-alpine .ag-header { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; }
                 .ag-theme-alpine .ag-header-cell { font-weight: 600; color: #475569; }
                 .ag-theme-alpine .ag-row-hover { background-color: #f8fafc; }
                 .ag-theme-alpine .ag-row-selected { background-color: #eff6ff; }
-                .ag-overlay-loading-center, .ag-overlay-no-rows-center { padding: 20px; color: #64748b; }
+                .ag-overlay-no-rows-center { padding: 20px; color: #64748b; }
                 @media (max-width: 768px) {
                     .ag-theme-alpine { font-size: 13px; }
                     .ag-theme-alpine .ag-header-cell { padding: 10px 6px; min-height: 48px; }
