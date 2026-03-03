@@ -1,8 +1,13 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.6";
 
+const POSTGRAD = ["Δ", "Μ", "Μεταπτυχιακός Εράσμους"];
+const UNDERGRAD = ["Π", "Προπτυχιακός Εράσμους"];
+
 function buildPartitionCondition(partition) {
-  if (partition === "5-9") return { person_id: { $regex: "[5-9]$" } };
-  return { person_id: { $regex: "[0-4]$" } };
+  if (partition === "postgrad") return { academic_level: { $in: POSTGRAD } };
+  if (partition === "undergrad") return { academic_level: { $in: UNDERGRAD } };
+  // unknown = BLANKS
+  return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
 }
 
 function normalizeFilters(filtersRaw) {
@@ -39,7 +44,7 @@ Deno.serve(async (req) => {
     const sortField = String(getAny("sortField", "created_date"));
     const sortDirection = String(getAny("sortDirection", "desc"));
     const search = String(getAny("search", "")).trim();
-    const partition = String(getAny("partition", "0-4"));
+    const partition = String(getAny("partition", "postgrad"));
     const filters = normalizeFilters(getAny("filters", null));
 
     const limit = Math.max(1, Math.min((endRow - startRow) || 100, 200));
@@ -116,7 +121,7 @@ Deno.serve(async (req) => {
     let lastRow = -1;
     if (rows.length < limit) lastRow = startRow + rows.length;
 
-    console.log(`[personGridFetch] partition=${partition} startRow=${startRow} rows=${rows.length} lastRow=${lastRow}`);
+    console.log(`[personGridFetch] partition=${partition} startRow=${startRow} rows=${rows.length} lastRow=${lastRow} sort=${sort}`);
 
     return Response.json({ rows, lastRow });
   } catch (err) {

@@ -1,8 +1,12 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.6";
 
+const POSTGRAD = ["Δ", "Μ", "Μεταπτυχιακός Εράσμους"];
+const UNDERGRAD = ["Π", "Προπτυχιακός Εράσμους"];
+
 function buildPartitionCondition(partition) {
-  if (partition === "5-9") return { person_id: { $regex: "[5-9]$" } };
-  return { person_id: { $regex: "[0-4]$" } };
+  if (partition === "postgrad") return { academic_level: { $in: POSTGRAD } };
+  if (partition === "undergrad") return { academic_level: { $in: UNDERGRAD } };
+  return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
 }
 
 function isBlank(v) {
@@ -20,7 +24,14 @@ Deno.serve(async (req) => {
     const me = await base44.auth.me();
     if (!me) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { columnKey, searchText = "", partition = "0-4" } = await req.json();
+    const { columnKey, searchText = "", partition = "postgrad" } = await req.json();
+
+    // Fast path for academic_level column — values are known statically per partition
+    if (columnKey === "academic_level") {
+      if (partition === "postgrad") return Response.json({ values: POSTGRAD, hasBlanks: false, totalCount: POSTGRAD.length });
+      if (partition === "undergrad") return Response.json({ values: UNDERGRAD, hasBlanks: false, totalCount: UNDERGRAD.length });
+      return Response.json({ values: [], hasBlanks: true, totalCount: 1 });
+    }
     if (!columnKey) return Response.json({ error: "columnKey is required" }, { status: 400 });
 
     const active = await base44.asServiceRole.entities.Dataset.filter({ status: "active" });
