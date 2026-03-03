@@ -293,8 +293,8 @@ export default function Records() {
       await base44.functions.invoke('activateDataset', { dataset_id: dataset.id, session_token: sessionToken });
 
       toast.success(`✅ Επιτυχία! Εισήχθησαν ${valid.length} εγγραφές.${skipped ? ` Παραλείφθηκαν ${skipped}.` : ''}`);
+      queryClient.removeQueries({ queryKey: ['people'] });
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
-      queryClient.invalidateQueries({ queryKey: ['people'] });
       setUploadDialog(false);
       setUploadFile(null);
     } catch (e) {
