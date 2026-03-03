@@ -1,153 +1,126 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.6";
+
+function buildPartitionCondition(partition) {
+  if (partition === "5-9") return { person_id: { $regex: "[5-9]$" } };
+  return { person_id: { $regex: "[0-4]$" } };
+}
+
+function normalizeFilters(filtersRaw) {
+  if (!filtersRaw) return null;
+  if (typeof filtersRaw === "string") {
+    const t = filtersRaw.trim();
+    if (!t) return null;
+    try { return JSON.parse(t); } catch { return null; }
+  }
+  if (typeof filtersRaw === "object") return filtersRaw;
+  return null;
+}
+
+function toDbField(field) {
+  if (field?.startsWith("custom:")) return `custom_data.${field.slice(7)}`;
+  return field;
+}
 
 Deno.serve(async (req) => {
-    try {
-        const base44 = createClientFromRequest(req);
-        const user = await base44.auth.me();
-        
-        if (!user) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+  try {
+    const base44 = createClientFromRequest(req);
 
-        const { searchParams } = new URL(req.url);
-        const startRow = parseInt(searchParams.get('startRow') || '0');
-        const endRow = parseInt(searchParams.get('endRow') || '100');
-        const sortField = searchParams.get('sortField') || 'created_date';
-        const sortDirection = searchParams.get('sortDirection') || 'desc';
-        const search = searchParams.get('search') || '';
-        const filtersParam = searchParams.get('filters');
+    const me = await base44.auth.me();
+    if (!me) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-        const limit = endRow - startRow;
-        const sort = sortDirection === 'asc' ? sortField : `-${sortField}`;
-        let query = {};
+    let body = null;
+    try { body = await req.json(); } catch {}
 
-        // Global search
-        if (search) {
-            const searchLower = search.toLowerCase();
-            query.$or = [
-                { person_id: { $regex: searchLower, $options: 'i' } },
-                { first_name: { $regex: searchLower, $options: 'i' } },
-                { last_name: { $regex: searchLower, $options: 'i' } },
-                { mobile_phone: { $regex: searchLower, $options: 'i' } },
-                { department: { $regex: searchLower, $options: 'i' } }
-            ];
-        }
+    const { searchParams } = new URL(req.url);
+    const getAny = (k, fb) => body?.[k] ?? searchParams.get(k) ?? fb;
 
-        // Column filters - supports Access-style set filters with blanks
-        if (filtersParam) {
-            const filters = JSON.parse(filtersParam);
-            Object.entries(filters).forEach(([field, filterValue]) => {
-                if (!filterValue) return;
-                
-                // Access-style filter (set-based with blanks)
-                if (typeof filterValue === 'object' && filterValue.filterType === 'set') {
-                    const { values = [], includeBlanks = false } = filterValue;
-                    
-                    if (includeBlanks && values.length > 0) {
-                        // Include both selected values and blanks
-                        query.$or = query.$or || [];
-                        query.$or.push(
-                            { [field]: { $in: values } },
-                            { [field]: null },
-                            { [field]: '' },
-                            { [field]: { $exists: false } }
-                        );
-                    } else if (includeBlanks) {
-                        // Only blanks
-                        query.$or = query.$or || [];
-                        query.$or.push(
-                            { [field]: null },
-                            { [field]: '' },
-                            { [field]: { $exists: false } }
-                        );
-                    } else if (values.length > 0) {
-                        // Only selected values
-                        query[field] = { $in: values };
-                    }
-                }
-                // Legacy filters (for backwards compatibility)
-                else if (typeof filterValue === 'object' && filterValue.operator) {
-                    const { operator, value: filterVal } = filterValue;
-                    if (operator === 'contains') query[field] = { $regex: String(filterVal), $options: 'i' };
-                    if (operator === 'startsWith') query[field] = { $regex: `^${String(filterVal)}`, $options: 'i' };
-                    if (operator === 'equals') query[field] = String(filterVal);
-                    if (operator === 'gt') query[field] = { $gt: Number(filterVal) };
-                    if (operator === 'lt') query[field] = { $lt: Number(filterVal) };
-                    if (operator === 'in') query[field] = { $in: filterVal };
-                } else if (typeof filterValue === 'boolean') {
-                    query[field] = filterValue;
-                } else {
-                    query[field] = { $regex: String(filterValue), $options: 'i' };
-                }
-            });
-        }
+    const startRow = Number(getAny("startRow", 0));
+    const endRow   = Number(getAny("endRow", 100));
+    const sortField = String(getAny("sortField", "created_date"));
+    const sortDirection = String(getAny("sortDirection", "desc"));
+    const search = String(getAny("search", "")).trim();
+    const partition = String(getAny("partition", "0-4"));
+    const filters = normalizeFilters(getAny("filters", null));
 
-        // Fetch windowed data for infinite scroll with batching for large offsets
-        let persons = [];
-        const maxSingleQueryLimit = 5000;
+    const limit = Math.max(1, Math.min((endRow - startRow) || 100, 200));
+    const sort = sortDirection === "asc" ? sortField : `-${sortField}`;
 
-        if (startRow >= maxSingleQueryLimit) {
-            // For large offsets, fetch in batches
-            const batchSize = 1000;
-            let currentSkip = 0;
-            let targetRowsToSkip = startRow;
-            let targetRowsToFetch = limit;
+    // Active dataset
+    const active = await base44.asServiceRole.entities.Dataset.filter({ status: "active" });
+    if (!active.length) return Response.json({ rows: [], lastRow: 0 });
+    const dataset = active[0];
 
-            // Skip to the target position in batches
-            while (currentSkip < targetRowsToSkip) {
-                const skipBatch = Math.min(batchSize, targetRowsToSkip - currentSkip);
-                await base44.entities.Person.filter(query, sort, skipBatch, currentSkip);
-                currentSkip += skipBatch;
-            }
+    const and = [
+      { dataset_id: dataset.id },
+      buildPartitionCondition(partition),
+    ];
 
-            // Now fetch the actual data we need in batches
-            let fetchedCount = 0;
-            while (fetchedCount < targetRowsToFetch) {
-                const fetchSize = Math.min(batchSize, targetRowsToFetch - fetchedCount);
-                const batch = await base44.entities.Person.filter(
-                    query,
-                    sort,
-                    fetchSize,
-                    startRow + fetchedCount
-                );
-                persons.push(...batch);
-                fetchedCount += batch.length;
-                if (batch.length < fetchSize) {
-                    break; // No more data
-                }
-            }
-        } else {
-            // Normal fetch for small offsets
-            persons = await base44.entities.Person.filter(
-                query,
-                sort,
-                limit,
-                startRow
-            );
-        }
-
-        // Count total records efficiently by fetching in batches
-        let total = 0;
-        const countBatchSize = 1000;
-        let countSkip = 0;
-        while (true) {
-            const batch = await base44.entities.Person.filter(query, sort, countBatchSize, countSkip);
-            total += batch.length;
-            if (batch.length < countBatchSize) {
-                break; // Last batch, we've counted all records
-            }
-            countSkip += countBatchSize;
-        }
-
-        console.log("🔍 [personGridFetch] Returning data:", persons.length, "rows, total:", total, "startRow:", startRow, "endRow:", endRow);
-
-        return Response.json({
-            rows: persons,
-            lastRow: total
-        });
-
-    } catch (error) {
-        console.error("❌ [personGridFetch] Error:", error.message);
-        return Response.json({ error: error.message }, { status: 500 });
+    if (search) {
+      and.push({
+        $or: [
+          { person_id:    { $regex: search, $options: "i" } },
+          { first_name:   { $regex: search, $options: "i" } },
+          { last_name:    { $regex: search, $options: "i" } },
+          { mobile_phone: { $regex: search, $options: "i" } },
+          { department:   { $regex: search, $options: "i" } },
+          { ucid:         { $regex: search, $options: "i" } },
+        ],
+      });
     }
+
+    // Raw AG Grid filterModel
+    if (filters && typeof filters === "object") {
+      for (const [rawField, model] of Object.entries(filters)) {
+        if (!model) continue;
+        const field = toDbField(rawField);
+
+        if (typeof model === "object" && model.filterType === "set") {
+          const { values = [], includeBlanks = false } = model;
+          if (values.length || includeBlanks) {
+            const orParts = [];
+            if (values.length) orParts.push({ [field]: { $in: values } });
+            if (includeBlanks) {
+              orParts.push(
+                { [field]: null },
+                { [field]: "" },
+                { [field]: { $exists: false } }
+              );
+            }
+            and.push({ $or: orParts });
+          }
+          continue;
+        }
+
+        if (typeof model === "object" && model.filterType === "text") {
+          const type = String(model.type ?? "contains");
+          const val = String(model.filter ?? "");
+          if (!val) continue;
+          if (type === "contains") and.push({ [field]: { $regex: val, $options: "i" } });
+          else if (type === "startsWith") and.push({ [field]: { $regex: `^${val}`, $options: "i" } });
+          else if (type === "equals") and.push({ [field]: val });
+          continue;
+        }
+
+        if (typeof model === "boolean") {
+          and.push({ [field]: model });
+          continue;
+        }
+      }
+    }
+
+    const query = { $and: and };
+
+    const rows = await base44.asServiceRole.entities.Person.filter(query, sort, limit, startRow);
+
+    // Avoid full count scan — use end-reached heuristic
+    let lastRow = -1;
+    if (rows.length < limit) lastRow = startRow + rows.length;
+
+    console.log(`[personGridFetch] partition=${partition} startRow=${startRow} rows=${rows.length} lastRow=${lastRow}`);
+
+    return Response.json({ rows, lastRow });
+  } catch (err) {
+    console.error("❌ [personGridFetch] Error:", err?.message || err);
+    return Response.json({ error: err?.message || "Unknown error" }, { status: 500 });
+  }
 });

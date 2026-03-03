@@ -13,25 +13,37 @@ const AccessStyleFilter = forwardRef((props, ref) => {
     const [searchText, setSearchText] = useState('');
     const [selectedValues, setSelectedValues] = useState(new Set());
     const [blanksSelected, setBlanksSelected] = useState(false);
-    
+    const [infoMessage, setInfoMessage] = useState('');
+    const [minSearchChars, setMinSearchChars] = useState(0);
+
+    const debounceRef = useRef(null);
+
     const columnKey = props.colDef.field;
+    const partition = props?.context?.partition ?? '0-4';
 
     useEffect(() => {
-        loadFilterValues();
-    }, [columnKey]);
+        setSearchText('');
+        setInfoMessage('');
+        setMinSearchChars(0);
+        loadFilterValues('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [columnKey, partition]);
 
     const loadFilterValues = async (search = '') => {
         setLoading(true);
         try {
             const { data } = await base44.functions.invoke('personGridFilterValues', {
                 columnKey,
-                searchText: search
+                searchText: search,
+                partition,
             });
-            
+
             setFilterValues(data.values || []);
-            setHasBlanks(data.hasBlanks || false);
-        } catch (error) {
-            console.error('Error loading filter values:', error);
+            setHasBlanks(!!data.hasBlanks);
+            setInfoMessage(data.message || '');
+            setMinSearchChars(Number(data.minSearchChars || 0));
+        } catch (e) {
+            console.error('Error loading filter values:', e);
         } finally {
             setLoading(false);
         }
@@ -39,7 +51,8 @@ const AccessStyleFilter = forwardRef((props, ref) => {
 
     const handleSearchChange = (value) => {
         setSearchText(value);
-        loadFilterValues(value);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => loadFilterValues(value), 250);
     };
 
     const handleSelectAll = () => {
@@ -53,66 +66,37 @@ const AccessStyleFilter = forwardRef((props, ref) => {
     };
 
     const handleValueToggle = (value) => {
-        const newSelected = new Set(selectedValues);
-        if (newSelected.has(value)) {
-            newSelected.delete(value);
+        const next = new Set(selectedValues);
+        if (next.has(value) || next.has(String(value))) {
+            next.delete(value);
+            next.delete(String(value));
         } else {
-            newSelected.add(value);
+            next.add(value);
         }
-        setSelectedValues(newSelected);
+        setSelectedValues(next);
     };
 
-    const handleBlanksToggle = () => {
-        setBlanksSelected(!blanksSelected);
-    };
-
-    const handleApply = () => {
-        if (props.filterChangedCallback) {
-            props.filterChangedCallback();
-        }
-    };
-
-    const handleClear = () => {
-        setSelectedValues(new Set());
-        setBlanksSelected(false);
-        if (props.filterChangedCallback) {
-            props.filterChangedCallback();
-        }
-    };
-
-    // Expose methods to AG Grid
     useImperativeHandle(ref, () => ({
         doesFilterPass(params) {
             const value = props.valueGetter ? props.valueGetter(params) : params.data[columnKey];
-            const isBlank = value === null || value === undefined || value === '' || 
-                           (typeof value === 'string' && value.trim() === '');
-            
-            if (selectedValues.size === 0 && !blanksSelected) {
-                return true; // No filter applied
-            }
-            
-            if (isBlank) {
-                return blanksSelected;
-            }
-            
+            const blank = value === null || value === undefined || value === '' ||
+                (typeof value === 'string' && value.trim() === '');
+
+            if (selectedValues.size === 0 && !blanksSelected) return true;
+            if (blank) return blanksSelected;
+            if (selectedValues.has(value)) return true;
             return selectedValues.has(String(value));
         },
-        
+
         isFilterActive() {
             return selectedValues.size > 0 || blanksSelected;
         },
-        
+
         getModel() {
-            if (selectedValues.size === 0 && !blanksSelected) {
-                return null;
-            }
-            return {
-                filterType: 'set',
-                values: Array.from(selectedValues),
-                includeBlanks: blanksSelected
-            };
+            if (selectedValues.size === 0 && !blanksSelected) return null;
+            return { filterType: 'set', values: Array.from(selectedValues), includeBlanks: blanksSelected };
         },
-        
+
         setModel(model) {
             if (!model) {
                 setSelectedValues(new Set());
@@ -120,55 +104,48 @@ const AccessStyleFilter = forwardRef((props, ref) => {
                 return;
             }
             setSelectedValues(new Set(model.values || []));
-            setBlanksSelected(model.includeBlanks || false);
+            setBlanksSelected(!!model.includeBlanks);
         },
-        
+
         getModelAsString() {
-            if (selectedValues.size === 0 && !blanksSelected) {
-                return '';
-            }
             const count = selectedValues.size + (blanksSelected ? 1 : 0);
-            return `${count} selected`;
+            return count > 0 ? `${count} selected` : '';
         }
     }));
+
+    const renderValueLabel = (v) => {
+        if (v === true) return 'Ναι';
+        if (v === false) return 'Όχι';
+        return String(v);
+    };
 
     const totalSelected = selectedValues.size + (blanksSelected ? 1 : 0);
     const totalAvailable = filterValues.length + (hasBlanks ? 1 : 0);
 
     return (
         <div className="w-64 bg-white rounded-lg shadow-lg border border-slate-200 p-3">
-            {/* Search box */}
             <div className="relative mb-3">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                    placeholder="Αναζήτηση..."
+                    placeholder={minSearchChars ? `Αναζήτηση (${minSearchChars}+ χαρακτήρες)...` : "Αναζήτηση..."}
                     value={searchText}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     className="pl-8 h-8 text-sm"
                 />
             </div>
 
-            {/* Select All */}
             <div className="flex items-center space-x-2 mb-2 pb-2 border-b border-slate-200">
                 <Checkbox
                     id="select-all"
-                    checked={selectedValues.size === filterValues.length && (!hasBlanks || blanksSelected)}
+                    checked={filterValues.length > 0 && selectedValues.size === filterValues.length && (!hasBlanks || blanksSelected)}
                     onCheckedChange={handleSelectAll}
                 />
-                <label
-                    htmlFor="select-all"
-                    className="text-sm font-medium cursor-pointer select-none"
-                >
+                <label htmlFor="select-all" className="text-sm font-medium cursor-pointer select-none flex-1">
                     Επιλογή Όλων
                 </label>
+                <span className="text-xs text-slate-400">{totalSelected}/{totalAvailable}</span>
             </div>
 
-            {/* Count */}
-            <div className="text-xs text-slate-500 mb-2">
-                Επιλεγμένα: {totalSelected} / {totalAvailable}
-            </div>
-
-            {/* Values list */}
             <ScrollArea className="h-48 mb-3">
                 {loading ? (
                     <div className="flex items-center justify-center h-full">
@@ -176,63 +153,58 @@ const AccessStyleFilter = forwardRef((props, ref) => {
                     </div>
                 ) : (
                     <div className="space-y-1.5">
+                        {infoMessage && (
+                            <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md p-2">
+                                {infoMessage}
+                            </div>
+                        )}
+
                         {hasBlanks && (
                             <div className="flex items-center space-x-2">
                                 <Checkbox
                                     id="blanks"
                                     checked={blanksSelected}
-                                    onCheckedChange={handleBlanksToggle}
+                                    onCheckedChange={() => setBlanksSelected(!blanksSelected)}
                                 />
-                                <label
-                                    htmlFor="blanks"
-                                    className="text-sm cursor-pointer select-none italic text-slate-500"
-                                >
+                                <label htmlFor="blanks" className="text-sm italic text-slate-500 cursor-pointer select-none">
                                     (Blanks)
                                 </label>
                             </div>
                         )}
-                        
-                        {filterValues.map((value, idx) => (
+
+                        {filterValues.map((v, idx) => (
                             <div key={idx} className="flex items-center space-x-2">
                                 <Checkbox
-                                    id={`value-${idx}`}
-                                    checked={selectedValues.has(value)}
-                                    onCheckedChange={() => handleValueToggle(value)}
+                                    id={`v-${idx}`}
+                                    checked={selectedValues.has(v) || selectedValues.has(String(v))}
+                                    onCheckedChange={() => handleValueToggle(v)}
                                 />
                                 <label
-                                    htmlFor={`value-${idx}`}
+                                    htmlFor={`v-${idx}`}
                                     className="text-sm cursor-pointer select-none flex-1 truncate"
-                                    title={value}
+                                    title={renderValueLabel(v)}
                                 >
-                                    {value}
+                                    {renderValueLabel(v)}
                                 </label>
                             </div>
                         ))}
-                        
-                        {filterValues.length === 0 && !hasBlanks && (
-                            <div className="text-sm text-slate-400 text-center py-4">
-                                Δεν βρέθηκαν τιμές
-                            </div>
+
+                        {filterValues.length === 0 && !hasBlanks && !infoMessage && (
+                            <div className="text-sm text-slate-400 text-center py-4">Δεν βρέθηκαν τιμές</div>
                         )}
                     </div>
                 )}
             </ScrollArea>
 
-            {/* Buttons */}
             <div className="flex gap-2">
-                <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleClear}
-                    className="flex-1 h-8 text-xs"
-                >
+                <Button size="sm" variant="outline" onClick={() => {
+                    setSelectedValues(new Set());
+                    setBlanksSelected(false);
+                    props.filterChangedCallback?.();
+                }} className="flex-1 h-8 text-xs">
                     Καθαρισμός
                 </Button>
-                <Button
-                    size="sm"
-                    onClick={handleApply}
-                    className="flex-1 h-8 text-xs"
-                >
+                <Button size="sm" onClick={() => props.filterChangedCallback?.()} className="flex-1 h-8 text-xs">
                     Εφαρμογή
                 </Button>
             </div>
@@ -241,5 +213,4 @@ const AccessStyleFilter = forwardRef((props, ref) => {
 });
 
 AccessStyleFilter.displayName = 'AccessStyleFilter';
-
 export default AccessStyleFilter;
