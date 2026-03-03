@@ -128,30 +128,26 @@ export default function Records() {
   const activeDataset = useMemo(() => datasets.find(d => d.status === 'active') || null, [datasets]);
   const activeDatasetId = activeDataset?.id || null;
 
+  const POSTGRAD_LEVELS = ['Δ', 'Μ', 'Μεταπτυχιακός Εράσμους'];
+  const UNDERGRAD_LEVELS = ['Π', 'Προπτυχιακός Εράσμους'];
+
   const peopleQuery = useInfiniteQuery({
-    queryKey: ['people', activeDatasetId],
+    queryKey: ['people', activeDatasetId, partition],
     enabled: !!activeDatasetId,
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
-      return base44.entities.Person.filter({ dataset_id: activeDatasetId }, '-created_date', PEOPLE_PAGE_SIZE, pageParam);
+      let filter = { dataset_id: activeDatasetId };
+      if (partition === 'postgrad') filter = { ...filter, academic_level: { $in: POSTGRAD_LEVELS } };
+      else if (partition === 'undergrad') filter = { ...filter, academic_level: { $in: UNDERGRAD_LEVELS } };
+      else if (partition === 'unknown') filter = { ...filter, academic_level: null };
+      return base44.entities.Person.filter(filter, '-created_date', PEOPLE_PAGE_SIZE, pageParam);
     },
     getNextPageParam: (lastPage, pages) =>
       lastPage.length === PEOPLE_PAGE_SIZE ? pages.length * PEOPLE_PAGE_SIZE : undefined,
   });
 
   const loadedPeople = useMemo(() => peopleQuery.data?.pages?.flat() ?? [], [peopleQuery.data]);
-
-  const people = useMemo(() => {
-    if (partition === 'all') return loadedPeople;
-    const POSTGRAD = ['Δ', 'Μ', 'Μεταπτυχιακός Εράσμους'];
-    const UNDERGRAD = ['Π', 'Προπτυχιακός Εράσμους'];
-    return loadedPeople.filter(p => {
-      const al = p.academic_level;
-      if (partition === 'postgrad') return POSTGRAD.includes(al);
-      if (partition === 'undergrad') return UNDERGRAD.includes(al);
-      return !al || al.trim() === '';
-    });
-  }, [loadedPeople, partition]);
+  const people = loadedPeople;
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Person.create(data),
