@@ -1,59 +1,79 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+function normalizeText(v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v !== "string") return v;
+    const t = v.trim().replace(/\s+/g, " ");
+    return t === "" ? null : t;
+}
+
+const NON_EDITABLE = new Set([
+    "id",
+    "created_date",
+    "updated_date",
+    "created_by",
+    "dataset_id",
+    "row_version",
+]);
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const user = await base44.auth.me();
-        
-        if (!user) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const me = await base44.auth.me();
+        if (!me) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+        const body = await req.json();
+        const person_id = String(body?.person_id ?? "").trim();
+        const field = String(body?.field ?? "").trim();
+        const expected_row_version = Number(body?.expected_row_version);
+        let value = body?.value;
+
+        if (!person_id || !field || Number.isNaN(expected_row_version)) {
+            return Response.json({ error: "Invalid payload" }, { status: 400 });
         }
 
-        const { person_id, field, value, expected_row_version } = await req.json();
-
-        if (!person_id || !field || expected_row_version === undefined) {
-            return Response.json({ error: 'Missing required fields' }, { status: 400 });
+        if (NON_EDITABLE.has(field)) {
+            return Response.json({ error: `Field not editable: ${field}` }, { status: 400 });
         }
 
-        // Get current person
-        const persons = await base44.entities.Person.filter({ id: person_id });
-        if (persons.length === 0) {
-            return Response.json({ error: 'Person not found' }, { status: 404 });
+        // Normalize incoming string values
+        value = normalizeText(value);
+
+        // Load the person row by record id
+        const rows = await base44.asServiceRole.entities.Person.filter({ id: person_id }, null, 1, 0);
+        if (!rows.length) return Response.json({ error: "Not found" }, { status: 404 });
+
+        const current = rows[0];
+
+        // Optimistic locking
+        if (Number(current.row_version) !== expected_row_version) {
+            return Response.json(
+                { error: "Conflict", current_row: current },
+                { status: 409 }
+            );
         }
 
-        const currentPerson = persons[0];
+        // Build update patch
+        const patch = {};
+        patch[field] = value;
+        patch.row_version = Number(current.row_version || 1) + 1;
 
-        // Optimistic concurrency check
-        if (currentPerson.row_version !== expected_row_version) {
-            return Response.json({
-                error: 'Conflict',
-                current_row: currentPerson,
-                current_row_version: currentPerson.row_version
-            }, { status: 409 });
+        // voted_at logic
+        if (field === "voted") {
+            const newVoted = Boolean(value);
+            const oldVoted = Boolean(current.voted);
+            patch.voted = newVoted;
+
+            if (!oldVoted && newVoted) patch.voted_at = new Date().toISOString();
+            if (oldVoted && !newVoted) patch.voted_at = null;
         }
 
-        // Validate field is editable
-        const nonEditableFields = ['id', 'created_date', 'updated_date', 'created_by', 'updated_by', 'row_version'];
-        if (nonEditableFields.includes(field)) {
-            return Response.json({ error: 'Field is not editable' }, { status: 403 });
-        }
+        const updated = await base44.asServiceRole.entities.Person.update(current.id, patch);
 
-        // Update with version increment
-        const updatedPerson = await base44.entities.Person.update(person_id, {
-            [field]: value,
-            row_version: currentPerson.row_version + 1
-        });
-
-        return Response.json({
-            success: true,
-            data: updatedPerson,
-            row_version: updatedPerson.row_version
-        });
-
-    } catch (error) {
-        if (error.message?.includes('required')) {
-            return Response.json({ error: 'Validation error: ' + error.message }, { status: 422 });
-        }
-        return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({ data: updated });
+    } catch (err) {
+        console.error("❌ [personGridUpdateCell] Error:", err?.message || err);
+        return Response.json({ error: err?.message || "Unknown error" }, { status: 500 });
     }
 });
