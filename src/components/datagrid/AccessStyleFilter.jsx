@@ -19,7 +19,7 @@ const AccessStyleFilter = forwardRef((props, ref) => {
     const debounceRef = useRef(null);
 
     const columnKey = props.colDef.field;
-    const partition = props?.context?.partition ?? 'postgrad';
+    const partition = props?.context?.partition ?? '0-4';
 
     useEffect(() => {
         setSearchText('');
