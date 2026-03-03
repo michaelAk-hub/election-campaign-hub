@@ -57,15 +57,7 @@ async function fetchAllPartitionRows(partition) {
     return all;
 }
 
-const SET_FILTER_PARAMS = {
-    filter: 'agSetColumnFilter',
-    filterParams: { buttons: ['apply', 'reset'], closeOnApply: true }
-};
 
-const TEXT_FILTER_PARAMS = {
-    filter: 'agTextColumnFilter',
-    filterParams: { buttons: ['apply', 'reset'], closeOnApply: true }
-};
 
 export default function DataGrid() {
     const gridRef = useRef();
