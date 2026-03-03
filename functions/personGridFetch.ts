@@ -117,13 +117,31 @@ Deno.serve(async (req) => {
 
     const rows = await base44.asServiceRole.entities.Person.filter(query, sort, limit, startRow);
 
-    // Avoid full count scan — use end-reached heuristic
+    // partition_total: count unfiltered rows in this partition (for status bar "Σύνολο")
+    const partitionOnly = [{ dataset_id: dataset.id }, buildPartitionCondition(partition)];
+    const partitionRows = await base44.asServiceRole.entities.Person.filter({ $and: partitionOnly }, null, 1, 0);
+    // We can't get an exact count cheaply, so fetch in pages of 1000 only when startRow=0
+    let partition_total = null;
+    if (startRow === 0) {
+      let total = 0;
+      let skip = 0;
+      const batchSize = 1000;
+      while (true) {
+        const batch = await base44.asServiceRole.entities.Person.filter({ $and: partitionOnly }, null, batchSize, skip);
+        total += batch.length;
+        if (batch.length < batchSize) break;
+        skip += batchSize;
+      }
+      partition_total = total;
+    }
+
+    // lastRow: end-reached heuristic for AG Grid infinite scroll
     let lastRow = -1;
     if (rows.length < limit) lastRow = startRow + rows.length;
 
-    console.log(`[personGridFetch] partition=${partition} startRow=${startRow} rows=${rows.length} lastRow=${lastRow} sort=${sort}`);
+    console.log(`[personGridFetch] partition=${partition} startRow=${startRow} rows=${rows.length} lastRow=${lastRow} partition_total=${partition_total}`);
 
-    return Response.json({ rows, lastRow });
+    return Response.json({ rows, lastRow, partition_total });
   } catch (err) {
     console.error("❌ [personGridFetch] Error:", err?.message || err);
     return Response.json({ error: err?.message || "Unknown error" }, { status: 500 });
