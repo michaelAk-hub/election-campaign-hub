@@ -103,13 +103,26 @@ export default function DataGrid() {
                 const sortField = sortModel.length > 0 ? sortModel[0].colId : 'created_date';
                 const sortDirection = sortModel.length > 0 ? sortModel[0].sort : 'desc';
 
+                // Read directly from params (avoids React state-update race)
+                const fm = params.filterModel || params.api?.getFilterModel() || filterModel;
+                const filters = {};
+                Object.entries(fm).forEach(([key, value]) => {
+                    if (value.filterType === 'set') {
+                        filters[key] = { filterType: 'set', values: value.values || [], includeBlanks: !!value.includeBlanks };
+                    } else if (value.filterType === 'text') {
+                        filters[key] = { filterType: 'text', type: value.type, filter: value.filter };
+                    } else if (value.filterType === 'date') {
+                        filters[key] = { filterType: 'date', type: value.type, filter: value.dateFrom };
+                    }
+                });
+
                 const { data } = await base44.functions.invoke('personGridFetch', {
                     startRow: params.startRow,
                     endRow: params.endRow,
                     sortField,
                     sortDirection,
                     search: searchQuery,
-                    filters: JSON.stringify(filterModel),
+                    filters: JSON.stringify(filters),
                     partition,
                 });
 
