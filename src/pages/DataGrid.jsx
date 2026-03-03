@@ -115,7 +115,7 @@ export default function DataGrid() {
     // Quick filter (global search)
     useEffect(() => {
         if (!gridApi) return;
-        gridApi.updateGridOptions({ quickFilterText: searchQuery });
+        gridApi.setQuickFilter(searchQuery);
         setShownCount(gridApi.getDisplayedRowCount());
     }, [gridApi, searchQuery]);
 
