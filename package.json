@@ -81,7 +81,9 @@
     "@tanstack/react-table": "^8.20.0",
     "ag-grid-react": "^32.3.3",
     "ag-grid-community": "^32.3.3",
-    "ag-grid-enterprise": "^32.3.3"
+    "ag-grid-enterprise": "^32.3.3",
+    "papaparse": "^5.4.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
