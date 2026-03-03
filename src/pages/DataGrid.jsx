@@ -40,7 +40,7 @@ export default function DataGrid() {
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [gridTotal, setGridTotal] = useState(null);
-    const [partition, setPartition] = useState('0-4');
+    const [partition, setPartition] = useState('postgrad');
 
     // Detect mobile
     useEffect(() => {
@@ -499,8 +499,9 @@ export default function DataGrid() {
                                 className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
                                 title="Για απόδοση: δουλεύουμε σε 2 buckets βάσει ΑΤ."
                             >
-                                <option value="0-4">ΑΤ τελειώνει 0–4</option>
-                                <option value="5-9">ΑΤ τελειώνει 5–9</option>
+                                <option value="postgrad">Μεταπτυχιακοί (Δ, Μ, Μεταπτυχιακός Εράσμους)</option>
+                                <option value="undergrad">Προπτυχιακοί (Π, Προπτυχιακός Εράσμους)</option>
+                                <option value="unknown">Άγνωστοι (Blanks)</option>
                             </select>
                         </div>
 
@@ -595,7 +596,7 @@ export default function DataGrid() {
                     <div className="flex items-center gap-4">
                         <span>Φορτωμένες: <strong>{loadedRowsCount}</strong></span>
                         <span>Σύνολο: <strong>{gridTotal ?? '—'}</strong></span>
-                        <span className="text-slate-400">Bucket: <strong>{partition}</strong></span>
+                        <span className="text-slate-400">Ομάδα: <strong>{ partition === 'postgrad' ? 'Μεταπτυχιακοί' : partition === 'undergrad' ? 'Προπτυχιακοί' : 'Άγνωστοι' }</strong></span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
