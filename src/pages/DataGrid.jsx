@@ -40,6 +40,7 @@ export default function DataGrid() {
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [gridTotal, setGridTotal] = useState(null);
+    const [partitionTotal, setPartitionTotal] = useState(null);
     const [partition, setPartition] = useState('postgrad');
 
     // Detect mobile
