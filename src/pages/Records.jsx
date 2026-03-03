@@ -337,7 +337,7 @@ export default function Records() {
       const { data } = await base44.functions.invoke('deleteAllPersons', { session_token: sessionToken });
       if (data.success) {
         toast.success(`${data.deleted_count} εγγραφές διαγράφηκαν επιτυχώς.`);
-        queryClient.invalidateQueries({ queryKey: ['people'] });
+        queryClient.removeQueries({ queryKey: ['people'] });
         queryClient.invalidateQueries({ queryKey: ['datasets'] });
       } else toast.error(data.error || 'Σφάλμα κατά τη διαγραφή');
     } catch (e) { toast.error('Σφάλμα: ' + e.message); }
