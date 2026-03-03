@@ -347,10 +347,9 @@ export default function Records() {
     if (!activeDataset) return 'Δεν υπάρχει ενεργό dataset';
     const total = activeDataset.total_records ?? '—';
     const loaded = loadedPeople.length;
-    const shown = people.length;
     const partLabel = { all: 'Όλα', undergrad: 'Προπτυχιακοί', postgrad: 'Μεταπτυχιακοί', unknown: 'Άγνωστοι' }[partition] || partition;
-    return `${activeDataset.name} • Φορτώθηκαν ${loaded.toLocaleString('el-GR')} / ${total} • Εμφανίζονται: ${shown.toLocaleString('el-GR')} (${partLabel})`;
-  }, [activeDataset, loadedPeople.length, people.length, partition]);
+    return `${activeDataset.name} • Φορτώθηκαν ${loaded.toLocaleString('el-GR')} / ${total} (${partLabel})`;
+  }, [activeDataset, loadedPeople.length, partition]);
 
   if (datasetsLoading) return <LoadingSpinner />;
 
