@@ -489,60 +489,66 @@ export default function DataGrid() {
                         />
                     </div>
                     
-                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-                        <Button
-                            variant={showFilters ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setShowFilters(!showFilters)}
-                            className="h-10"
-                        >
-                            <Filter className="h-4 w-4 mr-1.5" />
-                            Φίλτρα
-                        </Button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {/* Partition selector */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 whitespace-nowrap">Partition:</span>
+                            <select
+                                value={partition}
+                                onChange={(e) => setPartition(e.target.value)}
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                                title="Για απόδοση: δουλεύουμε σε 2 buckets βάσει ΑΤ."
+                            >
+                                <option value="0-4">ΑΤ τελειώνει 0–4</option>
+                                <option value="5-9">ΑΤ τελειώνει 5–9</option>
+                            </select>
+                        </div>
 
-                        {isMobile && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => setShowColumnPicker(true)}
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                variant={showFilters ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setShowFilters(!showFilters)}
                                 className="h-10"
                             >
-                                <Columns3 className="h-4 w-4 mr-1.5" />
-                                Στήλες
+                                <Filter className="h-4 w-4 mr-1.5" />
+                                Φίλτρα
                             </Button>
-                        )}
 
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleExport}
-                            className="h-10"
-                        >
-                            <Download className="h-4 w-4 mr-1.5" />
-                            <span className="hidden sm:inline">Export</span>
-                        </Button>
+                            {isMobile && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowColumnPicker(true)}
+                                    className="h-10"
+                                >
+                                    <Columns3 className="h-4 w-4 mr-1.5" />
+                                    Στήλες
+                                </Button>
+                            )}
 
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => gridApi?.purgeInfiniteCache()}
-                            className="h-10"
-                        >
-                            <RefreshCw className="h-4 w-4 mr-1.5" />
-                            <span className="hidden sm:inline">Ανανέωση</span>
-                        </Button>
-
-                        {!isMobile && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={handleResetLayout}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => gridApi?.purgeInfiniteCache()}
                                 className="h-10"
                             >
-                                <RotateCcw className="h-4 w-4 mr-1.5" />
-                                Reset
+                                <RefreshCw className="h-4 w-4 mr-1.5" />
+                                <span className="hidden sm:inline">Ανανέωση</span>
                             </Button>
-                        )}
+
+                            {!isMobile && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleResetLayout}
+                                    className="h-10"
+                                >
+                                    <RotateCcw className="h-4 w-4 mr-1.5" />
+                                    Reset
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
