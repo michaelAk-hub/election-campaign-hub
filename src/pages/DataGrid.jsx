@@ -593,12 +593,9 @@ export default function DataGrid() {
                 {/* Status Bar */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 bg-slate-50 border-t text-xs text-slate-600 gap-2">
                     <div className="flex items-center gap-4">
-                        <span>
-                            Φορτωμένες: <strong>{loadedRowsCount}</strong>
-                        </span>
-                        <span>
-                            Σύνολο: <strong>{gridTotal}</strong>
-                        </span>
+                        <span>Φορτωμένες: <strong>{loadedRowsCount}</strong></span>
+                        <span>Σύνολο: <strong>{gridTotal ?? '—'}</strong></span>
+                        <span className="text-slate-400">Bucket: <strong>{partition}</strong></span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
