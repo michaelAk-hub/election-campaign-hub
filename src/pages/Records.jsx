@@ -187,9 +187,15 @@ export default function Records() {
       });
       return { prev, qk };
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (err, _vars, ctx) => {
       if (ctx?.prev && ctx?.qk) queryClient.setQueryData(ctx.qk, ctx.prev);
-      toast.error('Αποτυχία αποθήκευσης');
+      const msg = err?.message || '';
+      if (msg.includes('not found')) {
+        // Row was deleted by another process — silently refresh
+        queryClient.invalidateQueries({ queryKey: ['people'] });
+      } else {
+        toast.error('Αποτυχία αποθήκευσης');
+      }
     },
   });
 
