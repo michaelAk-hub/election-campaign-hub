@@ -174,7 +174,7 @@ export default function Records() {
     mutationFn: ({ id, patch }) => base44.entities.Person.update(id, patch),
     onMutate: async ({ id, patch }) => {
       if (!activeDatasetId) return;
-      const qk = ['people', activeDatasetId];
+      const qk = ['people', activeDatasetId, partition];
       await queryClient.cancelQueries({ queryKey: qk });
       const prev = queryClient.getQueryData(qk);
       queryClient.setQueryData(qk, (old) => {
@@ -187,8 +187,7 @@ export default function Records() {
       if (ctx?.prev && ctx?.qk) queryClient.setQueryData(ctx.qk, ctx.prev);
       const msg = err?.message || '';
       if (msg.includes('not found')) {
-        // Row was deleted by another process — silently refresh
-        queryClient.invalidateQueries({ queryKey: ['people'] });
+        queryClient.invalidateQueries({ queryKey: ['people', activeDatasetId, partition] });
       } else {
         toast.error('Αποτυχία αποθήκευσης');
       }
