@@ -9,13 +9,6 @@ function buildPartitionCondition(partition) {
   return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
 }
 
-function normalizeText(v) {
-  if (v === null || v === undefined) return null;
-  if (typeof v !== "string") return String(v);
-  const t = v.trim().replace(/\s+/g, " ");
-  return t === "" ? null : t;
-}
-
 function parseMaybeJson(input) {
   if (!input) return null;
   if (typeof input === "object") return input;
@@ -27,48 +20,37 @@ function parseMaybeJson(input) {
   return null;
 }
 
-function toDbField(field) {
-  if (field?.startsWith("custom:")) return `custom_data.${field.slice(7)}`;
-  return field;
-}
+// Cache partition totals per dataset (5 min TTL)
+const TTL_MS = 5 * 60 * 1000;
+const totalsCache = new Map();
 
-// In-memory cache for partition counts (10 min TTL)
-const COUNTS_TTL_MS = 10 * 60 * 1000;
-const countsCache = new Map();
-
-async function computeCountsForDataset(base44, datasetId) {
-  const cached = countsCache.get(datasetId);
-  if (cached && Date.now() - cached.ts < COUNTS_TTL_MS) return cached.counts;
-
-  const counts = { postgrad: 0, undergrad: 0, unknown: 0 };
+async function countPartition(base44, datasetId, partition) {
+  const q = { $and: [{ dataset_id: datasetId }, buildPartitionCondition(partition)] };
   const batchSize = 1000;
   let skip = 0;
+  let total = 0;
 
   while (true) {
-    const batch = await base44.asServiceRole.entities.Person.filter(
-      { dataset_id: datasetId }, null, batchSize, skip
-    );
-    if (!batch.length) break;
-
-    for (const p of batch) {
-      const lvl = normalizeText(p.academic_level);
-      if (!lvl) {
-        counts.unknown += 1;
-      } else if (POSTGRAD.includes(lvl)) {
-        counts.postgrad += 1;
-      } else if (UNDERGRAD.includes(lvl)) {
-        counts.undergrad += 1;
-      } else {
-        counts.unknown += 1;
-      }
-    }
-
+    const batch = await base44.asServiceRole.entities.Person.filter(q, null, batchSize, skip);
+    total += batch.length;
     if (batch.length < batchSize) break;
     skip += batchSize;
   }
+  return total;
+}
 
-  countsCache.set(datasetId, { ts: Date.now(), counts });
-  return counts;
+async function getTotals(base44, datasetId) {
+  const cached = totalsCache.get(datasetId);
+  if (cached && Date.now() - cached.ts < TTL_MS) return cached.totals;
+
+  const totals = {
+    postgrad: await countPartition(base44, datasetId, "postgrad"),
+    undergrad: await countPartition(base44, datasetId, "undergrad"),
+    unknown: await countPartition(base44, datasetId, "unknown"),
+  };
+
+  totalsCache.set(datasetId, { ts: Date.now(), totals });
+  return totals;
 }
 
 Deno.serve(async (req) => {
@@ -78,6 +60,7 @@ Deno.serve(async (req) => {
     const me = await base44.auth.me();
     if (!me) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+    // JSON first (Base44 invoke), query-param fallback
     let body = null;
     try { body = await req.json(); } catch {}
 
@@ -85,7 +68,7 @@ Deno.serve(async (req) => {
     const getAny = (k, fb) => body?.[k] ?? searchParams.get(k) ?? fb;
 
     const startRow = Number(getAny("startRow", 0));
-    const endRow   = Number(getAny("endRow", 100));
+    const endRow = Number(getAny("endRow", 100));
     const limit = Math.max(1, Math.min((endRow - startRow) || 100, 200));
 
     const sortField = String(getAny("sortField", "created_date"));
@@ -101,10 +84,11 @@ Deno.serve(async (req) => {
     if (!active.length) return Response.json({ rows: [], lastRow: 0, partition_total: 0 });
     const dataset = active[0];
 
-    // Cached partition counts → fast partition_total
-    const counts = await computeCountsForDataset(base44, dataset.id);
-    const partition_total = counts[partition] ?? 0;
+    // Cached partition totals → fast "Σύνολο"
+    const totals = await getTotals(base44, dataset.id);
+    const partition_total = totals[partition] ?? 0;
 
+    // Build AND query
     const and = [
       { dataset_id: dataset.id },
       buildPartitionCondition(partition),
@@ -113,26 +97,39 @@ Deno.serve(async (req) => {
     if (search) {
       and.push({
         $or: [
-          { person_id:    { $regex: search, $options: "i" } },
-          { first_name:   { $regex: search, $options: "i" } },
-          { last_name:    { $regex: search, $options: "i" } },
-          { mobile_phone: { $regex: search, $options: "i" } },
-          { department:   { $regex: search, $options: "i" } },
-          { ucid:         { $regex: search, $options: "i" } },
+          { person_id:      { $regex: search, $options: "i" } },
+          { first_name:     { $regex: search, $options: "i" } },
+          { last_name:      { $regex: search, $options: "i" } },
+          { mobile_phone:   { $regex: search, $options: "i" } },
+          { department:     { $regex: search, $options: "i" } },
+          { ucid:           { $regex: search, $options: "i" } },
           { academic_level: { $regex: search, $options: "i" } },
         ],
       });
     }
 
-    // Column filters (raw AG Grid filterModel)
+    // Column filters — supports both legacy {operator, value} and AG Grid {filterType:'set'} models
     if (filters && typeof filters === "object") {
-      for (const [rawField, model] of Object.entries(filters)) {
+      for (const [field, model] of Object.entries(filters)) {
         if (!model) continue;
-        const field = toDbField(rawField);
 
+        // Legacy format: { operator: 'in', value: [...] }
+        if (typeof model === "object" && model.operator) {
+          const op = String(model.operator);
+          const val = model.value;
+
+          if (op === "in") and.push({ [field]: { $in: Array.isArray(val) ? val : [val] } });
+          else if (op === "contains") and.push({ [field]: { $regex: String(val), $options: "i" } });
+          else if (op === "startsWith") and.push({ [field]: { $regex: `^${String(val)}`, $options: "i" } });
+          else if (op === "equals") and.push({ [field]: String(val) });
+          continue;
+        }
+
+        // AG Grid set filter model: { filterType: 'set', values: [...], includeBlanks: bool }
         if (typeof model === "object" && model.filterType === "set") {
           const values = model.values || [];
           const includeBlanks = !!model.includeBlanks;
+
           if (values.length || includeBlanks) {
             const orParts = [];
             if (values.length) orParts.push({ [field]: { $in: values } });
@@ -144,6 +141,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // AG Grid text filter
         if (typeof model === "object" && model.filterType === "text") {
           const type = String(model.type ?? "contains");
           const val = String(model.filter ?? "");
@@ -154,6 +152,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Boolean
         if (typeof model === "boolean") {
           and.push({ [field]: model });
         }
@@ -163,13 +162,10 @@ Deno.serve(async (req) => {
     const query = { $and: and };
     const rows = await base44.asServiceRole.entities.Person.filter(query, sort, limit, startRow);
 
-    const hasFilters = !!search || (filters && Object.keys(filters).length > 0);
+    const hasAnyFilters = !!search || (filters && Object.keys(filters).length > 0);
     let lastRow = -1;
-    if (!hasFilters) {
-      lastRow = partition_total;
-    } else if (rows.length < limit) {
-      lastRow = startRow + rows.length;
-    }
+    if (!hasAnyFilters) lastRow = partition_total;
+    else if (rows.length < limit) lastRow = startRow + rows.length;
 
     console.log(`[personGridFetch] partition=${partition} startRow=${startRow} rows=${rows.length} lastRow=${lastRow} partition_total=${partition_total}`);
 

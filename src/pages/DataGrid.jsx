@@ -115,9 +115,7 @@ export default function DataGrid() {
 
                 setLastSync(new Date().toISOString());
                 setLoadedRowsCount(params.startRow + (data.rows?.length || 0));
-                if (typeof data.partition_total === 'number') {
-                    setPartitionTotal(data.partition_total);
-                }
+                setPartitionTotal(Number(data.partition_total || 0));
 
                 params.successCallback(data.rows, data.lastRow);
             } catch (error) {
@@ -147,6 +145,8 @@ export default function DataGrid() {
 
     const onFilterChanged = useCallback((params) => {
         setFilterModel(params.api.getFilterModel());
+        // Force immediate re-fetch on infinite row model
+        params.api.purgeInfiniteCache();
     }, []);
 
     // Purge cache whenever partition/filters/search/sort change
