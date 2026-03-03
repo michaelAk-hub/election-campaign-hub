@@ -228,29 +228,19 @@ export default function DataGrid() {
                 const sortField = sortModel.length > 0 ? sortModel[0].colId : 'created_date';
                 const sortDirection = sortModel.length > 0 ? sortModel[0].sort : 'desc';
 
-                const filters = {};
-                Object.entries(filterModel).forEach(([key, value]) => {
-                    if (value.filterType === 'text') {
-                        filters[key] = { operator: value.type, value: value.filter };
-                    } else if (value.filterType === 'set') {
-                        filters[key] = { operator: 'in', value: value.values };
-                    } else if (value.filterType === 'date') {
-                        filters[key] = { operator: value.type, value: value.dateFrom };
-                    }
-                });
-
                 const { data } = await base44.functions.invoke('personGridFetch', {
                     startRow: params.startRow,
                     endRow: params.endRow,
                     sortField,
                     sortDirection,
                     search: searchQuery,
-                    filters: JSON.stringify(filters)
+                    filters: JSON.stringify(filterModel), // raw AG Grid filterModel
+                    partition,
                 });
-                
+
                 setLastSync(new Date().toISOString());
-                setGridTotal(data.lastRow || 0);
-                setLoadedRowsCount(params.endRow);
+                setGridTotal(typeof data.lastRow === 'number' && data.lastRow >= 0 ? data.lastRow : null);
+                setLoadedRowsCount(params.startRow + (data.rows?.length || 0));
                 
                 params.successCallback(data.rows, data.lastRow);
             } catch (error) {
