@@ -310,8 +310,8 @@ export default function Records() {
       const { data } = await base44.functions.invoke('activateDataset', { dataset_id: datasetId, session_token: sessionToken });
       if (data.success) {
         toast.success('Το dataset ενεργοποιήθηκε');
+        queryClient.removeQueries({ queryKey: ['people'] });
         queryClient.invalidateQueries({ queryKey: ['datasets'] });
-        queryClient.invalidateQueries({ queryKey: ['people'] });
       } else toast.error(data.error || 'Σφάλμα ενεργοποίησης');
     } catch (e) { toast.error('Σφάλμα: ' + e.message); }
   };
