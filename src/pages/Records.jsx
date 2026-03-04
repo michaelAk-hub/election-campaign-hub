@@ -369,29 +369,45 @@ export default function Records() {
 
   const handleDeleteDataset = async (datasetId) => {
     if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το dataset και όλες τις εγγραφές του;')) return;
+    setDeleteLoading(true);
+    const toastId = toast.loading('Διαγραφή dataset και εγγραφών...');
     try {
       const sessionToken = localStorage.getItem('app_session_token');
       const { data } = await base44.functions.invoke('deleteDataset', { dataset_id: datasetId, session_token: sessionToken });
       if (data.success) {
-        toast.success(`Το dataset διαγράφηκε (${data.deleted_count ?? 0} εγγραφές)`);
+        toast.success(`Το dataset διαγράφηκε (${data.deleted_count ?? 0} εγγραφές)`, { id: toastId });
         queryClient.removeQueries({ queryKey: ['people', activeDatasetId] });
         queryClient.invalidateQueries({ queryKey: ['people'] });
         queryClient.invalidateQueries({ queryKey: ['datasets'] });
-      } else toast.error(data.error || 'Σφάλμα κατά τη διαγραφή');
-    } catch (e) { toast.error('Σφάλμα: ' + e.message); }
+      } else {
+        toast.error(data.error || 'Σφάλμα κατά τη διαγραφή', { id: toastId });
+      }
+    } catch (e) {
+      toast.error('Σφάλμα: ' + e.message, { id: toastId });
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const handleDeleteAllPersons = async () => {
     if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε ΟΛΕΣ τις εγγραφές από τον πίνακα Person;')) return;
+    setDeleteLoading(true);
+    const toastId = toast.loading('Διαγραφή όλων των εγγραφών...');
     try {
       const sessionToken = localStorage.getItem('app_session_token');
       const { data } = await base44.functions.invoke('deleteAllPersons', { session_token: sessionToken });
       if (data.success) {
-        toast.success(`${data.deleted_count} εγγραφές διαγράφηκαν επιτυχώς.`);
+        toast.success(`${data.deleted_count} εγγραφές διαγράφηκαν επιτυχώς.`, { id: toastId });
         queryClient.removeQueries({ queryKey: ['people'] });
         queryClient.invalidateQueries({ queryKey: ['datasets'] });
-      } else toast.error(data.error || 'Σφάλμα κατά τη διαγραφή');
-    } catch (e) { toast.error('Σφάλμα: ' + e.message); }
+      } else {
+        toast.error(data.error || 'Σφάλμα κατά τη διαγραφή', { id: toastId });
+      }
+    } catch (e) {
+      toast.error('Σφάλμα: ' + e.message, { id: toastId });
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const subtitle = useMemo(() => {
