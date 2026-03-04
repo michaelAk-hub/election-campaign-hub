@@ -37,16 +37,21 @@ export default function NotificationCenter({ userType, username }) {
   const audioRef = useRef(null);
   const prevCountRef = useRef(0);
 
+  const sessionToken = localStorage.getItem('app_session_token');
+
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['notifications', userType, username],
     queryFn: async () => {
-      if (username) {
-        return base44.entities.Notification.filter({ recipient_username: username });
-      } else {
-        return base44.entities.Notification.filter({ recipient_type: userType });
-      }
+      if (!sessionToken) return [];
+      const { data } = await base44.functions.invoke('notificationsFetch', {
+        session_token: sessionToken,
+        recipient_type: userType,
+        username: username || null,
+      });
+      return data.notifications || [];
     },
-    refetchInterval: 30000
+    refetchInterval: 30000,
+    enabled: !!sessionToken,
   });
 
   const unreadCount = notifications.filter(n => !n.read).length;
