@@ -22,6 +22,7 @@ import {
   CheckCircle2, Phone, Upload, FileSpreadsheet, ShieldAlert, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import DeleteProgressModal from '../components/records/DeleteProgressModal';
 
 const PEOPLE_PAGE_SIZE = 500;
 
