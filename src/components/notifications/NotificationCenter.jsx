@@ -67,20 +67,10 @@ export default function NotificationCenter({ userType, username }) {
     prevCountRef.current = unreadCount;
   }, [unreadCount]);
 
-  // Real-time subscription
-  useEffect(() => {
-    const unsubscribe = base44.entities.Notification.subscribe((event) => {
-      if (event.type === 'create') {
-        queryClient.invalidateQueries(['notifications']);
-      }
-    });
-    return unsubscribe;
-  }, [queryClient]);
-
   const markAsReadMutation = useMutation({
-    mutationFn: (id) => base44.entities.Notification.update(id, { 
-      read: true, 
-      read_at: new Date().toISOString() 
+    mutationFn: (id) => base44.functions.invoke('notificationsMarkRead', {
+      session_token: sessionToken,
+      notification_id: id,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries(['notifications']);
@@ -90,12 +80,11 @@ export default function NotificationCenter({ userType, username }) {
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       const unreadNotifs = notifications.filter(n => !n.read);
-      for (const notif of unreadNotifs) {
-        await base44.entities.Notification.update(notif.id, { 
-          read: true, 
-          read_at: new Date().toISOString() 
-        });
-      }
+      await base44.functions.invoke('notificationsMarkRead', {
+        session_token: sessionToken,
+        mark_all: true,
+        notification_ids: unreadNotifs.map(n => n.id),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['notifications']);
@@ -104,7 +93,10 @@ export default function NotificationCenter({ userType, username }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Notification.delete(id),
+    mutationFn: (id) => base44.functions.invoke('notificationsDelete', {
+      session_token: sessionToken,
+      notification_id: id,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries(['notifications']);
       toast.success('Η ειδοποίηση διαγράφηκε');
