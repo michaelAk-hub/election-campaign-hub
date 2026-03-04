@@ -19,14 +19,9 @@ Deno.serve(async (req) => {
     const dataset_id = body.dataset_id;
     if (!dataset_id) return Response.json({ success: false, error: 'dataset_id is required' }, { status: 400 });
 
-    // Delete all persons for this dataset - loop until none remain
-    let totalDeleted = 0;
-    while (true) {
-      const r = await base44.asServiceRole.entities.Person.deleteMany({ dataset_id });
-      const count = r?.deleted ?? 0;
-      totalDeleted += count;
-      if (!count) break;
-    }
+    // Delete all persons for this dataset in one call
+    const r = await base44.asServiceRole.entities.Person.deleteMany({ dataset_id });
+    const totalDeleted = r?.deleted ?? 0;
 
     // Delete the dataset record
     await base44.asServiceRole.entities.Dataset.delete(dataset_id);

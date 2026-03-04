@@ -16,14 +16,9 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Delete ALL persons - loop until none remain
-    let totalDeleted = 0;
-    while (true) {
-      const r = await base44.asServiceRole.entities.Person.deleteMany({});
-      const count = r?.deleted ?? 0;
-      totalDeleted += count;
-      if (!count) break;
-    }
+    // Delete ALL persons in one call
+    const r = await base44.asServiceRole.entities.Person.deleteMany({});
+    const totalDeleted = r?.deleted ?? 0;
 
     // Reset total_records on all datasets
     const datasets = await base44.asServiceRole.entities.Dataset.filter({}, '-created_date', 5000, 0);
