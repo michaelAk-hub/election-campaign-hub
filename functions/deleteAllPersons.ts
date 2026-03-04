@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -16,20 +18,19 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch and delete all persons in batches
     let totalDeleted = 0;
-    const fetchBatchSize = 1000;
+    const fetchBatchSize = 500;
+    const chunkSize = 5; // small parallel batch to avoid rate limits
 
     while (true) {
       const people = await base44.asServiceRole.entities.Person.list('created_date', fetchBatchSize, 0);
       if (people.length === 0) break;
 
-      // Delete in parallel chunks of 50
-      const chunkSize = 50;
       for (let i = 0; i < people.length; i += chunkSize) {
         const chunk = people.slice(i, i + chunkSize);
         await Promise.all(chunk.map(p => base44.asServiceRole.entities.Person.delete(p.id)));
         totalDeleted += chunk.length;
+        if (i + chunkSize < people.length) await sleep(150);
       }
 
       if (people.length < fetchBatchSize) break;
@@ -37,10 +38,12 @@ Deno.serve(async (req) => {
 
     // Reset total_records on all datasets
     const datasets = await base44.asServiceRole.entities.Dataset.list('-created_date', 5000, 0);
-    await Promise.all(
-      datasets.filter(ds => (ds.total_records ?? 0) !== 0)
-              .map(ds => base44.asServiceRole.entities.Dataset.update(ds.id, { total_records: 0 }))
-    );
+    for (const ds of datasets) {
+      if ((ds.total_records ?? 0) !== 0) {
+        await base44.asServiceRole.entities.Dataset.update(ds.id, { total_records: 0 });
+        await sleep(100);
+      }
+    }
 
     return Response.json({ success: true, deleted_count: totalDeleted });
   } catch (error) {
