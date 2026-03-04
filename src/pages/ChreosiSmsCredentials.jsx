@@ -23,7 +23,7 @@ export default function ChreosiSmsCredentials() {
   const [title, setTitle] = useState("Στοιχεία πρόσβασης");
   const [portalUrl, setPortalUrl] = useState(PORTAL_DEFAULT);
   const [template, setTemplate] = useState(
-    "Σύνδεση: {PORTAL_URL}\nUsername: {USERNAME}\nPassword: {PASSWORD}"
+    "Σήμερα είναι η Γενική Συνέλευση. Μπορείτε να προμηθευτείτε τα χρεωστικά σας από τον Φανούριο.\n\nΠαρακάτω είναι η ιστοσελίδα με τα δικά σας credentials, όπου μπορείτε να δείτε το χρεωστικό σας σε ηλεκτρονική μορφή.\nΕάν υπάρχει κάποιο πρόβλημα με την ιστοσελίδα, συνεχίστε κανονικά με τα έντυπα χρεωστικά.\nΣύνδεση: {PORTAL_URL}\nUsername: {USERNAME}\nPassword: {PASSWORD}\nΣημείωση: Μην αφαιρέσετε το κενό εντός του \"Username:\"."
   );
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState({});
