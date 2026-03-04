@@ -19,9 +19,26 @@ Deno.serve(async (req) => {
     const dataset_id = body.dataset_id;
     if (!dataset_id) return Response.json({ success: false, error: 'dataset_id is required' }, { status: 400 });
 
-    // Delete all persons for this dataset in one call
-    const r = await base44.asServiceRole.entities.Person.deleteMany({ dataset_id });
-    const totalDeleted = r?.deleted ?? 0;
+    // Fetch all person IDs for this dataset in batches, then delete individually in parallel batches
+    let totalDeleted = 0;
+    let skip = 0;
+    const fetchBatchSize = 1000;
+
+    while (true) {
+      const people = await base44.asServiceRole.entities.Person.filter({ dataset_id }, 'created_date', fetchBatchSize, skip);
+      if (people.length === 0) break;
+
+      // Delete in parallel chunks of 50
+      const chunkSize = 50;
+      for (let i = 0; i < people.length; i += chunkSize) {
+        const chunk = people.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(p => base44.asServiceRole.entities.Person.delete(p.id)));
+        totalDeleted += chunk.length;
+      }
+
+      if (people.length < fetchBatchSize) break;
+      // Don't advance skip since we deleted the records
+    }
 
     // Delete the dataset record
     await base44.asServiceRole.entities.Dataset.delete(dataset_id);
