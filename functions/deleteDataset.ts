@@ -2,6 +2,21 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+async function deleteWithRetry(entity, id, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await entity.delete(id);
+      return;
+    } catch (e) {
+      if (e?.status === 429 && i < retries - 1) {
+        await sleep(500 * (i + 1));
+      } else {
+        throw e;
+      }
+    }
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -22,21 +37,18 @@ Deno.serve(async (req) => {
     if (!dataset_id) return Response.json({ success: false, error: 'dataset_id is required' }, { status: 400 });
 
     let totalDeleted = 0;
-    const fetchBatchSize = 500;
-    const chunkSize = 5; // small parallel batch to avoid rate limits
 
     while (true) {
-      const people = await base44.asServiceRole.entities.Person.filter({ dataset_id }, 'created_date', fetchBatchSize, 0);
+      const people = await base44.asServiceRole.entities.Person.filter({ dataset_id }, 'created_date', 200, 0);
       if (people.length === 0) break;
 
-      for (let i = 0; i < people.length; i += chunkSize) {
-        const chunk = people.slice(i, i + chunkSize);
-        await Promise.all(chunk.map(p => base44.asServiceRole.entities.Person.delete(p.id)));
-        totalDeleted += chunk.length;
-        if (i + chunkSize < people.length) await sleep(150);
+      for (const person of people) {
+        await deleteWithRetry(base44.asServiceRole.entities.Person, person.id);
+        totalDeleted++;
+        await sleep(50);
       }
 
-      if (people.length < fetchBatchSize) break;
+      if (people.length < 200) break;
     }
 
     await base44.asServiceRole.entities.Dataset.delete(dataset_id);
