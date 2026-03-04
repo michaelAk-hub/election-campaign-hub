@@ -67,6 +67,7 @@ import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import SendMessage from './pages/SendMessage';
 import UserManagement from './pages/UserManagement';
+import MfaVerify from './pages/MfaVerify';
 import __Layout from './Layout.jsx';
 
 
@@ -91,6 +92,7 @@ export const PAGES = {
     "SavedQueries": SavedQueries,
     "SendMessage": SendMessage,
     "UserManagement": UserManagement,
+    "MfaVerify": MfaVerify,
 }
 
 export const pagesConfig = {
