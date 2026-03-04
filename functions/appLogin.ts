@@ -43,29 +43,23 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Λάθος email ή κωδικός' }, { status: 401 });
         }
 
-        // Create session
-        const sessionToken = crypto.randomUUID();
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+        // MFA required for ADMIN and ORGANOTIKI — create pre-auth challenge
+        const preauthToken = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-        await base44.asServiceRole.entities.AppSession.create({
-            session_token: sessionToken,
-            app_user_id: user.id,
-            session_version_at_login: user.session_version || 1,
+        await base44.asServiceRole.entities.MfaChallenge.create({
+            user_id: user.id,
+            preauth_token: preauthToken,
             expires_at: expiresAt.toISOString(),
-            is_active: true
+            is_used: false,
+            send_count: 0,
+            attempts: 0
         });
 
         return Response.json({
             success: true,
-            session_token: sessionToken,
-            user: {
-                id: user.id,
-                role: user.role,
-                email: user.email,
-                name: user.name,
-                surname: user.surname
-            }
+            mfaRequired: true,
+            preauthToken
         });
 
     } catch (error) {

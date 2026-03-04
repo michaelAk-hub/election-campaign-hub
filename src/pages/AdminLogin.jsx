@@ -46,7 +46,10 @@ export default function AdminLogin() {
                 password
             });
 
-            if (data.success) {
+            if (data.success && data.mfaRequired) {
+                sessionStorage.setItem('mfa_preauth_token', data.preauthToken);
+                window.location.href = createPageUrl('MfaVerify');
+            } else if (data.success) {
                 localStorage.setItem('app_session_token', data.session_token);
                 localStorage.setItem('app_user', JSON.stringify(data.user));
                 window.location.href = createPageUrl('Dashboard');
