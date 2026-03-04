@@ -57,6 +57,7 @@ import Dashboard from './pages/Dashboard';
 import DataGrid from './pages/DataGrid';
 import KanaliAccounts from './pages/KanaliAccounts';
 import KanaliPortal from './pages/KanaliPortal';
+import MfaVerify from './pages/MfaVerify';
 import NotFoundVoters from './pages/NotFoundVoters';
 import NotificationPreferences from './pages/NotificationPreferences';
 import Portal from './pages/Portal';
@@ -67,7 +68,6 @@ import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import SendMessage from './pages/SendMessage';
 import UserManagement from './pages/UserManagement';
-import MfaVerify from './pages/MfaVerify';
 import __Layout from './Layout.jsx';
 
 
@@ -82,6 +82,7 @@ export const PAGES = {
     "DataGrid": DataGrid,
     "KanaliAccounts": KanaliAccounts,
     "KanaliPortal": KanaliPortal,
+    "MfaVerify": MfaVerify,
     "NotFoundVoters": NotFoundVoters,
     "NotificationPreferences": NotificationPreferences,
     "Portal": Portal,
@@ -92,7 +93,6 @@ export const PAGES = {
     "SavedQueries": SavedQueries,
     "SendMessage": SendMessage,
     "UserManagement": UserManagement,
-    "MfaVerify": MfaVerify,
 }
 
 export const pagesConfig = {

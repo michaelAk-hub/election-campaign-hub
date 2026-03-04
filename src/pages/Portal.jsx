@@ -196,7 +196,7 @@ function ChreosiPortal({ username }) {
                   onCheckedChange={(checked) => 
                     toggleCheckmarkMutation.mutate({ personId: person.id, checked })
                   }
-                  className="mt-1"
+                  className="mt-1 h-7 w-7 rounded-md"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4">
