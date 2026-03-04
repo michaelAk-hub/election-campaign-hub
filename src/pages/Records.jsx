@@ -655,27 +655,45 @@ export default function Records() {
       </Dialog>
 
       {/* Upload Dialog */}
-      <Dialog open={uploadDialog} onOpenChange={setUploadDialog}>
+      <Dialog open={uploadDialog} onOpenChange={(open) => { if (!uploadLoading) setUploadDialog(open); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Εισαγωγή Αρχείου</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-900 font-medium mb-1">💡 Συμβουλή</p>
-              <p className="text-sm text-blue-800">
-                Χρησιμοποιήστε το <strong>"Εξαγωγή"</strong> για να κατεβάσετε πρότυπο CSV. Υποστηρίζονται .csv, .xlsx, .xls.
-              </p>
-            </div>
-            <Input type="file" accept=".csv,.xlsx,.xls" onChange={e => setUploadFile(e.target.files[0])} />
-            {uploadFile && (
-              <p className="text-sm text-green-600 flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" /> Επιλέχθηκε: {uploadFile.name}
-              </p>
+            {!uploadLoading ? (
+              <>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-900 font-medium mb-1">💡 Συμβουλή</p>
+                  <p className="text-sm text-blue-800">
+                    Χρησιμοποιήστε το <strong>"Εξαγωγή"</strong> για να κατεβάσετε πρότυπο CSV. Υποστηρίζονται .csv, .xlsx, .xls.
+                  </p>
+                </div>
+                <Input type="file" accept=".csv,.xlsx,.xls" onChange={e => setUploadFile(e.target.files[0])} />
+                {uploadFile && (
+                  <p className="text-sm text-green-600 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" /> Επιλέχθηκε: {uploadFile.name}
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600 flex-shrink-0" />
+                  <p className="text-sm font-medium text-slate-700">{uploadProgress.step}</p>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-3 rounded-full transition-all duration-500"
+                    style={{ width: `${uploadProgress.percent}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 text-center">{uploadProgress.percent}% ολοκληρώθηκε — παρακαλώ περιμένετε...</p>
+              </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setUploadDialog(false); setUploadFile(null); }}>Ακύρωση</Button>
+            <Button variant="outline" onClick={() => { setUploadDialog(false); setUploadFile(null); }} disabled={uploadLoading}>Ακύρωση</Button>
             <Button onClick={handleFileUpload} disabled={uploadLoading || !uploadFile}>
-              {uploadLoading ? 'Εισαγωγή...' : 'Εισαγωγή'}
+              {uploadLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Εισαγωγή...</> : 'Εισαγωγή'}
             </Button>
           </DialogFooter>
         </DialogContent>
