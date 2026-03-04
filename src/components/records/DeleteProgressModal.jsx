@@ -16,13 +16,22 @@ export default function DeleteProgressModal({ jobId, onClose }) {
   useEffect(() => {
     if (!jobId) return;
 
+    const sessionToken = localStorage.getItem('app_session_token');
+
+    const kickResume = async (jId) => {
+      try {
+        await base44.functions.invoke('deleteAllPersons', { job_id: jId, session_token: sessionToken, resume_key: 'internal_resume' });
+      } catch (e) {
+        console.error('Resume invoke failed:', e);
+      }
+    };
+
     const fetchJob = async () => {
       try {
         const results = await base44.entities.DeleteJob.filter({ id: jobId });
         if (results.length > 0) {
           const j = results[0];
           setJob(j);
-          // Add to log if message changed
           setLogs(prev => {
             const lastMsg = prev[prev.length - 1];
             if (!lastMsg || lastMsg.msg !== j.message) {
@@ -45,9 +54,26 @@ export default function DeleteProgressModal({ jobId, onClose }) {
     fetchJob();
     intervalRef.current = setInterval(fetchJob, 2000);
 
-    // Clock to show seconds since last update
+    // Clock + watchdog: if job is stuck (no progress for 15s), re-kick it
+    let lastDeletedSnapshot = -1;
+    let stuckSeconds = 0;
     clockRef.current = setInterval(() => {
       setSecondsSinceUpdate(prev => prev + 1);
+      setJob(current => {
+        if (current?.status === 'running') {
+          if (current.deleted === lastDeletedSnapshot) {
+            stuckSeconds++;
+            if (stuckSeconds >= 15) {
+              stuckSeconds = 0;
+              kickResume(jobId);
+            }
+          } else {
+            lastDeletedSnapshot = current.deleted;
+            stuckSeconds = 0;
+          }
+        }
+        return current;
+      });
     }, 1000);
 
     return () => {
