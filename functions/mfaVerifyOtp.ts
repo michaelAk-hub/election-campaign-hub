@@ -67,7 +67,11 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Δεν υπάρχει αριθμός τηλεφώνου' }, { status: 400 });
         }
 
-        const result = await twilioVerifyCheck(user.phone, String(code));
+        // Normalize to E.164 (+357 for Cyprus if not already prefixed)
+        const rawPhone = user.phone.replace(/\s+/g, '');
+        const phone = rawPhone.startsWith('+') ? rawPhone : `+357${rawPhone}`;
+
+        const result = await twilioVerifyCheck(phone, String(code));
 
         if (String(result.status).toLowerCase() !== 'approved') {
             await base44.asServiceRole.entities.MfaChallenge.update(challenge.id, {

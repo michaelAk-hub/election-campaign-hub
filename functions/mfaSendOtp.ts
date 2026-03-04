@@ -73,7 +73,11 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Δεν υπάρχει αριθμός τηλεφώνου για αυτόν τον χρήστη' }, { status: 400 });
         }
 
-        await twilioVerifyStart(user.phone);
+        // Normalize to E.164 (+357 for Cyprus if not already prefixed)
+        const rawPhone = user.phone.replace(/\s+/g, '');
+        const phone = rawPhone.startsWith('+') ? rawPhone : `+357${rawPhone}`;
+
+        await twilioVerifyStart(phone);
 
         await base44.asServiceRole.entities.MfaChallenge.update(challenge.id, {
             send_count: sendCount + 1,
@@ -81,7 +85,7 @@ Deno.serve(async (req) => {
         });
 
         // Mask phone for display
-        const p = user.phone.replace(/\s+/g, '');
+        const p = phone;
         const maskedPhone = p.length >= 9 ? `${p.slice(0, 6)}***${p.slice(-3)}` : '****';
 
         return Response.json({ ok: true, resendAfterSec: 30, maskedPhone });
