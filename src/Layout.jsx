@@ -41,7 +41,7 @@ const adminNavItems = [
   { name: '🔐 Πύλη Χρηστών', icon: Users, page: 'PortalLogin', divider: true },
 ];
 
-const portalPages = ['Portal', 'PortalLogin', 'AdminLogin'];
+const portalPages = ['Portal', 'PortalLogin', 'AdminLogin', 'MfaVerify'];
 
 // Inactivity timeout constants (in milliseconds)
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
