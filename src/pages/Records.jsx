@@ -259,8 +259,10 @@ export default function Records() {
 
   const doImport = async (rows) => {
     setUploadLoading(true);
+    setUploadProgress({ step: 'Ανέβασμα αρχείου...', percent: 5 });
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
+      setUploadProgress({ step: 'Επεξεργασία δεδομένων...', percent: 20 });
 
       const normalized = rows.map(normalizeRow);
       const valid = normalized.filter(r => r.person_id && String(r.person_id).trim() !== '');
@@ -273,15 +275,22 @@ export default function Records() {
         total_records: valid.length,
         activated_at: new Date().toISOString()
       });
+      setUploadProgress({ step: 'Αποθήκευση εγγραφών...', percent: 35 });
 
       const withDataset = valid.map(r => ({ ...r, dataset_id: dataset.id }));
       const chunkSize = 500;
+      const totalChunks = Math.ceil(withDataset.length / chunkSize);
       for (let i = 0; i < withDataset.length; i += chunkSize) {
         await base44.entities.Person.bulkCreate(withDataset.slice(i, i + chunkSize));
+        const chunksDone = Math.floor(i / chunkSize) + 1;
+        const percent = 35 + Math.round((chunksDone / totalChunks) * 50);
+        setUploadProgress({ step: `Αποθήκευση εγγραφών (${Math.min(i + chunkSize, withDataset.length)}/${withDataset.length})...`, percent });
       }
 
+      setUploadProgress({ step: 'Ενεργοποίηση dataset...', percent: 90 });
       const sessionToken = localStorage.getItem('app_session_token');
       await base44.functions.invoke('activateDataset', { dataset_id: dataset.id, session_token: sessionToken });
+      setUploadProgress({ step: 'Ολοκληρώθηκε!', percent: 100 });
 
       toast.success(`✅ Επιτυχία! Εισήχθησαν ${valid.length} εγγραφές.${skipped ? ` Παραλείφθηκαν ${skipped}.` : ''}`);
       queryClient.removeQueries({ queryKey: ['people'] });
@@ -294,6 +303,7 @@ export default function Records() {
       toast.error(`❌ Σφάλμα εισαγωγής: ${e.message}`);
     } finally {
       setUploadLoading(false);
+      setUploadProgress({ step: '', percent: 0 });
     }
   };
 
