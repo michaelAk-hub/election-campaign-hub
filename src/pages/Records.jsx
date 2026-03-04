@@ -116,6 +116,8 @@ export default function Records() {
   const [formData, setFormData] = useState({});
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ step: '', percent: 0 });
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [partition, setPartition] = useState('all');
   // Column mapping state
   const [missingPersonIdDialog, setMissingPersonIdDialog] = useState(false);
