@@ -110,6 +110,11 @@ export default function Records() {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [partition, setPartition] = useState('all');
+  // Column mapping state
+  const [missingPersonIdDialog, setMissingPersonIdDialog] = useState(false);
+  const [fileColumns, setFileColumns] = useState([]);
+  const [personIdMapping, setPersonIdMapping] = useState(''); // '' = auto-generate
+  const [pendingRows, setPendingRows] = useState([]);
 
   const { data: datasets = [], isLoading: datasetsLoading } = useQuery({
     queryKey: ['datasets'],
