@@ -603,12 +603,27 @@ export default function Records() {
       </Dialog>
 
       {/* Missing person_id Dialog */}
-      <Dialog open={missingPersonIdDialog} onOpenChange={setMissingPersonIdDialog}>
+      <Dialog open={missingPersonIdDialog} onOpenChange={(open) => { if (!uploadLoading) setMissingPersonIdDialog(open); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>⚠️ Λείπει το πεδίο ΑΤ (ID)</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {uploadLoading && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600 flex-shrink-0" />
+                  <p className="text-sm font-medium text-slate-700">{uploadProgress.step}</p>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-3 rounded-full transition-all duration-500"
+                    style={{ width: `${uploadProgress.percent}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 text-center">{uploadProgress.percent}% ολοκληρώθηκε — παρακαλώ περιμένετε...</p>
+              </div>
+            )}
             <p className="text-sm text-slate-700">
               Το αρχείο δεν περιέχει στήλη <strong>person_id / ΑΤ</strong>. Πώς θέλετε να συνεχίσετε;
             </p>
