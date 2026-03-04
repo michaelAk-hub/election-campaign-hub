@@ -248,37 +248,14 @@ export default function Records() {
     }
   };
 
-  const handleFileUpload = async () => {
-    if (!uploadFile) return toast.error('Παρακαλώ επιλέξτε αρχείο');
+  const doImport = async (rows) => {
     setUploadLoading(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
 
-      let rawRows = [];
-      try {
-        rawRows = await parseFileToRows(uploadFile);
-      } catch {
-        // fallback to LLM extraction
-        const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url,
-          json_schema: {
-            type: 'object',
-            properties: {
-              records: {
-                type: 'array',
-                items: { type: 'object', properties: Object.fromEntries(COLUMNS.map(c => [c.key, { type: c.type === 'boolean' ? 'boolean' : 'string' }])) }
-              }
-            }
-          }
-        });
-        if (result.status === 'error') throw new Error(result.details || 'Σφάλμα ανάλυσης αρχείου');
-        rawRows = result.output?.records || (Array.isArray(result.output) ? result.output : []);
-      }
-
-      const normalized = rawRows.map(normalizeRow);
+      const normalized = rows.map(normalizeRow);
       const valid = normalized.filter(r => r.person_id && String(r.person_id).trim() !== '');
       const skipped = normalized.length - valid.length;
-      if (valid.length === 0) return toast.error('Δεν βρέθηκαν έγκυρες γραμμές (λείπει ΑΤ / person_id)');
 
       const dataset = await base44.entities.Dataset.create({
         name: uploadFile.name,
@@ -301,12 +278,62 @@ export default function Records() {
       queryClient.removeQueries({ queryKey: ['people'] });
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
       setUploadDialog(false);
+      setMissingPersonIdDialog(false);
       setUploadFile(null);
+      setPendingRows([]);
     } catch (e) {
       toast.error(`❌ Σφάλμα εισαγωγής: ${e.message}`);
     } finally {
       setUploadLoading(false);
     }
+  };
+
+  const handleFileUpload = async () => {
+    if (!uploadFile) return toast.error('Παρακαλώ επιλέξτε αρχείο');
+    setUploadLoading(true);
+    try {
+      let rawRows = [];
+      try {
+        rawRows = await parseFileToRows(uploadFile);
+      } catch (e) {
+        toast.error(`❌ Σφάλμα ανάλυσης αρχείου: ${e.message}`);
+        return;
+      }
+
+      // Check if person_id is missing
+      const normalized = rawRows.map(normalizeRow);
+      const hasMissingPersonId = normalized.some(r => !r.person_id || String(r.person_id).trim() === '');
+      const allMissingPersonId = normalized.every(r => !r.person_id || String(r.person_id).trim() === '');
+
+      if (allMissingPersonId && rawRows.length > 0) {
+        // Detect file columns
+        const cols = Object.keys(rawRows[0] || {});
+        setFileColumns(cols);
+        setPendingRows(rawRows);
+        setPersonIdMapping('');
+        setUploadLoading(false);
+        setMissingPersonIdDialog(true);
+        return;
+      }
+
+      await doImport(rawRows);
+    } catch (e) {
+      toast.error(`❌ Σφάλμα εισαγωγής: ${e.message}`);
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleMissingPersonIdIgnore = async () => {
+    // Auto-generate person_id as sequential number
+    const rowsWithId = pendingRows.map((r, i) => ({ ...r, person_id: String(i + 1) }));
+    await doImport(rowsWithId);
+  };
+
+  const handleMissingPersonIdMapping = async () => {
+    if (!personIdMapping) return toast.error('Παρακαλώ επιλέξτε στήλη');
+    const rowsWithId = pendingRows.map(r => ({ ...r, person_id: String(r[personIdMapping] ?? '').trim() }));
+    await doImport(rowsWithId);
   };
 
   const handleActivateDataset = async (datasetId) => {
