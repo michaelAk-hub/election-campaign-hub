@@ -567,6 +567,58 @@ export default function Records() {
         </DialogContent>
       </Dialog>
 
+      {/* Missing person_id Dialog */}
+      <Dialog open={missingPersonIdDialog} onOpenChange={setMissingPersonIdDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>⚠️ Λείπει το πεδίο ΑΤ (ID)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-slate-700">
+              Το αρχείο δεν περιέχει στήλη <strong>person_id / ΑΤ</strong>. Πώς θέλετε να συνεχίσετε;
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
+              <p className="text-sm font-medium text-amber-900">Επιλογή 1: Αγνόηση & Εισαγωγή</p>
+              <p className="text-xs text-amber-800">Το σύστημα θα δημιουργήσει αυτόματα αύξοντα αριθμό (1, 2, 3...) ως person_id.</p>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={handleMissingPersonIdIgnore}
+                disabled={uploadLoading}
+              >
+                {uploadLoading ? 'Εισαγωγή...' : 'Αγνόηση & Εισαγωγή με auto-ID'}
+              </Button>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
+              <p className="text-sm font-medium text-blue-900">Επιλογή 2: Επιλογή στήλης αντικατάστασης</p>
+              <p className="text-xs text-blue-800">Επιλέξτε ποια στήλη του αρχείου να χρησιμοποιηθεί ως person_id.</p>
+              <Select value={personIdMapping} onValueChange={setPersonIdMapping}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Επιλέξτε στήλη..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {fileColumns.map(col => (
+                    <SelectItem key={col} value={col}>{col}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleMissingPersonIdMapping}
+                disabled={!personIdMapping || uploadLoading}
+              >
+                {uploadLoading ? 'Εισαγωγή...' : 'Εισαγωγή με επιλεγμένη στήλη'}
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setMissingPersonIdDialog(false); setPendingRows([]); }}>
+              Ακύρωση
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Upload Dialog */}
       <Dialog open={uploadDialog} onOpenChange={setUploadDialog}>
         <DialogContent>
