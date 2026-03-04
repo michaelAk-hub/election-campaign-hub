@@ -671,6 +671,11 @@ export default function Records() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Progress Modal */}
+      {deleteJobId && (
+        <DeleteProgressModal jobId={deleteJobId} onClose={handleDeleteJobClose} />
+      )}
+
       {/* Upload Dialog */}
       <Dialog open={uploadDialog} onOpenChange={(open) => { if (!uploadLoading) setUploadDialog(open); }}>
         <DialogContent>
