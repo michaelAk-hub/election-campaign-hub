@@ -113,8 +113,25 @@ function ChreosiPortal({ username }) {
         });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['checkmarks']);
+    onMutate: async ({ personId, checked }) => {
+      await queryClient.cancelQueries(['checkmarks', normalizedUsername]);
+      const previous = queryClient.getQueryData(['checkmarks', normalizedUsername]);
+      queryClient.setQueryData(['checkmarks', normalizedUsername], (old = []) => {
+        const existing = old.find(c => c.person_record_id === personId);
+        if (existing) {
+          return old.map(c => c.person_record_id === personId ? { ...c, checked } : c);
+        }
+        return [...old, { chreosi_username: normalizedUsername, person_record_id: personId, checked, id: `temp-${personId}` }];
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['checkmarks', normalizedUsername], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['checkmarks', normalizedUsername]);
     }
   });
 
