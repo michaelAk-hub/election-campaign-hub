@@ -72,7 +72,14 @@ function normalizeRow(row) {
   const out = {};
   for (const [k, v] of Object.entries(row || {})) {
     const key = LABEL_TO_KEY[k] || k;
-    out[key] = typeof v === 'string' ? v.trim() : v;
+    // Convert to string except booleans (voted)
+    if (key === 'voted') {
+      out[key] = v;
+    } else if (v === null || v === undefined || v === '') {
+      out[key] = '';
+    } else {
+      out[key] = String(v).trim();
+    }
   }
   out.voted = parseVoted(out.voted);
   return out;
