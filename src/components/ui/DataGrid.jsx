@@ -318,7 +318,7 @@ export default function DataGrid({
 
       {showFilters && (
         <div className="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-lg">
-          {columns.filter(col => col.filterable !== false).map(col => (
+          {orderedColumns.filter(col => col.filterable !== false).map(col => (
             <div key={col.key} className="min-w-[150px]">
               <label className="text-xs text-slate-500 mb-1 block">{col.label}</label>
               <Select value={filters[col.key] || 'all'} onValueChange={(v) => { setFilters(f => ({ ...f, [col.key]: v })); setPage(0); }}>
