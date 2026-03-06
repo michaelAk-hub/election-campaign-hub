@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from "@/lib/utils";
 
 export default function DataGrid({
@@ -30,6 +31,8 @@ export default function DataGrid({
   // inline edit
   editable = false,
   onCellUpdate, // async ({ row, key, value }) => Promise<void>
+  fetchLatestRow, // async (rowId) => Promise<row> — called before edit opens
+  onRowRefreshed, // (id, newRowData) => void — called after fresh fetch to update parent
 }) {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
@@ -41,6 +44,7 @@ export default function DataGrid({
   const [editing, setEditing] = useState(null); // { rowId, key }
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(null); // { rowId, key }
+  const [loadingEditCell, setLoadingEditCell] = useState(null); // { rowId, key }
 
   // --- Keyboard navigation state ---
   const [focusedCell, setFocusedCell] = useState(null); // { rowIndex, colIndex }
@@ -135,11 +139,34 @@ export default function DataGrid({
   }, [focusedCell, displayData.length, navColumns.length, focusCell]);
 
   // --- Edit helpers ---
-  const startEdit = (row, col, rowIndex, colIndex) => {
+  const startEdit = async (row, col, rowIndex, colIndex) => {
     if (!editable || !col.editable || col.type === 'boolean') return;
+    // Prevent duplicate startEdit while already loading
+    if (loadingEditCell) return;
+
     setFocusedCell({ rowIndex, colIndex });
-    setEditing({ rowId: row.id, key: col.key });
-    setDraft(String(row[col.key] ?? ''));
+
+    if (fetchLatestRow) {
+      setLoadingEditCell({ rowId: row.id, key: col.key });
+      try {
+        const latestRow = await fetchLatestRow(row.id);
+        if (!latestRow) {
+          toast.error('Η εγγραφή δεν βρέθηκε ή έχει διαγραφεί.');
+          return;
+        }
+        onRowRefreshed?.(row.id, latestRow);
+        setDraft(String(latestRow[col.key] ?? ''));
+        setEditing({ rowId: row.id, key: col.key });
+      } catch (err) {
+        toast.error('Αδυναμία φόρτωσης τελευταίας έκδοσης εγγραφής.');
+      } finally {
+        setLoadingEditCell(null);
+      }
+    } else {
+      // Fallback: no fetchLatestRow provided, use local value
+      setEditing({ rowId: row.id, key: col.key });
+      setDraft(String(row[col.key] ?? ''));
+    }
   };
 
   const commitEdit = useCallback(async (restoreRowIndex, restoreColIndex) => {
