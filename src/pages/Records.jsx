@@ -27,36 +27,36 @@ import DeleteProgressModal from '../components/records/DeleteProgressModal';
 const PEOPLE_PAGE_SIZE = 500;
 
 const COLUMNS = [
-  { key: 'person_id', label: 'ΑΤ (ID)', editable: true },
-  { key: 'ucid', label: 'UCID', editable: true },
-  { key: 'last_name', label: 'Επίθετο', editable: true },
-  { key: 'first_name', label: 'Όνομα', editable: true },
-  { key: 'department', label: 'Τμήμα', editable: true },
-  { key: 'admission_year', label: 'Εισδοχή', editable: true },
-  { key: 'academic_level', label: 'Επίπεδο', editable: true },
+  { key: 'person_id', label: 'ΑΤ (ID)', editable: true, reorderable: true },
+  { key: 'ucid', label: 'UCID', editable: true, reorderable: true },
+  { key: 'last_name', label: 'Επίθετο', editable: true, reorderable: true },
+  { key: 'first_name', label: 'Όνομα', editable: true, reorderable: true },
+  { key: 'department', label: 'Τμήμα', editable: true, reorderable: true },
+  { key: 'admission_year', label: 'Εισδοχή', editable: true, reorderable: true },
+  { key: 'academic_level', label: 'Επίπεδο', editable: true, reorderable: true },
   {
-    key: 'mobile_phone', label: 'Κινητό', editable: true,
+    key: 'mobile_phone', label: 'Κινητό', editable: true, reorderable: true,
     render: (val) => val ? (
       <a href={`tel:${val}`} className="text-blue-600 hover:underline flex items-center gap-1">
         <Phone className="h-3 w-3" /> {val}
       </a>
     ) : '-'
   },
-  { key: 'contact_person_1', label: 'Άτομο 1', editable: true },
-  { key: 'contact_person_2', label: 'Άτομο 2', editable: true },
-  { key: 'member', label: 'Μέλος', editable: true },
-  { key: 'prediction_symbol', label: 'Σύμβολο Πρόβλεψης', editable: true },
+  { key: 'contact_person_1', label: 'Άτομο 1', editable: true, reorderable: true },
+  { key: 'contact_person_2', label: 'Άτομο 2', editable: true, reorderable: true },
+  { key: 'member', label: 'Μέλος', editable: true, reorderable: true },
+  { key: 'prediction_symbol', label: 'Σύμβολο Πρόβλεψης', editable: true, reorderable: true },
   {
-    key: 'voted', label: 'Ψήφισε', type: 'boolean', editable: true,
+    key: 'voted', label: 'Ψήφισε', type: 'boolean', editable: true, reorderable: true,
     render: (val) => (
       <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 text-emerald-700' : ''}>
         {val ? 'ΝΑΙ' : 'ΟΧΙ'}
       </Badge>
     )
   },
-  { key: 'monadikos_kanali', label: 'Μοναδικό Κανάλι', editable: true },
+  { key: 'monadikos_kanali', label: 'Μοναδικό Κανάλι', editable: true, reorderable: true },
   {
-    key: 'notes', label: 'Σημειώσεις', editable: true,
+    key: 'notes', label: 'Σημειώσεις', editable: true, reorderable: true,
     render: (val) => <span className="truncate max-w-[150px] block">{val || '-'}</span>
   },
 ];
