@@ -374,6 +374,7 @@ export default function DataGrid({
                     {columns.map((col, colIndex) => {
                       const isEditing = editable && editing?.rowId === row.id && editing?.key === col.key;
                       const isSaving = saving?.rowId === row.id && saving?.key === col.key;
+                      const isLoadingEdit = loadingEditCell?.rowId === row.id && loadingEditCell?.key === col.key;
                       const canEdit = editable && col.editable;
                       const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === colIndex;
                       const refKey = `${rowIndex}-${colIndex}`;
@@ -398,7 +399,12 @@ export default function DataGrid({
                             if (isEditing || col.type === 'boolean') e.stopPropagation();
                           }}
                         >
-                          {isEditing ? (
+                          {isLoadingEdit ? (
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span className="text-xs">Φόρτωση...</span>
+                            </div>
+                          ) : isEditing ? (
                             <div className="flex items-center gap-2">
                               <Input
                                 autoFocus
