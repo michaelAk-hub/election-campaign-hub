@@ -108,8 +108,13 @@ async function parseFileToRows(file) {
   throw new Error('Μη υποστηριζόμενος τύπος αρχείου (.csv, .xlsx, .xls)');
 }
 
+const GRID_KEY = 'records_person_grid';
+
 export default function Records() {
   const queryClient = useQueryClient();
+
+  const [columnOrder, setColumnOrder] = useState(null); // null = not yet loaded
+  const columnOrderSaveTimer = useRef(null);
 
   const [editDialog, setEditDialog] = useState({ open: false, person: null });
   const [addDialog, setAddDialog] = useState(false);
