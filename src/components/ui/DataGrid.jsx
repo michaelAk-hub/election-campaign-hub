@@ -55,8 +55,26 @@ export default function DataGrid({
   const cellRefs = useRef(new Map()); // key: "rowIndex-colIndex" → DOM element
   const scrollContainerRef = useRef(null);
 
+  // Apply column order: reorderable columns follow the persisted order, non-reorderable stay fixed
+  const orderedColumns = useMemo(() => {
+    if (!columnOrder || columnOrder.length === 0) return columns;
+    const reorderableKeys = columns.filter(c => c.reorderable).map(c => c.key);
+    const nonReorderable = columns.filter(c => !c.reorderable);
+    // Build ordered reorderable columns from columnOrder (skip keys not in current columns)
+    const ordered = columnOrder
+      .filter(k => reorderableKeys.includes(k))
+      .map(k => columns.find(c => c.key === k))
+      .filter(Boolean);
+    // Append any reorderable columns not yet in columnOrder
+    reorderableKeys.forEach(k => {
+      if (!columnOrder.includes(k)) ordered.push(columns.find(c => c.key === k));
+    });
+    // Non-reorderable columns stay at their original relative positions (prepend)
+    return [...nonReorderable, ...ordered];
+  }, [columns, columnOrder]);
+
   // Only data columns participate in keyboard navigation (no checkbox, no actions)
-  const navColumns = useMemo(() => columns, [columns]);
+  const navColumns = useMemo(() => orderedColumns, [orderedColumns]);
 
   const filteredData = useMemo(() => {
     let result = [...data];
