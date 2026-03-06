@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../components/common/PageHeader';
@@ -405,6 +405,19 @@ export default function Records() {
     }
   };
 
+  const fetchLatestRow = useCallback(async (rowId) => {
+    return await base44.entities.Person.get(rowId);
+  }, []);
+
+  const handleRowRefreshed = useCallback((id, newData) => {
+    if (!activeDatasetId) return;
+    const qk = ['people', activeDatasetId, partition];
+    queryClient.setQueryData(qk, (old) => {
+      if (!old) return old;
+      return { ...old, pages: old.pages.map(pg => pg.map(r => r.id === id ? newData : r)) };
+    });
+  }, [activeDatasetId, partition, queryClient]);
+
   const handleDeleteJobClose = () => {
     setDeleteJobId(null);
     queryClient.removeQueries({ queryKey: ['people'] });
@@ -522,6 +535,8 @@ export default function Records() {
           hasMore={!!peopleQuery.hasNextPage}
           isLoadingMore={peopleQuery.isFetchingNextPage}
           onLoadMore={() => peopleQuery.fetchNextPage()}
+          fetchLatestRow={fetchLatestRow}
+          onRowRefreshed={handleRowRefreshed}
           onCellUpdate={async ({ row, key, value }) => {
             await updateCellMutation.mutateAsync({ id: row.id, patch: { [key]: value } });
           }}
