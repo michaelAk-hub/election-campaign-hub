@@ -347,38 +347,90 @@ export default function DataGrid({
         >
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50">
-                {selectable && (
-                  <TableHead className="w-12">
-                    <input
-                      type="checkbox"
-                      checked={filteredData.length > 0 && filteredData.every(row => selectedIds.includes(row.id))}
-                      onChange={(e) => {
-                        if (e.target.checked) onSelectionChange?.(filteredData.map(r => r.id));
-                        else onSelectionChange?.([]);
-                      }}
-                      className="rounded"
-                    />
-                  </TableHead>
-                )}
-                {columns.map(col => (
-                  <TableHead
-                    key={col.key}
-                    className={cn("font-semibold text-slate-700", sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 select-none")}
-                    onClick={() => sortable && col.sortable !== false && handleSort(col.key)}
-                  >
-                    <div className="flex items-center gap-1">
-                      {col.label}
-                      {sortable && col.sortable !== false && (
-                        sortField === col.key
-                          ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
-                          : <ArrowUpDown className="h-3 w-3 text-slate-300" />
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="column-headers" direction="horizontal">
+                  {(provided) => (
+                    <TableRow
+                      className="bg-slate-50"
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                    >
+                      {selectable && (
+                        <TableHead className="w-12">
+                          <input
+                            type="checkbox"
+                            checked={filteredData.length > 0 && filteredData.every(row => selectedIds.includes(row.id))}
+                            onChange={(e) => {
+                              if (e.target.checked) onSelectionChange?.(filteredData.map(r => r.id));
+                              else onSelectionChange?.([]);
+                            }}
+                            className="rounded"
+                          />
+                        </TableHead>
                       )}
-                    </div>
-                  </TableHead>
-                ))}
-                {actions && <TableHead className="w-24">Ενέργειες</TableHead>}
-              </TableRow>
+                      {orderedColumns.map((col, idx) => {
+                        const isReorderable = !!col.reorderable && !!onColumnOrderChange;
+                        // Index among reorderable columns only (for drag)
+                        const reorderableIndex = orderedColumns.filter(c => c.reorderable).findIndex(c => c.key === col.key);
+
+                        if (isReorderable) {
+                          return (
+                            <Draggable key={col.key} draggableId={col.key} index={reorderableIndex}>
+                              {(dragProvided, snapshot) => (
+                                <TableHead
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
+                                  className={cn(
+                                    "font-semibold text-slate-700 select-none",
+                                    sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100",
+                                    snapshot.isDragging && "bg-blue-50 shadow-lg opacity-90"
+                                  )}
+                                  onClick={() => !snapshot.isDragging && sortable && col.sortable !== false && handleSort(col.key)}
+                                >
+                                  <div className="flex items-center gap-1">
+                                    <span
+                                      {...dragProvided.dragHandleProps}
+                                      onClick={e => e.stopPropagation()}
+                                      className="cursor-grab text-slate-300 hover:text-slate-500 flex-shrink-0"
+                                    >
+                                      <GripVertical className="h-3 w-3" />
+                                    </span>
+                                    {col.label}
+                                    {sortable && col.sortable !== false && (
+                                      sortField === col.key
+                                        ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+                                        : <ArrowUpDown className="h-3 w-3 text-slate-300" />
+                                    )}
+                                  </div>
+                                </TableHead>
+                              )}
+                            </Draggable>
+                          );
+                        }
+
+                        return (
+                          <TableHead
+                            key={col.key}
+                            className={cn("font-semibold text-slate-700", sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 select-none")}
+                            onClick={() => sortable && col.sortable !== false && handleSort(col.key)}
+                          >
+                            <div className="flex items-center gap-1">
+                              {col.label}
+                              {sortable && col.sortable !== false && (
+                                sortField === col.key
+                                  ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+                                  : <ArrowUpDown className="h-3 w-3 text-slate-300" />
+                              )}
+                            </div>
+                          </TableHead>
+                        );
+                      })}
+                      {provided.placeholder}
+                      {actions && <TableHead className="w-24">Ενέργειες</TableHead>}
+                    </TableRow>
+                  )}
+                </Droppable>
+              </DragDropContext>
             </TableHeader>
 
             <TableBody>
