@@ -139,12 +139,39 @@ export default function DataGrid({
   }, [focusedCell, displayData.length, navColumns.length, focusCell]);
 
   // --- Edit helpers ---
-  const startEdit = (row, col, rowIndex, colIndex) => {
+  // Async startEdit: fetches fresh row before opening the editor
+  const startEdit = useCallback(async (row, col, rowIndex, colIndex) => {
     if (!editable || !col.editable || col.type === 'boolean') return;
+    if (loadingEditCell) return; // already fetching another cell
+
     setFocusedCell({ rowIndex, colIndex });
-    setEditing({ rowId: row.id, key: col.key });
-    setDraft(String(row[col.key] ?? ''));
-  };
+
+    // If no fetchLatestRow provided, fall back to local row data
+    if (!fetchLatestRow) {
+      setEditing({ rowId: row.id, key: col.key });
+      setDraft(String(row[col.key] ?? ''));
+      return;
+    }
+
+    setLoadingEditCell({ rowId: row.id, key: col.key });
+    try {
+      const latestRow = await fetchLatestRow(row.id);
+      if (!latestRow) {
+        toast.error('Η εγγραφή δεν βρέθηκε ή έχει διαγραφεί.');
+        return;
+      }
+      // Push fresh data up to the parent so the grid shows the latest values
+      onRowRefreshed?.({ id: row.id, newData: latestRow });
+      // Open editor with fresh value
+      setDraft(String(latestRow[col.key] ?? ''));
+      setEditing({ rowId: row.id, key: col.key });
+    } catch (err) {
+      console.error('Failed to fetch latest row for editing:', err);
+      toast.error('Αδυναμία φόρτωσης τελευταίας έκδοσης εγγραφής.');
+    } finally {
+      setLoadingEditCell(null);
+    }
+  }, [editable, loadingEditCell, fetchLatestRow, onRowRefreshed]);
 
   const commitEdit = useCallback(async (restoreRowIndex, restoreColIndex) => {
     if (!editing) return;
