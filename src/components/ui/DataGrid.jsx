@@ -76,13 +76,29 @@ export default function DataGrid({
   // Only data columns participate in keyboard navigation (no checkbox, no actions)
   const navColumns = useMemo(() => orderedColumns, [orderedColumns]);
 
+  const handleDragEnd = useCallback((result) => {
+    if (!result.destination) return;
+    const reorderableKeys = columns.filter(c => c.reorderable).map(c => c.key);
+    // Build current effective order of reorderable keys
+    const currentOrder = columnOrder && columnOrder.length > 0
+      ? columnOrder.filter(k => reorderableKeys.includes(k))
+      : reorderableKeys;
+    // Add any missing
+    reorderableKeys.forEach(k => { if (!currentOrder.includes(k)) currentOrder.push(k); });
+
+    const newOrder = [...currentOrder];
+    const [moved] = newOrder.splice(result.source.index, 1);
+    newOrder.splice(result.destination.index, 0, moved);
+    onColumnOrderChange?.(newOrder);
+  }, [columns, columnOrder, onColumnOrderChange]);
+
   const filteredData = useMemo(() => {
     let result = [...data];
 
     if (search) {
       const searchLower = search.toLowerCase();
       result = result.filter(row =>
-        columns.some(col => {
+        orderedColumns.some(col => {
           const val = row[col.key];
           return val !== null && val !== undefined && String(val).toLowerCase().includes(searchLower);
         })
