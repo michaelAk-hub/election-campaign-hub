@@ -576,6 +576,8 @@ export default function Records() {
           onLoadMore={() => peopleQuery.fetchNextPage()}
           fetchLatestRow={fetchLatestRow}
           onRowRefreshed={handleRowRefreshed}
+          columnOrder={columnOrder}
+          onColumnOrderChange={handleColumnOrderChange}
           onCellUpdate={async ({ row, key, value }) => {
             await updateCellMutation.mutateAsync({ id: row.id, patch: { [key]: value } });
           }}
