@@ -112,6 +112,7 @@ export default function DataGrid({
     });
 
     if (sortField) {
+
       result.sort((a, b) => {
         const aVal = a[sortField];
         const bVal = b[sortField];
