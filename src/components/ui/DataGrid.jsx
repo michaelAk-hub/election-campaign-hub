@@ -128,7 +128,7 @@ export default function DataGrid({
     }
 
     return result;
-  }, [data, search, filters, sortField, sortDir, columns]);
+  }, [data, search, filters, sortField, sortDir, orderedColumns]);
 
   useEffect(() => {
     if (mode !== 'paged') return;
