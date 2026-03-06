@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,14 @@ export default function DataGrid({
   const [editing, setEditing] = useState(null); // { rowId, key }
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(null); // { rowId, key }
+
+  // --- Keyboard navigation state ---
+  const [focusedCell, setFocusedCell] = useState(null); // { rowIndex, colIndex }
+  const cellRefs = useRef(new Map()); // key: "rowIndex-colIndex" → DOM element
+  const scrollContainerRef = useRef(null);
+
+  // Only data columns participate in keyboard navigation (no checkbox, no actions)
+  const navColumns = useMemo(() => columns, [columns]);
 
   const filteredData = useMemo(() => {
     let result = [...data];
@@ -86,6 +94,11 @@ export default function DataGrid({
     if (page > 0 && page >= pc) setPage(0);
   }, [filteredData.length, pageSize, mode]);
 
+  // Clear focusedCell when page/search/filters change so stale refs don't stay active
+  useEffect(() => {
+    setFocusedCell(null);
+  }, [page, search, filters, sortField, sortDir]);
+
   const pageCount = Math.ceil(filteredData.length / pageSize);
   const pagedData = filteredData.slice(page * pageSize, (page + 1) * pageSize);
   const displayData = mode === 'paged' ? pagedData : filteredData;
@@ -102,28 +115,100 @@ export default function DataGrid({
     return values.sort((a, b) => String(a).localeCompare(String(b), 'el', { numeric: true, sensitivity: 'base' }));
   };
 
-  const startEdit = (row, col) => {
+  // --- Focus helpers ---
+  const focusCell = useCallback((rowIndex, colIndex) => {
+    const key = `${rowIndex}-${colIndex}`;
+    const el = cellRefs.current.get(key);
+    if (el) {
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    setFocusedCell({ rowIndex, colIndex });
+  }, []);
+
+  const moveFocus = useCallback((rowDelta, colDelta) => {
+    if (!focusedCell) return;
+    const { rowIndex, colIndex } = focusedCell;
+    const nextRow = Math.max(0, Math.min(displayData.length - 1, rowIndex + rowDelta));
+    const nextCol = Math.max(0, Math.min(navColumns.length - 1, colIndex + colDelta));
+    focusCell(nextRow, nextCol);
+  }, [focusedCell, displayData.length, navColumns.length, focusCell]);
+
+  // --- Edit helpers ---
+  const startEdit = (row, col, rowIndex, colIndex) => {
     if (!editable || !col.editable || col.type === 'boolean') return;
+    setFocusedCell({ rowIndex, colIndex });
     setEditing({ rowId: row.id, key: col.key });
     setDraft(String(row[col.key] ?? ''));
   };
 
-  const commitEdit = async () => {
+  const commitEdit = useCallback(async (restoreRowIndex, restoreColIndex) => {
     if (!editing) return;
     const { rowId, key } = editing;
     const row = data.find(r => r.id === rowId);
-    if (!row || String(row[key] ?? '') === String(draft ?? '') || !onCellUpdate) {
-      setEditing(null);
-      return;
+    const shouldSave = row && String(row[key] ?? '') !== String(draft ?? '') && onCellUpdate;
+    setEditing(null);
+    if (shouldSave) {
+      try {
+        setSaving({ rowId, key });
+        await onCellUpdate({ row, key, value: draft });
+      } finally {
+        setSaving(null);
+      }
     }
-    try {
-      setSaving({ rowId, key });
-      await onCellUpdate({ row, key, value: draft });
-    } finally {
-      setSaving(null);
-      setEditing(null);
+    // Restore focus to cell after edit
+    if (restoreRowIndex != null && restoreColIndex != null) {
+      setTimeout(() => focusCell(restoreRowIndex, restoreColIndex), 0);
     }
-  };
+  }, [editing, draft, data, onCellUpdate, focusCell]);
+
+  const cancelEdit = useCallback((restoreRowIndex, restoreColIndex) => {
+    setEditing(null);
+    if (restoreRowIndex != null && restoreColIndex != null) {
+      setTimeout(() => focusCell(restoreRowIndex, restoreColIndex), 0);
+    }
+  }, [focusCell]);
+
+  // --- Cell keydown handler (navigation mode, not editing) ---
+  const handleCellKeyDown = useCallback((e, row, col, rowIndex, colIndex) => {
+    // If currently editing this cell, let the input handle everything
+    if (editing?.rowId === row.id && editing?.key === col.key) return;
+
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault();
+        moveFocus(0, 1);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        moveFocus(0, -1);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        moveFocus(1, 0);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        moveFocus(-1, 0);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (editable && col.editable && col.type !== 'boolean') {
+          startEdit(row, col, rowIndex, colIndex);
+        }
+        break;
+      case ' ':
+        // Space toggles boolean editable cells
+        if (editable && col.editable && col.type === 'boolean' && onCellUpdate) {
+          e.preventDefault();
+          setSaving({ rowId: row.id, key: col.key });
+          onCellUpdate({ row, key: col.key, value: !row[col.key] }).finally(() => setSaving(null));
+        }
+        break;
+      default:
+        break;
+    }
+  }, [editing, moveFocus, editable, onCellUpdate]);
 
   const handleInfiniteScroll = (e) => {
     if (mode !== 'infinite' || !hasMore || isLoadingMore) return;
@@ -190,6 +275,7 @@ export default function DataGrid({
 
       <div className="border rounded-lg overflow-hidden bg-white">
         <div
+          ref={scrollContainerRef}
           className={cn("overflow-x-auto", mode === 'infinite' && "overflow-y-auto")}
           style={height ? { maxHeight: height } : undefined}
           onScroll={handleInfiniteScroll}
@@ -238,9 +324,9 @@ export default function DataGrid({
                   </TableCell>
                 </TableRow>
               ) : (
-                displayData.map((row, idx) => (
+                displayData.map((row, rowIndex) => (
                   <TableRow
-                    key={row.id || idx}
+                    key={row.id || rowIndex}
                     className={cn("hover:bg-slate-50 transition-colors", onRowClick && "cursor-pointer", selectedIds.includes(row.id) && "bg-blue-50")}
                     onClick={() => onRowClick?.(row)}
                   >
@@ -258,17 +344,32 @@ export default function DataGrid({
                       </TableCell>
                     )}
 
-                    {columns.map(col => {
+                    {columns.map((col, colIndex) => {
                       const isEditing = editable && editing?.rowId === row.id && editing?.key === col.key;
                       const isSaving = saving?.rowId === row.id && saving?.key === col.key;
                       const canEdit = editable && col.editable;
+                      const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === colIndex;
+                      const refKey = `${rowIndex}-${colIndex}`;
 
                       return (
                         <TableCell
                           key={col.key}
-                          className={cn("text-sm", canEdit && "cursor-text")}
-                          onDoubleClick={() => startEdit(row, col)}
-                          onClick={e => { if (isEditing || col.type === 'boolean') e.stopPropagation(); }}
+                          ref={el => {
+                            if (el) cellRefs.current.set(refKey, el);
+                            else cellRefs.current.delete(refKey);
+                          }}
+                          tabIndex={isFocused ? 0 : -1}
+                          className={cn(
+                            "text-sm outline-none",
+                            canEdit && "cursor-text",
+                            isFocused && !isEditing && "ring-2 ring-inset ring-blue-400 bg-blue-50"
+                          )}
+                          onFocus={() => setFocusedCell({ rowIndex, colIndex })}
+                          onKeyDown={(e) => handleCellKeyDown(e, row, col, rowIndex, colIndex)}
+                          onDoubleClick={() => startEdit(row, col, rowIndex, colIndex)}
+                          onClick={e => {
+                            if (isEditing || col.type === 'boolean') e.stopPropagation();
+                          }}
                         >
                           {isEditing ? (
                             <div className="flex items-center gap-2">
@@ -277,10 +378,14 @@ export default function DataGrid({
                                 value={draft}
                                 onChange={e => setDraft(e.target.value)}
                                 onKeyDown={e => {
-                                  if (e.key === 'Enter') { e.preventDefault(); void commitEdit(); }
-                                  if (e.key === 'Escape') { e.preventDefault(); setEditing(null); }
+                                  // Stop arrow keys from bubbling to cell handler while editing
+                                  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                    e.stopPropagation();
+                                  }
+                                  if (e.key === 'Enter') { e.preventDefault(); void commitEdit(rowIndex, colIndex); }
+                                  if (e.key === 'Escape') { e.preventDefault(); cancelEdit(rowIndex, colIndex); }
                                 }}
-                                onBlur={() => void commitEdit()}
+                                onBlur={() => void commitEdit(rowIndex, colIndex)}
                                 className="h-8"
                               />
                               {isSaving && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
