@@ -554,7 +554,7 @@ export default function DataGrid({
 
               {mode === 'infinite' && (hasMore || isLoadingMore) && (
                 <TableRow>
-                  <TableCell colSpan={columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} className="py-4 text-center text-sm text-slate-500">
+                  <TableCell colSpan={orderedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} className="py-4 text-center text-sm text-slate-500">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className={cn("h-4 w-4", isLoadingMore ? "animate-spin" : "opacity-40")} />
                       {isLoadingMore ? 'Φόρτωση περισσότερων...' : 'Κύλιση για περισσότερα'}
