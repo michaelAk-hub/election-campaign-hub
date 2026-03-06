@@ -132,6 +132,40 @@ export default function Records() {
   const [personIdMapping, setPersonIdMapping] = useState(''); // '' = auto-generate
   const [pendingRows, setPendingRows] = useState([]);
 
+  // Load persisted column order
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await base44.functions.invoke('gridPreferencesLoad', { grid_key: GRID_KEY });
+        if (!cancelled && data?.state_json?.columnOrder) {
+          setColumnOrder(data.state_json.columnOrder);
+        } else if (!cancelled) {
+          setColumnOrder(COLUMNS.filter(c => c.reorderable).map(c => c.key));
+        }
+      } catch {
+        if (!cancelled) setColumnOrder(COLUMNS.filter(c => c.reorderable).map(c => c.key));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleColumnOrderChange = useCallback((newOrder) => {
+    setColumnOrder(newOrder);
+    // Debounced save
+    if (columnOrderSaveTimer.current) clearTimeout(columnOrderSaveTimer.current);
+    columnOrderSaveTimer.current = setTimeout(async () => {
+      try {
+        await base44.functions.invoke('gridPreferencesSave', {
+          grid_key: GRID_KEY,
+          state_json: { columnOrder: newOrder }
+        });
+      } catch {
+        // silent — preference save failure is non-critical
+      }
+    }, 800);
+  }, []);
+
   const { data: datasets = [], isLoading: datasetsLoading } = useQuery({
     queryKey: ['datasets'],
     queryFn: async () => {
