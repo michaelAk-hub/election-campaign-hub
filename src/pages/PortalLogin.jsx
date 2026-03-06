@@ -164,9 +164,14 @@ export default function PortalLogin() {
           </CardContent>
         </Card>
 
-        <p className="hidden">
+        <p className="text-center text-blue-200 text-sm mt-6">
           Είστε διαχειριστής;{' '}
-          <a href={createPageUrl('AdminLogin')}>Συνδεθείτε εδώ</a>
+          <a 
+            href={createPageUrl('AdminLogin')}
+            className="text-white hover:underline"
+          >
+            Συνδεθείτε εδώ
+          </a>
         </p>
       </div>
     </div>
