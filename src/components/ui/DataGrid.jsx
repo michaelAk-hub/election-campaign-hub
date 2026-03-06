@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { toast } from 'sonner';
 
 export default function DataGrid({
   data = [],
@@ -31,8 +30,6 @@ export default function DataGrid({
   // inline edit
   editable = false,
   onCellUpdate, // async ({ row, key, value }) => Promise<void>
-  fetchLatestRow, // async (rowId: string) => Promise<rowData> — provided by parent
-  onRowRefreshed, // ({ id, newData }) => void — updates parent state for that row only
 }) {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
@@ -44,7 +41,6 @@ export default function DataGrid({
   const [editing, setEditing] = useState(null); // { rowId, key }
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(null); // { rowId, key }
-  const [loadingEditCell, setLoadingEditCell] = useState(null); // { rowId, key } — per-cell fetch indicator
 
   // --- Keyboard navigation state ---
   const [focusedCell, setFocusedCell] = useState(null); // { rowIndex, colIndex }
@@ -139,39 +135,12 @@ export default function DataGrid({
   }, [focusedCell, displayData.length, navColumns.length, focusCell]);
 
   // --- Edit helpers ---
-  // Async startEdit: fetches fresh row before opening the editor
-  const startEdit = useCallback(async (row, col, rowIndex, colIndex) => {
+  const startEdit = (row, col, rowIndex, colIndex) => {
     if (!editable || !col.editable || col.type === 'boolean') return;
-    if (loadingEditCell) return; // already fetching another cell
-
     setFocusedCell({ rowIndex, colIndex });
-
-    // If no fetchLatestRow provided, fall back to local row data
-    if (!fetchLatestRow) {
-      setEditing({ rowId: row.id, key: col.key });
-      setDraft(String(row[col.key] ?? ''));
-      return;
-    }
-
-    setLoadingEditCell({ rowId: row.id, key: col.key });
-    try {
-      const latestRow = await fetchLatestRow(row.id);
-      if (!latestRow) {
-        toast.error('Η εγγραφή δεν βρέθηκε ή έχει διαγραφεί.');
-        return;
-      }
-      // Push fresh data up to the parent so the grid shows the latest values
-      onRowRefreshed?.({ id: row.id, newData: latestRow });
-      // Open editor with fresh value
-      setDraft(String(latestRow[col.key] ?? ''));
-      setEditing({ rowId: row.id, key: col.key });
-    } catch (err) {
-      console.error('Failed to fetch latest row for editing:', err);
-      toast.error('Αδυναμία φόρτωσης τελευταίας έκδοσης εγγραφής.');
-    } finally {
-      setLoadingEditCell(null);
-    }
-  }, [editable, loadingEditCell, fetchLatestRow, onRowRefreshed]);
+    setEditing({ rowId: row.id, key: col.key });
+    setDraft(String(row[col.key] ?? ''));
+  };
 
   const commitEdit = useCallback(async (restoreRowIndex, restoreColIndex) => {
     if (!editing) return;
@@ -225,7 +194,7 @@ export default function DataGrid({
       case 'Enter':
         e.preventDefault();
         if (editable && col.editable && col.type !== 'boolean') {
-          void startEdit(row, col, rowIndex, colIndex);
+          startEdit(row, col, rowIndex, colIndex);
         }
         break;
       case ' ':
@@ -378,7 +347,6 @@ export default function DataGrid({
                     {columns.map((col, colIndex) => {
                       const isEditing = editable && editing?.rowId === row.id && editing?.key === col.key;
                       const isSaving = saving?.rowId === row.id && saving?.key === col.key;
-                      const isLoadingEdit = loadingEditCell?.rowId === row.id && loadingEditCell?.key === col.key;
                       const canEdit = editable && col.editable;
                       const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === colIndex;
                       const refKey = `${rowIndex}-${colIndex}`;
@@ -393,23 +361,17 @@ export default function DataGrid({
                           tabIndex={isFocused ? 0 : -1}
                           className={cn(
                             "text-sm outline-none",
-                            canEdit && !isLoadingEdit && "cursor-text",
-                            isLoadingEdit && "cursor-wait opacity-60",
+                            canEdit && "cursor-text",
                             isFocused && !isEditing && "ring-2 ring-inset ring-blue-400 bg-blue-50"
                           )}
                           onFocus={() => setFocusedCell({ rowIndex, colIndex })}
                           onKeyDown={(e) => handleCellKeyDown(e, row, col, rowIndex, colIndex)}
-                          onDoubleClick={() => !isLoadingEdit && startEdit(row, col, rowIndex, colIndex)}
+                          onDoubleClick={() => startEdit(row, col, rowIndex, colIndex)}
                           onClick={e => {
                             if (isEditing || col.type === 'boolean') e.stopPropagation();
                           }}
                         >
-                          {isLoadingEdit ? (
-                            <div className="flex items-center gap-1.5 text-slate-400">
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              <span className="text-xs">Φόρτωση...</span>
-                            </div>
-                          ) : isEditing ? (
+                          {isEditing ? (
                             <div className="flex items-center gap-2">
                               <Input
                                 autoFocus
