@@ -34,6 +34,9 @@ export default function DataGrid({
   onCellUpdate, // async ({ row, key, value }) => Promise<void>
   fetchLatestRow, // async (rowId) => Promise<row> — called before edit opens
   onRowRefreshed, // (id, newRowData) => void — called after fresh fetch to update parent
+  // column reordering
+  columnOrder, // string[] of column keys — controlled from outside
+  onColumnOrderChange, // (newOrder: string[]) => void
 }) {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
