@@ -31,6 +31,8 @@ export default function DataGrid({
   // inline edit
   editable = false,
   onCellUpdate, // async ({ row, key, value }) => Promise<void>
+  fetchLatestRow, // async (rowId: string) => Promise<rowData> — provided by parent
+  onRowRefreshed, // ({ id, newData }) => void — updates parent state for that row only
 }) {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
@@ -42,6 +44,7 @@ export default function DataGrid({
   const [editing, setEditing] = useState(null); // { rowId, key }
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(null); // { rowId, key }
+  const [loadingEditCell, setLoadingEditCell] = useState(null); // { rowId, key } — per-cell fetch indicator
 
   // --- Keyboard navigation state ---
   const [focusedCell, setFocusedCell] = useState(null); // { rowIndex, colIndex }
