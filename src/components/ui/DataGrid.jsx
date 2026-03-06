@@ -225,7 +225,7 @@ export default function DataGrid({
       case 'Enter':
         e.preventDefault();
         if (editable && col.editable && col.type !== 'boolean') {
-          startEdit(row, col, rowIndex, colIndex);
+          void startEdit(row, col, rowIndex, colIndex);
         }
         break;
       case ' ':
