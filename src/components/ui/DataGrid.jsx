@@ -436,7 +436,7 @@ export default function DataGrid({
             <TableBody>
               {displayData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} className="text-center py-8 text-slate-500">
+                  <TableCell colSpan={orderedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} className="text-center py-8 text-slate-500">
                     {emptyMessage}
                   </TableCell>
                 </TableRow>
@@ -461,7 +461,7 @@ export default function DataGrid({
                       </TableCell>
                     )}
 
-                    {columns.map((col, colIndex) => {
+                    {orderedColumns.map((col, colIndex) => {
                       const isEditing = editable && editing?.rowId === row.id && editing?.key === col.key;
                       const isSaving = saving?.rowId === row.id && saving?.key === col.key;
                       const isLoadingEdit = loadingEditCell?.rowId === row.id && loadingEditCell?.key === col.key;
