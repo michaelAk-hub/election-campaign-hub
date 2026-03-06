@@ -378,6 +378,7 @@ export default function DataGrid({
                     {columns.map((col, colIndex) => {
                       const isEditing = editable && editing?.rowId === row.id && editing?.key === col.key;
                       const isSaving = saving?.rowId === row.id && saving?.key === col.key;
+                      const isLoadingEdit = loadingEditCell?.rowId === row.id && loadingEditCell?.key === col.key;
                       const canEdit = editable && col.editable;
                       const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === colIndex;
                       const refKey = `${rowIndex}-${colIndex}`;
@@ -392,17 +393,23 @@ export default function DataGrid({
                           tabIndex={isFocused ? 0 : -1}
                           className={cn(
                             "text-sm outline-none",
-                            canEdit && "cursor-text",
+                            canEdit && !isLoadingEdit && "cursor-text",
+                            isLoadingEdit && "cursor-wait opacity-60",
                             isFocused && !isEditing && "ring-2 ring-inset ring-blue-400 bg-blue-50"
                           )}
                           onFocus={() => setFocusedCell({ rowIndex, colIndex })}
                           onKeyDown={(e) => handleCellKeyDown(e, row, col, rowIndex, colIndex)}
-                          onDoubleClick={() => startEdit(row, col, rowIndex, colIndex)}
+                          onDoubleClick={() => !isLoadingEdit && startEdit(row, col, rowIndex, colIndex)}
                           onClick={e => {
                             if (isEditing || col.type === 'boolean') e.stopPropagation();
                           }}
                         >
-                          {isEditing ? (
+                          {isLoadingEdit ? (
+                            <div className="flex items-center gap-1.5 text-slate-400">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <span className="text-xs">Φόρτωση...</span>
+                            </div>
+                          ) : isEditing ? (
                             <div className="flex items-center gap-2">
                               <Input
                                 autoFocus
