@@ -64,10 +64,10 @@ import Portal from './pages/Portal';
 import PortalLogin from './pages/PortalLogin';
 import Predictions from './pages/Predictions';
 import PushMessages from './pages/PushMessages';
+import Records from './pages/Records';
 import SavedQueries from './pages/SavedQueries';
 import SendMessage from './pages/SendMessage';
 import UserManagement from './pages/UserManagement';
-import Records from './pages/Records';
 import __Layout from './Layout.jsx';
 
 
@@ -89,10 +89,10 @@ export const PAGES = {
     "PortalLogin": PortalLogin,
     "Predictions": Predictions,
     "PushMessages": PushMessages,
+    "Records": Records,
     "SavedQueries": SavedQueries,
     "SendMessage": SendMessage,
     "UserManagement": UserManagement,
-    "Records": Records,
 }
 
 export const pagesConfig = {

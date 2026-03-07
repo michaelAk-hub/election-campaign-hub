@@ -26,6 +26,12 @@ import DeleteProgressModal from '../components/records/DeleteProgressModal';
 
 const PEOPLE_PAGE_SIZE = 500;
 
+// Stable JSON serialisation for React Query keys (filters/sort must be deterministic)
+function stableStringify(obj) {
+  if (!obj || typeof obj !== 'object') return String(obj ?? '');
+  return JSON.stringify(obj, Object.keys(obj).sort());
+}
+
 const COLUMNS = [
   { key: 'person_id', label: 'ΑΤ (ID)', editable: true, reorderable: true },
   { key: 'ucid', label: 'UCID', editable: true, reorderable: true },
