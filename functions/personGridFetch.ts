@@ -6,8 +6,9 @@ const UNDERGRAD = ["Π", "Προπτυχιακός Εράσμους"];
 function buildPartitionCondition(partition) {
   if (partition === "postgrad") return { academic_level: { $in: POSTGRAD } };
   if (partition === "undergrad") return { academic_level: { $in: UNDERGRAD } };
-  // unknown = BLANKS
-  return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
+  if (partition === "unknown") return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
+  // "all" or anything else = no condition (return all)
+  return null;
 }
 
 function normalizeFilters(filtersRaw) {
