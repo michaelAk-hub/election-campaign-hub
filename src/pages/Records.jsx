@@ -26,10 +26,13 @@ import DeleteProgressModal from '../components/records/DeleteProgressModal';
 
 const PEOPLE_PAGE_SIZE = 500;
 
-// Stable JSON serialisation for React Query keys (filters/sort must be deterministic)
+// Stable JSON serialisation for React Query keys — recursively sorts all keys
 function stableStringify(obj) {
-  if (!obj || typeof obj !== 'object') return String(obj ?? '');
-  return JSON.stringify(obj, Object.keys(obj).sort());
+  if (obj === null || obj === undefined) return String(obj ?? '');
+  if (typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}';
 }
 
 const COLUMNS = [
@@ -250,6 +253,7 @@ export default function Records() {
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const { data: result } = await base44.functions.invoke('personGridFetch', {
+        datasetId: activeDatasetId,
         partition,
         startRow: pageParam,
         endRow: pageParam + PEOPLE_PAGE_SIZE,
@@ -315,14 +319,17 @@ export default function Records() {
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Person.delete(id),
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['people', activeDatasetId, partition] });
+      // Use the full query key to precisely target the current cache entry
+      const qk = ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)];
+      queryClient.removeQueries({ queryKey: qk });
       queryClient.invalidateQueries({ queryKey: ['people'] });
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
       toast.success('Η εγγραφή διαγράφηκε');
     },
     onError: (e) => {
       if (e?.message?.includes('not found')) {
-        queryClient.invalidateQueries({ queryKey: ['people', activeDatasetId, partition] });
+        const qk = ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)];
+        queryClient.invalidateQueries({ queryKey: qk });
       } else {
         toast.error(e.message);
       }
@@ -333,12 +340,23 @@ export default function Records() {
     if (!activeDatasetId) return toast.error('Δεν υπάρχει ενεργό dataset');
     try {
       toast.message('Ετοιμασία εξαγωγής...');
-      let all = [], skip = 0;
+      // Export respects current partition + filters + sort (matches what user sees)
+      let all = [], startRow = 0;
+      const batchSize = 5000;
       while (true) {
-        const batch = await base44.entities.Person.filter({ dataset_id: activeDatasetId }, '-created_date', 5000, skip);
+        const { data: result } = await base44.functions.invoke('personGridFetch', {
+          datasetId: activeDatasetId,
+          partition,
+          startRow,
+          endRow: startRow + batchSize,
+          sortField: sortModel.field,
+          sortDirection: sortModel.dir,
+          filters: Object.keys(filterModel).length > 0 ? filterModel : null,
+        });
+        const batch = result?.rows ?? [];
         all = all.concat(batch);
-        if (batch.length < 5000) break;
-        skip += 5000;
+        if (batch.length < batchSize) break;
+        startRow += batchSize;
       }
       const headers = COLUMNS.map(c => c.label).join(',');
       const rows = all.map(p =>
