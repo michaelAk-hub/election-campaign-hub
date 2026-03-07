@@ -645,6 +645,13 @@ export default function Records() {
           onRowRefreshed={handleRowRefreshed}
           columnOrder={columnOrder}
           onColumnOrderChange={handleColumnOrderChange}
+          // ── Backend filtering / sorting ──────────────────────────────────
+          serverFiltering={true}
+          filterModel={filterModel}
+          onFilterModelChange={handleFilterModelChange}
+          sortModel={sortModel}
+          onSortModelChange={handleSortModelChange}
+          partition={partition}
           onCellUpdate={async ({ row, key, value }) => {
             await updateCellMutation.mutateAsync({ id: row.id, patch: { [key]: value } });
           }}
