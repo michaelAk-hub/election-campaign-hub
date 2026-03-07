@@ -141,19 +141,24 @@ export default function Records() {
   const [personIdMapping, setPersonIdMapping] = useState(''); // '' = auto-generate
   const [pendingRows, setPendingRows] = useState([]);
 
-  // Load persisted column order
+  // Load persisted column order, filter model and sort model
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { data } = await base44.functions.invoke('gridPreferencesLoad', { grid_key: GRID_KEY });
-        if (!cancelled && data?.state_json?.columnOrder) {
-          setColumnOrder(data.state_json.columnOrder);
-        } else if (!cancelled) {
-          setColumnOrder(COLUMNS.filter(c => c.reorderable).map(c => c.key));
+        if (!cancelled) {
+          const sj = data?.state_json || {};
+          setColumnOrder(sj.columnOrder || COLUMNS.filter(c => c.reorderable).map(c => c.key));
+          setFilterModel(sj.filterModel || {});
+          setSortModel(sj.sortModel || { field: 'created_date', dir: 'desc' });
         }
       } catch {
-        if (!cancelled) setColumnOrder(COLUMNS.filter(c => c.reorderable).map(c => c.key));
+        if (!cancelled) {
+          setColumnOrder(COLUMNS.filter(c => c.reorderable).map(c => c.key));
+          setFilterModel({});
+          setSortModel({ field: 'created_date', dir: 'desc' });
+        }
       }
     })();
     return () => { cancelled = true; };
