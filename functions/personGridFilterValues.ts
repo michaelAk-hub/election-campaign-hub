@@ -1,4 +1,4 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.6";
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.20";
 
 const POSTGRAD = ["Δ", "Μ", "Μεταπτυχιακός Εράσμους"];
 const UNDERGRAD = ["Π", "Προπτυχιακός Εράσμους"];
