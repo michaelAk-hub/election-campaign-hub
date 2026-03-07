@@ -164,21 +164,67 @@ export default function Records() {
     return () => { cancelled = true; };
   }, []);
 
-  const handleColumnOrderChange = useCallback((newOrder) => {
-    setColumnOrder(newOrder);
-    // Debounced save
-    if (columnOrderSaveTimer.current) clearTimeout(columnOrderSaveTimer.current);
-    columnOrderSaveTimer.current = setTimeout(async () => {
+  // Centralised preference save — always merges all three fields
+  const savePreferences = useCallback((patch) => {
+    if (prefSaveTimer.current) clearTimeout(prefSaveTimer.current);
+    prefSaveTimer.current = setTimeout(async () => {
       try {
+        // Read current values from refs to avoid stale closures
+        const currentOrder = columnOrderRef.current;
+        const currentFilter = filterModelRef.current;
+        const currentSort = sortModelRef.current;
         await base44.functions.invoke('gridPreferencesSave', {
           grid_key: GRID_KEY,
-          state_json: { columnOrder: newOrder }
+          state_json: {
+            columnOrder: currentOrder,
+            filterModel: currentFilter,
+            sortModel: currentSort,
+            ...patch, // allow explicit override if needed
+          },
         });
       } catch {
         // silent — preference save failure is non-critical
       }
     }, 800);
   }, []);
+
+  // Refs for latest values (avoids stale closure in savePreferences)
+  const columnOrderRef = useRef(columnOrder);
+  const filterModelRef = useRef(filterModel);
+  const sortModelRef   = useRef(sortModel);
+  useEffect(() => { columnOrderRef.current = columnOrder; }, [columnOrder]);
+  useEffect(() => { filterModelRef.current = filterModel; }, [filterModel]);
+  useEffect(() => { sortModelRef.current   = sortModel; },   [sortModel]);
+
+  const handleColumnOrderChange = useCallback((newOrder) => {
+    setColumnOrder(newOrder);
+    if (columnOrderSaveTimer.current) clearTimeout(columnOrderSaveTimer.current);
+    columnOrderSaveTimer.current = setTimeout(async () => {
+      try {
+        await base44.functions.invoke('gridPreferencesSave', {
+          grid_key: GRID_KEY,
+          state_json: {
+            columnOrder: newOrder,
+            filterModel: filterModelRef.current,
+            sortModel: sortModelRef.current,
+          },
+        });
+      } catch { /* silent */ }
+    }, 800);
+  }, []);
+
+  const handleFilterModelChange = useCallback((newFilterModel) => {
+    setFilterModel(newFilterModel);
+    filterModelRef.current = newFilterModel;
+    savePreferences({ filterModel: newFilterModel });
+  }, [savePreferences]);
+
+  const handleSortModelChange = useCallback((field, dir) => {
+    const newSort = { field, dir };
+    setSortModel(newSort);
+    sortModelRef.current = newSort;
+    savePreferences({ sortModel: newSort });
+  }, [savePreferences]);
 
   const { data: datasets = [], isLoading: datasetsLoading } = useQuery({
     queryKey: ['datasets'],
