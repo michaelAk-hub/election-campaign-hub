@@ -6,7 +6,8 @@ const UNDERGRAD = ["Π", "Προπτυχιακός Εράσμους"];
 function buildPartitionCondition(partition) {
   if (partition === "postgrad") return { academic_level: { $in: POSTGRAD } };
   if (partition === "undergrad") return { academic_level: { $in: UNDERGRAD } };
-  return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
+  if (partition === "unknown") return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
+  return null; // "all" = no condition
 }
 
 function isBlank(v) {
@@ -63,9 +64,10 @@ Deno.serve(async (req) => {
     const isCustom = String(columnKey).startsWith("custom:");
     const customKey = isCustom ? String(columnKey).slice(7) : null;
 
+    const partitionCond = buildPartitionCondition(partition);
     const and = [
       { dataset_id: datasetId },
-      buildPartitionCondition(partition),
+      ...(partitionCond ? [partitionCond] : []),
     ];
 
     // For non-custom fields with search: push regex to reduce scan
