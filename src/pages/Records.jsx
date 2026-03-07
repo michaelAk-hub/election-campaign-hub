@@ -120,7 +120,10 @@ export default function Records() {
   const queryClient = useQueryClient();
 
   const [columnOrder, setColumnOrder] = useState(null); // null = not yet loaded
+  const [filterModel, setFilterModel] = useState({}); // backend multi-value filters
+  const [sortModel, setSortModel] = useState({ field: 'created_date', dir: 'desc' }); // backend sort
   const columnOrderSaveTimer = useRef(null);
+  const prefSaveTimer = useRef(null); // debounced save for filter/sort prefs
 
   const [editDialog, setEditDialog] = useState({ open: false, person: null });
   const [addDialog, setAddDialog] = useState(false);
