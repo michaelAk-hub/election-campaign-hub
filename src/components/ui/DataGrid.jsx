@@ -67,19 +67,20 @@ export default function DataGrid({
   const activeSortField = serverFiltering ? sortModel?.field : localSortField;
   const activeSortDir   = serverFiltering ? sortModel?.dir   : localSortDir;
 
-  // Apply column order
+  // Apply column order — preserves original positions of non-reorderable columns
   const orderedColumns = useMemo(() => {
     if (!columnOrder || columnOrder.length === 0) return columns;
-    const reorderableKeys = columns.filter(c => c.reorderable).map(c => c.key);
-    const nonReorderable = columns.filter(c => !c.reorderable);
-    const ordered = columnOrder
-      .filter(k => reorderableKeys.includes(k))
-      .map(k => columns.find(c => c.key === k))
-      .filter(Boolean);
-    reorderableKeys.forEach(k => {
-      if (!columnOrder.includes(k)) ordered.push(columns.find(c => c.key === k));
+    const reorderableMap = new Map(columns.filter(c => c.reorderable).map(c => [c.key, c]));
+    // Build ordered list of reorderable columns respecting columnOrder, then append any not yet in order
+    const ordered = columnOrder.map(k => reorderableMap.get(k)).filter(Boolean);
+    reorderableMap.forEach((col, k) => { if (!columnOrder.includes(k)) ordered.push(col); });
+
+    // Merge: walk original column array, substitute reorderable slots with ordered reorderable columns
+    const reorderableQueue = [...ordered];
+    return columns.map(col => {
+      if (!col.reorderable) return col;
+      return reorderableQueue.shift() ?? col;
     });
-    return [...nonReorderable, ...ordered];
   }, [columns, columnOrder]);
 
   const navColumns = useMemo(() => orderedColumns, [orderedColumns]);

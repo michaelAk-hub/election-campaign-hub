@@ -46,17 +46,21 @@ Deno.serve(async (req) => {
     const search = String(getAny("search", "")).trim();
     const partition = String(getAny("partition", "postgrad"));
     const filters = normalizeFilters(getAny("filters", null));
+    const datasetId = getAny("datasetId", null);
 
     const limit = Math.max(1, Math.min((endRow - startRow) || 100, 200));
     const sort = sortDirection === "asc" ? sortField : `-${sortField}`;
 
-    // Active dataset
-    const active = await base44.asServiceRole.entities.Dataset.filter({ status: "active" });
-    if (!active.length) return Response.json({ rows: [], lastRow: 0 });
-    const dataset = active[0];
+    // Resolve dataset: prefer explicit datasetId, fall back to active dataset
+    let resolvedDatasetId = datasetId;
+    if (!resolvedDatasetId) {
+      const active = await base44.asServiceRole.entities.Dataset.filter({ status: "active" });
+      if (!active.length) return Response.json({ rows: [], lastRow: 0 });
+      resolvedDatasetId = active[0].id;
+    }
 
     const and = [
-      { dataset_id: dataset.id },
+      { dataset_id: resolvedDatasetId },
       buildPartitionCondition(partition),
     ];
 
