@@ -3,10 +3,10 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Loader2, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, X, Loader2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from "@/lib/utils";
+import ColumnFilterPopover from '@/components/datagrid/ColumnFilterPopover';
 
 export default function DataGrid({
   data = [],
@@ -32,89 +32,92 @@ export default function DataGrid({
   // inline edit
   editable = false,
   onCellUpdate, // async ({ row, key, value }) => Promise<void>
-  fetchLatestRow, // async (rowId) => Promise<row> — called before edit opens
-  onRowRefreshed, // (id, newRowData) => void — called after fresh fetch to update parent
+  fetchLatestRow, // async (rowId) => Promise<row>
+  onRowRefreshed, // (id, newRowData) => void
   // column reordering
-  columnOrder, // string[] of column keys — controlled from outside
-  onColumnOrderChange, // (newOrder: string[]) => void
+  columnOrder,
+  onColumnOrderChange,
+  // ── SERVER FILTERING ────────────────────────────────────────────────────
+  // When true: local per-column filtering is disabled; sort changes propagate to parent
+  serverFiltering = false,
+  filterModel = {},          // controlled: { [colKey]: { filterType:'set', values:[], includeBlanks:bool } }
+  onFilterModelChange,       // (newFilterModel) => void
+  sortModel = null,          // controlled: { field: string, dir: 'asc'|'desc' } | null
+  onSortModelChange,         // (field, dir) => void
+  partition = 'all',         // passed through to ColumnFilterPopover for filter-value loading
 }) {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
-  const [sortField, setSortField] = useState(null);
-  const [sortDir, setSortDir] = useState('asc');
-  const [filters, setFilters] = useState({});
-  const [showFilters, setShowFilters] = useState(false);
+
+  // Local sort state — only used when serverFiltering is false
+  const [localSortField, setLocalSortField] = useState(null);
+  const [localSortDir, setLocalSortDir] = useState('asc');
 
   const [editing, setEditing] = useState(null); // { rowId, key }
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(null); // { rowId, key }
   const [loadingEditCell, setLoadingEditCell] = useState(null); // { rowId, key }
 
-  // --- Keyboard navigation state ---
+  // keyboard navigation
   const [focusedCell, setFocusedCell] = useState(null); // { rowIndex, colIndex }
-  const cellRefs = useRef(new Map()); // key: "rowIndex-colIndex" → DOM element
+  const cellRefs = useRef(new Map());
   const scrollContainerRef = useRef(null);
 
-  // Apply column order: reorderable columns follow the persisted order, non-reorderable stay fixed
+  // Derived: which sort field / dir to show in column headers
+  const activeSortField = serverFiltering ? sortModel?.field : localSortField;
+  const activeSortDir   = serverFiltering ? sortModel?.dir   : localSortDir;
+
+  // Apply column order
   const orderedColumns = useMemo(() => {
     if (!columnOrder || columnOrder.length === 0) return columns;
     const reorderableKeys = columns.filter(c => c.reorderable).map(c => c.key);
     const nonReorderable = columns.filter(c => !c.reorderable);
-    // Build ordered reorderable columns from columnOrder (skip keys not in current columns)
     const ordered = columnOrder
       .filter(k => reorderableKeys.includes(k))
       .map(k => columns.find(c => c.key === k))
       .filter(Boolean);
-    // Append any reorderable columns not yet in columnOrder
     reorderableKeys.forEach(k => {
       if (!columnOrder.includes(k)) ordered.push(columns.find(c => c.key === k));
     });
-    // Non-reorderable columns stay at their original relative positions (prepend)
     return [...nonReorderable, ...ordered];
   }, [columns, columnOrder]);
 
-  // Only data columns participate in keyboard navigation (no checkbox, no actions)
   const navColumns = useMemo(() => orderedColumns, [orderedColumns]);
 
   const handleDragEnd = useCallback((result) => {
     if (!result.destination) return;
     const reorderableKeys = columns.filter(c => c.reorderable).map(c => c.key);
-    // Build current effective order of reorderable keys
     const currentOrder = columnOrder && columnOrder.length > 0
       ? columnOrder.filter(k => reorderableKeys.includes(k))
-      : reorderableKeys;
-    // Add any missing
+      : [...reorderableKeys];
     reorderableKeys.forEach(k => { if (!currentOrder.includes(k)) currentOrder.push(k); });
-
     const newOrder = [...currentOrder];
     const [moved] = newOrder.splice(result.source.index, 1);
     newOrder.splice(result.destination.index, 0, moved);
     onColumnOrderChange?.(newOrder);
   }, [columns, columnOrder, onColumnOrderChange]);
 
-  const filteredData = useMemo(() => {
+  // displayData:
+  //   - serverFiltering=true  → data is already backend-filtered/sorted; only apply local search
+  //   - serverFiltering=false → apply local search + local sort (no per-column filter — filters panel removed)
+  const displayData = useMemo(() => {
     let result = [...data];
 
-    if (search) {
-      const searchLower = search.toLowerCase();
+    if (searchable && search) {
+      const lower = search.toLowerCase();
       result = result.filter(row =>
         orderedColumns.some(col => {
           const val = row[col.key];
-          return val !== null && val !== undefined && String(val).toLowerCase().includes(searchLower);
+          return val != null && String(val).toLowerCase().includes(lower);
         })
       );
     }
 
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value && value !== 'all') {
-        result = result.filter(row => String(row[key]) === value);
-      }
-    });
-
-    if (sortField) {
+    // Local sort only when not in server mode
+    if (!serverFiltering && localSortField) {
       result.sort((a, b) => {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
+        const aVal = a[localSortField];
+        const bVal = b[localSortField];
         const aNum = Number(aVal);
         const bNum = Number(bVal);
         let cmp;
@@ -123,39 +126,58 @@ export default function DataGrid({
         } else {
           cmp = String(aVal ?? '').localeCompare(String(bVal ?? ''), 'el', { numeric: true, sensitivity: 'base' });
         }
-        return sortDir === 'asc' ? cmp : -cmp;
+        return localSortDir === 'asc' ? cmp : -cmp;
       });
     }
 
     return result;
-  }, [data, search, filters, sortField, sortDir, orderedColumns]);
+  }, [data, searchable, search, serverFiltering, localSortField, localSortDir, orderedColumns]);
 
   useEffect(() => {
     if (mode !== 'paged') return;
-    const pc = Math.ceil(filteredData.length / pageSize);
+    const pc = Math.ceil(displayData.length / pageSize);
     if (page > 0 && page >= pc) setPage(0);
-  }, [filteredData.length, pageSize, mode]);
+  }, [displayData.length, pageSize, mode]);
 
-  // Clear focusedCell when page/search/filters change so stale refs don't stay active
   useEffect(() => {
     setFocusedCell(null);
-  }, [page, search, filters, sortField, sortDir]);
+  }, [page, search, localSortField, localSortDir]);
 
-  const pageCount = Math.ceil(filteredData.length / pageSize);
-  const pagedData = filteredData.slice(page * pageSize, (page + 1) * pageSize);
-  const displayData = mode === 'paged' ? pagedData : filteredData;
+  const pageCount = Math.ceil(displayData.length / pageSize);
+  const pagedData = displayData.slice(page * pageSize, (page + 1) * pageSize);
+  const visibleData = mode === 'paged' ? pagedData : displayData;
 
-  const handleSort = (field) => {
-    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortDir('asc'); }
-  };
+  const handleSort = useCallback((field) => {
+    if (serverFiltering) {
+      if (!onSortModelChange) return;
+      const currentDir = sortModel?.field === field ? sortModel.dir : 'asc';
+      const newDir = sortModel?.field === field ? (currentDir === 'asc' ? 'desc' : 'asc') : 'asc';
+      onSortModelChange(field, newDir);
+    } else {
+      if (localSortField === field) setLocalSortDir(d => d === 'asc' ? 'desc' : 'asc');
+      else { setLocalSortField(field); setLocalSortDir('asc'); }
+    }
+  }, [serverFiltering, onSortModelChange, sortModel, localSortField]);
 
-  const getUniqueValues = (key) => {
-    const values = [...new Set(
-      data.map(row => row[key]).filter(v => v !== null && v !== undefined && String(v).trim() !== '')
-    )];
-    return values.sort((a, b) => String(a).localeCompare(String(b), 'el', { numeric: true, sensitivity: 'base' }));
-  };
+  // Server filter: update a single column's model and propagate to parent
+  const handleColumnFilterChange = useCallback((colKey, model) => {
+    if (!onFilterModelChange) return;
+    const next = { ...filterModel };
+    if (model == null) {
+      delete next[colKey];
+    } else {
+      next[colKey] = model;
+    }
+    onFilterModelChange(next);
+  }, [filterModel, onFilterModelChange]);
+
+  const handleClearAllFilters = useCallback(() => {
+    if (serverFiltering) {
+      onFilterModelChange?.({});
+    }
+  }, [serverFiltering, onFilterModelChange]);
+
+  const activeFilterCount = Object.keys(filterModel || {}).length;
 
   // --- Focus helpers ---
   const focusCell = useCallback((rowIndex, colIndex) => {
@@ -171,19 +193,16 @@ export default function DataGrid({
   const moveFocus = useCallback((rowDelta, colDelta) => {
     if (!focusedCell) return;
     const { rowIndex, colIndex } = focusedCell;
-    const nextRow = Math.max(0, Math.min(displayData.length - 1, rowIndex + rowDelta));
+    const nextRow = Math.max(0, Math.min(visibleData.length - 1, rowIndex + rowDelta));
     const nextCol = Math.max(0, Math.min(navColumns.length - 1, colIndex + colDelta));
     focusCell(nextRow, nextCol);
-  }, [focusedCell, displayData.length, navColumns.length, focusCell]);
+  }, [focusedCell, visibleData.length, navColumns.length, focusCell]);
 
   // --- Edit helpers ---
   const startEdit = async (row, col, rowIndex, colIndex) => {
     if (!editable || !col.editable || col.type === 'boolean') return;
-    // Prevent duplicate startEdit while already loading
     if (loadingEditCell) return;
-
     setFocusedCell({ rowIndex, colIndex });
-
     if (fetchLatestRow) {
       setLoadingEditCell({ rowId: row.id, key: col.key });
       try {
@@ -195,13 +214,12 @@ export default function DataGrid({
         onRowRefreshed?.(row.id, latestRow);
         setDraft(String(latestRow[col.key] ?? ''));
         setEditing({ rowId: row.id, key: col.key });
-      } catch (err) {
+      } catch {
         toast.error('Αδυναμία φόρτωσης τελευταίας έκδοσης εγγραφής.');
       } finally {
         setLoadingEditCell(null);
       }
     } else {
-      // Fallback: no fetchLatestRow provided, use local value
       setEditing({ rowId: row.id, key: col.key });
       setDraft(String(row[col.key] ?? ''));
     }
@@ -221,7 +239,6 @@ export default function DataGrid({
         setSaving(null);
       }
     }
-    // Restore focus to cell after edit
     if (restoreRowIndex != null && restoreColIndex != null) {
       setTimeout(() => focusCell(restoreRowIndex, restoreColIndex), 0);
     }
@@ -234,44 +251,25 @@ export default function DataGrid({
     }
   }, [focusCell]);
 
-  // --- Cell keydown handler (navigation mode, not editing) ---
   const handleCellKeyDown = useCallback((e, row, col, rowIndex, colIndex) => {
-    // If currently editing this cell, let the input handle everything
     if (editing?.rowId === row.id && editing?.key === col.key) return;
-
     switch (e.key) {
-      case 'ArrowRight':
-        e.preventDefault();
-        moveFocus(0, 1);
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        moveFocus(0, -1);
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        moveFocus(1, 0);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        moveFocus(-1, 0);
-        break;
+      case 'ArrowRight': e.preventDefault(); moveFocus(0, 1); break;
+      case 'ArrowLeft':  e.preventDefault(); moveFocus(0, -1); break;
+      case 'ArrowDown':  e.preventDefault(); moveFocus(1, 0); break;
+      case 'ArrowUp':    e.preventDefault(); moveFocus(-1, 0); break;
       case 'Enter':
         e.preventDefault();
-        if (editable && col.editable && col.type !== 'boolean') {
-          startEdit(row, col, rowIndex, colIndex);
-        }
+        if (editable && col.editable && col.type !== 'boolean') startEdit(row, col, rowIndex, colIndex);
         break;
       case ' ':
-        // Space toggles boolean editable cells
         if (editable && col.editable && col.type === 'boolean' && onCellUpdate) {
           e.preventDefault();
           setSaving({ rowId: row.id, key: col.key });
           onCellUpdate({ row, key: col.key, value: !row[col.key] }).finally(() => setSaving(null));
         }
         break;
-      default:
-        break;
+      default: break;
     }
   }, [editing, moveFocus, editable, onCellUpdate]);
 
@@ -290,17 +288,22 @@ export default function DataGrid({
             <Input
               placeholder="Αναζήτηση..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
               className="pl-9"
             />
           </div>
         )}
 
-        {filterable && (
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(v => !v)} className={cn(showFilters && "bg-slate-100")}>
-            <Filter className="h-4 w-4 mr-2" />
-            Φίλτρα
-          </Button>
+        {/* Active backend filter badge + clear-all */}
+        {serverFiltering && activeFilterCount > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+              {activeFilterCount} φίλτρο{activeFilterCount !== 1 ? 'α' : ''} ενεργό{activeFilterCount !== 1 ? '' : ''}
+            </span>
+            <Button variant="ghost" size="sm" onClick={handleClearAllFilters} className="h-7 text-xs text-slate-500 hover:text-red-600">
+              <X className="h-3 w-3 mr-1" /> Καθαρισμός όλων
+            </Button>
+          </div>
         )}
 
         {bulkActions && selectedIds.length > 0 ? (
@@ -310,33 +313,11 @@ export default function DataGrid({
           </div>
         ) : (
           <div className="text-sm text-slate-500 ml-auto flex items-center gap-2">
-            <span>{filteredData.length} εγγραφές</span>
+            <span>{displayData.length} εγγραφές</span>
             {mode === 'infinite' && <span className="text-xs text-slate-400">(φορτωμένα)</span>}
           </div>
         )}
       </div>
-
-      {showFilters && (
-        <div className="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-lg">
-          {orderedColumns.filter(col => col.filterable !== false).map(col => (
-            <div key={col.key} className="min-w-[150px]">
-              <label className="text-xs text-slate-500 mb-1 block">{col.label}</label>
-              <Select value={filters[col.key] || 'all'} onValueChange={(v) => { setFilters(f => ({ ...f, [col.key]: v })); setPage(0); }}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Όλα</SelectItem>
-                  {getUniqueValues(col.key).map(v => (
-                    <SelectItem key={String(v)} value={String(v)}>{String(v)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-          <Button variant="ghost" size="sm" onClick={() => setFilters({})} className="self-end">
-            <X className="h-4 w-4 mr-1" /> Καθαρισμός
-          </Button>
-        </div>
-      )}
 
       <div className="border rounded-lg overflow-hidden bg-white">
         <div
@@ -359,19 +340,52 @@ export default function DataGrid({
                         <TableHead className="w-12">
                           <input
                             type="checkbox"
-                            checked={filteredData.length > 0 && filteredData.every(row => selectedIds.includes(row.id))}
-                            onChange={(e) => {
-                              if (e.target.checked) onSelectionChange?.(filteredData.map(r => r.id));
+                            checked={visibleData.length > 0 && visibleData.every(row => selectedIds.includes(row.id))}
+                            onChange={e => {
+                              if (e.target.checked) onSelectionChange?.(visibleData.map(r => r.id));
                               else onSelectionChange?.([]);
                             }}
                             className="rounded"
                           />
                         </TableHead>
                       )}
-                      {orderedColumns.map((col, idx) => {
+
+                      {orderedColumns.map((col) => {
                         const isReorderable = !!col.reorderable && !!onColumnOrderChange;
-                        // Index among reorderable columns only (for drag)
                         const reorderableIndex = orderedColumns.filter(c => c.reorderable).findIndex(c => c.key === col.key);
+                        const hasActiveFilter = serverFiltering && !!(filterModel?.[col.key]);
+
+                        const headerContent = (dragProvided, snapshot) => (
+                          <div className="flex items-center gap-0.5">
+                            {isReorderable && (
+                              <span
+                                {...(dragProvided?.dragHandleProps || {})}
+                                onClick={e => e.stopPropagation()}
+                                className="cursor-grab text-slate-300 hover:text-slate-500 flex-shrink-0"
+                              >
+                                <GripVertical className="h-3 w-3" />
+                              </span>
+                            )}
+                            <span className={cn(hasActiveFilter && "text-blue-700 font-bold")}>
+                              {col.label}
+                            </span>
+                            {sortable && col.sortable !== false && (
+                              activeSortField === col.key
+                                ? (activeSortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+                                : <ArrowUpDown className="h-3 w-3 text-slate-300" />
+                            )}
+                            {/* Per-column multi-select filter popover — server mode only */}
+                            {serverFiltering && filterable && col.filterable !== false && (
+                              <ColumnFilterPopover
+                                columnKey={col.key}
+                                columnLabel={col.label}
+                                partition={partition}
+                                currentModel={filterModel?.[col.key]}
+                                onApply={model => handleColumnFilterChange(col.key, model)}
+                              />
+                            )}
+                          </div>
+                        );
 
                         if (isReorderable) {
                           return (
@@ -383,25 +397,12 @@ export default function DataGrid({
                                   className={cn(
                                     "font-semibold text-slate-700 select-none",
                                     sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100",
-                                    snapshot.isDragging && "bg-blue-50 shadow-lg opacity-90"
+                                    snapshot.isDragging && "bg-blue-50 shadow-lg opacity-90",
+                                    hasActiveFilter && "bg-blue-50"
                                   )}
                                   onClick={() => !snapshot.isDragging && sortable && col.sortable !== false && handleSort(col.key)}
                                 >
-                                  <div className="flex items-center gap-1">
-                                    <span
-                                      {...dragProvided.dragHandleProps}
-                                      onClick={e => e.stopPropagation()}
-                                      className="cursor-grab text-slate-300 hover:text-slate-500 flex-shrink-0"
-                                    >
-                                      <GripVertical className="h-3 w-3" />
-                                    </span>
-                                    {col.label}
-                                    {sortable && col.sortable !== false && (
-                                      sortField === col.key
-                                        ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
-                                        : <ArrowUpDown className="h-3 w-3 text-slate-300" />
-                                    )}
-                                  </div>
+                                  {headerContent(dragProvided, snapshot)}
                                 </TableHead>
                               )}
                             </Draggable>
@@ -411,20 +412,18 @@ export default function DataGrid({
                         return (
                           <TableHead
                             key={col.key}
-                            className={cn("font-semibold text-slate-700", sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 select-none")}
+                            className={cn(
+                              "font-semibold text-slate-700",
+                              sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 select-none",
+                              hasActiveFilter && "bg-blue-50"
+                            )}
                             onClick={() => sortable && col.sortable !== false && handleSort(col.key)}
                           >
-                            <div className="flex items-center gap-1">
-                              {col.label}
-                              {sortable && col.sortable !== false && (
-                                sortField === col.key
-                                  ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
-                                  : <ArrowUpDown className="h-3 w-3 text-slate-300" />
-                              )}
-                            </div>
+                            {headerContent(null, null)}
                           </TableHead>
                         );
                       })}
+
                       {provided.placeholder}
                       {actions && <TableHead className="w-24">Ενέργειες</TableHead>}
                     </TableRow>
@@ -434,14 +433,14 @@ export default function DataGrid({
             </TableHeader>
 
             <TableBody>
-              {displayData.length === 0 ? (
+              {visibleData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={orderedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} className="text-center py-8 text-slate-500">
                     {emptyMessage}
                   </TableCell>
                 </TableRow>
               ) : (
-                displayData.map((row, rowIndex) => (
+                visibleData.map((row, rowIndex) => (
                   <TableRow
                     key={row.id || rowIndex}
                     className={cn("hover:bg-slate-50 transition-colors", onRowClick && "cursor-pointer", selectedIds.includes(row.id) && "bg-blue-50")}
@@ -452,7 +451,7 @@ export default function DataGrid({
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(row.id)}
-                          onChange={(e) => {
+                          onChange={e => {
                             if (e.target.checked) onSelectionChange?.([...selectedIds, row.id]);
                             else onSelectionChange?.(selectedIds.filter(id => id !== row.id));
                           }}
@@ -483,7 +482,7 @@ export default function DataGrid({
                             isFocused && !isEditing && "ring-2 ring-inset ring-blue-400 bg-blue-50"
                           )}
                           onFocus={() => setFocusedCell({ rowIndex, colIndex })}
-                          onKeyDown={(e) => handleCellKeyDown(e, row, col, rowIndex, colIndex)}
+                          onKeyDown={e => handleCellKeyDown(e, row, col, rowIndex, colIndex)}
                           onDoubleClick={() => startEdit(row, col, rowIndex, colIndex)}
                           onClick={e => {
                             if (isEditing || col.type === 'boolean') e.stopPropagation();
@@ -501,10 +500,7 @@ export default function DataGrid({
                                 value={draft}
                                 onChange={e => setDraft(e.target.value)}
                                 onKeyDown={e => {
-                                  // Stop arrow keys from bubbling to cell handler while editing
-                                  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                                    e.stopPropagation();
-                                  }
+                                  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.stopPropagation();
                                   if (e.key === 'Enter') { e.preventDefault(); void commitEdit(rowIndex, colIndex); }
                                   if (e.key === 'Escape') { e.preventDefault(); cancelEdit(rowIndex, colIndex); }
                                 }}
@@ -518,7 +514,7 @@ export default function DataGrid({
                               <input
                                 type="checkbox"
                                 checked={!!row[col.key]}
-                                onChange={async (e) => {
+                                onChange={async e => {
                                   e.stopPropagation();
                                   if (!onCellUpdate) return;
                                   try {
