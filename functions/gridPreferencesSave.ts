@@ -23,9 +23,10 @@ Deno.serve(async (req) => {
 
         let preference;
         if (existing.length > 0) {
-            // Update existing
+            // Merge: preserve existing keys not present in new state_json
+            const merged = { ...(existing[0].state_json || {}), ...state_json };
             preference = await base44.entities.GridPreference.update(existing[0].id, {
-                state_json
+                state_json: merged
             });
         } else {
             // Create new
