@@ -243,9 +243,6 @@ export default function Records() {
   const activeDataset = useMemo(() => datasets.find(d => d.status === 'active') || null, [datasets]);
   const activeDatasetId = activeDataset?.id || null;
 
-  const POSTGRAD_LEVELS = ['Δ', 'Μ', 'Μεταπτυχιακός Εράσμους'];
-  const UNDERGRAD_LEVELS = ['Π', 'Προπτυχιακός Εράσμους'];
-
   const peopleQuery = useInfiniteQuery({
     // Include filterModel and sortModel in key so any change resets & refetches from row 0
     queryKey: ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)],
