@@ -60,9 +60,10 @@ Deno.serve(async (req) => {
       resolvedDatasetId = active[0].id;
     }
 
+    const partitionCond = buildPartitionCondition(partition);
     const and = [
       { dataset_id: resolvedDatasetId },
-      buildPartitionCondition(partition),
+      ...(partitionCond ? [partitionCond] : []),
     ];
 
     if (search) {
