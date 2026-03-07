@@ -247,15 +247,21 @@ export default function Records() {
   const UNDERGRAD_LEVELS = ['Π', 'Προπτυχιακός Εράσμους'];
 
   const peopleQuery = useInfiniteQuery({
-    queryKey: ['people', activeDatasetId, partition],
+    // Include filterModel and sortModel in key so any change resets & refetches from row 0
+    queryKey: ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)],
     enabled: !!activeDatasetId,
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
-      let filter = { dataset_id: activeDatasetId };
-      if (partition === 'postgrad') filter = { ...filter, academic_level: { $in: POSTGRAD_LEVELS } };
-      else if (partition === 'undergrad') filter = { ...filter, academic_level: { $in: UNDERGRAD_LEVELS } };
-      else if (partition === 'unknown') filter = { ...filter, academic_level: null };
-      return base44.entities.Person.filter(filter, '-created_date', PEOPLE_PAGE_SIZE, pageParam);
+      const { data: result } = await base44.functions.invoke('personGridFetch', {
+        partition,
+        startRow: pageParam,
+        endRow: pageParam + PEOPLE_PAGE_SIZE,
+        sortField: sortModel.field,
+        sortDirection: sortModel.dir,
+        filters: Object.keys(filterModel).length > 0 ? filterModel : null,
+      });
+      // personGridFetch returns { rows, lastRow }
+      return result?.rows ?? [];
     },
     getNextPageParam: (lastPage, pages) =>
       lastPage.length === PEOPLE_PAGE_SIZE ? pages.length * PEOPLE_PAGE_SIZE : undefined,
