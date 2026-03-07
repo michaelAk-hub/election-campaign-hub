@@ -516,12 +516,13 @@ export default function Records() {
 
   const handleRowRefreshed = useCallback((id, newData) => {
     if (!activeDatasetId) return;
-    const qk = ['people', activeDatasetId, partition];
+    // Must match the full queryKey including filterModel + sortModel
+    const qk = ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)];
     queryClient.setQueryData(qk, (old) => {
       if (!old) return old;
       return { ...old, pages: old.pages.map(pg => pg.map(r => r.id === id ? newData : r)) };
     });
-  }, [activeDatasetId, partition, queryClient]);
+  }, [activeDatasetId, partition, filterModel, sortModel, queryClient]);
 
   const handleDeleteJobClose = () => {
     setDeleteJobId(null);
