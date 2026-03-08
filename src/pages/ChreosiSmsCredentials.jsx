@@ -410,8 +410,11 @@ export default function ChreosiSmsCredentials() {
                       ) : (
                         <XCircle className="h-4 w-4 text-red-500 shrink-0" />
                       )}
-                      <span className="font-medium">{l.to_username}</span>
-                      <span className="text-slate-400 text-xs">{l.to_phone}</span>
+                      <span className="font-medium">{l.to_username || l.to_phone}</span>
+                      {l.to_username && <span className="text-slate-400 text-xs">{l.to_phone}</span>}
+                      {l.category === "chreosi_credentials_manual" && (
+                        <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">manual</Badge>
+                      )}
                     </div>
                     <span className="text-xs text-slate-400">
                       {l.created_date ? new Date(l.created_date).toLocaleString("el-GR") : ""}
