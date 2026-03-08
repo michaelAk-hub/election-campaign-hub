@@ -53,8 +53,10 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
+    const sendTarget = body.sendTarget || "chreosi";
     const mode = body.mode || "selected";
     const usernames = body.usernames || [];
+    const manualPhones = body.manualPhones || [];
     const title = body.title || "Στοιχεία πρόσβασης";
     const portalUrl = body.portalUrl || "https://votecontrol.info/PortalLogin";
     const template =
@@ -63,10 +65,6 @@ Deno.serve(async (req) => {
     const includeTitleLine = !!body.includeTitleLine;
     const onlyActive = body.onlyActive !== false;
     const throttleMs = Number(body.throttleMs || 150);
-
-    if (mode === "selected" && usernames.length === 0) {
-      return Response.json({ error: "No usernames provided" }, { status: 400 });
-    }
 
     const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
     const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
@@ -78,6 +76,97 @@ Deno.serve(async (req) => {
     }
     if (!messagingServiceSid && !from) {
       return Response.json({ error: "Missing TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM" }, { status: 500 });
+    }
+
+    // ── MANUAL PHONE MODE ──────────────────────────────────────────────────────
+    if (sendTarget === "manual") {
+      if (!manualPhones || manualPhones.length === 0) {
+        return Response.json({ error: "No phone numbers provided" }, { status: 400 });
+      }
+
+      // Backend template safety check — block unsupported placeholders
+      const unsupported = ["{USERNAME}", "{PASSWORD}", "{NAME}"];
+      const found = unsupported.filter((p) => template.includes(p));
+      if (found.length > 0) {
+        return Response.json({
+          error: `Manual phone mode only supports {PORTAL_URL}. The placeholders ${found.join(", ")} require a Chreosi account.`,
+        }, { status: 400 });
+      }
+
+      // Normalize + deduplicate
+      const seen = new Set();
+      let sent = 0, failed = 0, skipped_invalid = 0, skipped_duplicate = 0;
+      const results = [];
+
+      for (const raw of manualPhones) {
+        const toE164 = normalizeCyPhoneToE164(raw);
+        if (!toE164) {
+          skipped_invalid++;
+          await base44.asServiceRole.entities.SmsLog.create({
+            category: "chreosi_credentials_manual",
+            title,
+            to_phone: raw,
+            status: "skipped",
+            error: "Invalid phone format",
+            sent_by_user_id: user.id,
+          });
+          results.push({ phone: raw, status: "skipped_invalid", reason: "Invalid phone format" });
+          continue;
+        }
+        if (seen.has(toE164)) {
+          skipped_duplicate++;
+          results.push({ phone: toE164, status: "skipped_duplicate", reason: "Duplicate" });
+          continue;
+        }
+        seen.add(toE164);
+
+        let msg = template.replaceAll("{PORTAL_URL}", portalUrl);
+        if (includeTitleLine && title) msg = `${title}\n${msg}`;
+
+        try {
+          const tw = await twilioSendSms({
+            accountSid,
+            authToken,
+            toE164,
+            body: msg,
+            messagingServiceSid: messagingServiceSid || undefined,
+            from: !messagingServiceSid ? from : undefined,
+          });
+          sent++;
+          await base44.asServiceRole.entities.SmsLog.create({
+            category: "chreosi_credentials_manual",
+            title,
+            to_phone: toE164,
+            message_preview: msg.slice(0, 240),
+            provider: "twilio",
+            provider_message_id: tw?.sid || "",
+            status: "sent",
+            sent_by_user_id: user.id,
+          });
+          results.push({ phone: toE164, status: "sent", messageId: tw?.sid || "" });
+        } catch (e) {
+          failed++;
+          await base44.asServiceRole.entities.SmsLog.create({
+            category: "chreosi_credentials_manual",
+            title,
+            to_phone: toE164,
+            provider: "twilio",
+            status: "failed",
+            error: e?.message || String(e),
+            sent_by_user_id: user.id,
+          });
+          results.push({ phone: toE164, status: "failed", error: e?.message || String(e) });
+        }
+
+        if (throttleMs > 0) await new Promise((r) => setTimeout(r, throttleMs));
+      }
+
+      return Response.json({ ok: true, sent, failed, skipped: skipped_invalid + skipped_duplicate, skipped_invalid, skipped_duplicate, results });
+    }
+
+    // ── CHREOSI MODE ───────────────────────────────────────────────────────────
+    if (mode === "selected" && usernames.length === 0) {
+      return Response.json({ error: "No usernames provided" }, { status: 400 });
     }
 
     // Load all Chreosi accounts

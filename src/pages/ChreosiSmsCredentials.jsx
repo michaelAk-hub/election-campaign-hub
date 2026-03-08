@@ -17,7 +17,9 @@ export default function ChreosiSmsCredentials() {
   const PORTAL_DEFAULT = "https://votecontrol.info/PortalLogin";
   const queryClient = useQueryClient();
 
+  const [sendTarget, setSendTarget] = useState("chreosi");
   const [mode, setMode] = useState("selected");
+  const [manualPhoneNumbers, setManualPhoneNumbers] = useState("");
   const [onlyActive, setOnlyActive] = useState(true);
   const [includeTitleLine, setIncludeTitleLine] = useState(false);
   const [title, setTitle] = useState("Στοιχεία πρόσβασης");
