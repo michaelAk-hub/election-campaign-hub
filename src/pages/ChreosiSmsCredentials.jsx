@@ -52,8 +52,11 @@ export default function ChreosiSmsCredentials() {
   const { data: logs = [], refetch: refetchLogs } = useQuery({
     queryKey: ["smslog-chreosi"],
     queryFn: async () => {
-      const all = await base44.entities.SmsLog.filter({ category: "chreosi_credentials" });
-      return (all || [])
+      const [a, b2] = await Promise.all([
+        base44.entities.SmsLog.filter({ category: "chreosi_credentials" }),
+        base44.entities.SmsLog.filter({ category: "chreosi_credentials_manual" }),
+      ]);
+      return [...(a || []), ...(b2 || [])]
         .sort((a, b) => (b.created_date || "").localeCompare(a.created_date || ""))
         .slice(0, 50);
     },
@@ -326,8 +329,8 @@ export default function ChreosiSmsCredentials() {
           </CardContent>
         </Card>
 
-        {/* Account Selection Card */}
-        <Card>
+        {/* Account Selection Card — hidden in manual mode */}
+        <Card className={sendTarget === "manual" ? "opacity-40 pointer-events-none" : ""}>
           <CardHeader>
             <CardTitle className="text-base">Επιλογή Χρεωστικών</CardTitle>
           </CardHeader>
