@@ -215,48 +215,95 @@ export default function ChreosiSmsCredentials() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>Τρόπος αποστολής</Label>
+              {/* Primary send target */}
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant={mode === "selected" ? "default" : "outline"}
+                  variant={sendTarget === "chreosi" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setMode("selected")}
+                  onClick={() => setSendTarget("chreosi")}
                 >
-                  Επιλεγμένοι
+                  Αποστολή Χρεωστικών
                 </Button>
                 <Button
                   type="button"
-                  variant={mode === "all_active" ? "default" : "outline"}
+                  variant={sendTarget === "manual" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setMode("all_active")}
+                  onClick={() => setSendTarget("manual")}
                 >
-                  Όλοι οι ενεργοί
+                  <Phone className="h-3 w-3 mr-1" />
+                  Εισαγωγή Τηλεφώνων
                 </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="only-active"
-                  checked={onlyActive}
-                  onCheckedChange={setOnlyActive}
-                />
-                <label htmlFor="only-active" className="text-sm cursor-pointer">
-                  Μόνο ενεργοί (is_active)
-                </label>
-              </div>
+
+              {/* Chreosi sub-mode */}
+              {sendTarget === "chreosi" && (
+                <div className="space-y-2 pl-2 border-l-2 border-slate-200">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={mode === "selected" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setMode("selected")}
+                    >
+                      Επιλεγμένοι
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={mode === "all_active" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setMode("all_active")}
+                    >
+                      Όλοι οι ενεργοί
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="only-active"
+                      checked={onlyActive}
+                      onCheckedChange={setOnlyActive}
+                    />
+                    <label htmlFor="only-active" className="text-sm cursor-pointer">
+                      Μόνο ενεργοί (is_active)
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Manual phone textarea */}
+              {sendTarget === "manual" && (
+                <div className="space-y-1 pl-2 border-l-2 border-slate-200">
+                  <Label>Τηλέφωνα</Label>
+                  <Textarea
+                    placeholder={"99123456\n+35799123456\n0035799123456"}
+                    value={manualPhoneNumbers}
+                    onChange={(e) => setManualPhoneNumbers(e.target.value)}
+                    rows={5}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Ένα τηλέφωνο ανά γραμμή ή διαχωρισμένα με κόμμα/ελληνικό ερωτηματικό. Υποστηρίζεται μόνο το placeholder <code className="bg-slate-100 px-1 rounded">{"{PORTAL_URL}"}</code>.
+                  </p>
+                </div>
+              )}
             </div>
 
             <Button
               onClick={handleSend}
-              disabled={sending || (mode === "selected" && selectedUsernames.length === 0)}
+              disabled={
+                sending ||
+                (sendTarget === "chreosi" && mode === "selected" && selectedUsernames.length === 0) ||
+                (sendTarget === "manual" && !manualPhoneNumbers.trim())
+              }
               className="w-full"
             >
               {sending ? (
                 <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Αποστολή...</>
               ) : (
                 <><Send className="h-4 w-4 mr-2" />Αποστολή SMS
-                  {mode === "selected" && selectedUsernames.length > 0 && ` (${selectedUsernames.length})`}
+                  {sendTarget === "chreosi" && mode === "selected" && selectedUsernames.length > 0 && ` (${selectedUsernames.length})`}
                 </>
               )}
             </Button>
