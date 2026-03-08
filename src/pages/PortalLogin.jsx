@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Vote, User, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// normalize
 function normalizeUsername(str) {
   return str?.trim().replace(/\s+/g, ' ') || '';
 }
