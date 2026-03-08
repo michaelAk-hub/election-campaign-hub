@@ -87,17 +87,45 @@ export default function ChreosiSmsCredentials() {
   };
 
   const handleSend = async () => {
-    if (mode === "selected" && selectedUsernames.length === 0) {
-      toast.error("Επιλέξτε τουλάχιστον έναν χρήστη");
-      return;
+    // Validate by send target
+    if (sendTarget === "chreosi") {
+      if (mode === "selected" && selectedUsernames.length === 0) {
+        toast.error("Επιλέξτε τουλάχιστον έναν χρήστη");
+        return;
+      }
+    } else {
+      // Manual mode: validate phone input
+      const parsed = manualPhoneNumbers
+        .split(/[\n,;]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      if (parsed.length === 0) {
+        toast.error("Εισαγάγετε τουλάχιστον έναν αριθμό τηλεφώνου");
+        return;
+      }
+      // Block unsupported placeholders in manual mode
+      const unsupported = ["{USERNAME}", "{PASSWORD}", "{NAME}"];
+      const found = unsupported.filter(p => template.includes(p));
+      if (found.length > 0) {
+        toast.error(
+          `Manual phone mode only supports {PORTAL_URL}. The placeholders ${found.join(", ")} require a Chreosi account.`
+        );
+        return;
+      }
     }
 
     setSending(true);
     setLastResult(null);
 
+    const manualParsed = sendTarget === "manual"
+      ? manualPhoneNumbers.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean)
+      : [];
+
     const payload = {
+      sendTarget,
       mode,
-      usernames: mode === "selected" ? selectedUsernames : [],
+      usernames: sendTarget === "chreosi" && mode === "selected" ? selectedUsernames : [],
+      manualPhones: manualParsed,
       onlyActive,
       title,
       portalUrl,
