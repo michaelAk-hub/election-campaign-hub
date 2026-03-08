@@ -313,14 +313,17 @@ export default function ChreosiSmsCredentials() {
 
             {lastResult && (
               <div className="rounded-lg border p-3 space-y-2">
-                <div className="flex gap-4 text-sm font-medium">
+                <div className="flex flex-wrap gap-3 text-sm font-medium">
                   <span className="text-green-600">✓ Εστάλησαν: {lastResult.sent}</span>
                   <span className="text-red-600">✗ Απέτυχαν: {lastResult.failed}</span>
+                  {lastResult.skipped > 0 && <span className="text-amber-600">⚠ Παραλείφθηκαν: {lastResult.skipped}</span>}
+                  {lastResult.skipped_duplicate > 0 && <span className="text-slate-500">Διπλότυπα: {lastResult.skipped_duplicate}</span>}
+                  {lastResult.skipped_invalid > 0 && <span className="text-slate-500">Μη έγκυρα: {lastResult.skipped_invalid}</span>}
                 </div>
                 {lastResult.results?.filter(r => r.status === "failed").length > 0 && (
                   <div className="text-xs text-red-600 space-y-1">
                     {lastResult.results.filter(r => r.status === "failed").map((r, i) => (
-                      <div key={i}>{r.username}: {r.error}</div>
+                      <div key={i}>{r.username || r.phone}: {r.error}</div>
                     ))}
                   </div>
                 )}
