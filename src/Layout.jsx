@@ -468,7 +468,19 @@ export default function Layout({ children, currentPageName }) {
           return (
             <button
               key={item.page}
-              onClick={() => navigate(createPageUrl(item.page))}
+              onClick={() => {
+                if (isActive) {
+                  // Already on this tab — scroll to top
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  // Save current scroll before leaving
+                  tabScrollRef.current[currentPageName] = window.scrollY;
+                  navigate(createPageUrl(item.page));
+                  // Restore saved scroll for destination tab (after render)
+                  const saved = tabScrollRef.current[item.page] || 0;
+                  requestAnimationFrame(() => window.scrollTo({ top: saved, behavior: 'instant' }));
+                }
+              }}
               className={cn(
                 "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
                 isActive ? "text-blue-600" : "text-slate-500"
