@@ -453,6 +453,8 @@ export default function Portal() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pushMessage, setPushMessage] = useState(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
