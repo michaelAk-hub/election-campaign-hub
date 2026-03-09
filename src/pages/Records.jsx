@@ -256,6 +256,7 @@ export default function Records() {
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const { data: result } = await base44.functions.invoke('personGridFetch', {
+        session_token: localStorage.getItem('app_session_token'),
         datasetId: activeDatasetId,
         partition,
         startRow: pageParam,
