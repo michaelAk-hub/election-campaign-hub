@@ -556,7 +556,7 @@ export default function Layout({ children, currentPageName }) {
           </DialogHeader>
           <div className="flex items-center justify-center py-6">
             <div className="text-center">
-              <div className="text-5xl font-bold text-slate-900 mb-2">
+              <div className="text-5xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                 {Math.floor(timeoutCountdown / 60)}:{String(timeoutCountdown % 60).padStart(2, '0')}
               </div>
               <div className="text-sm text-slate-500">λεπτά</div>
