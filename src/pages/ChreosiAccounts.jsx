@@ -336,7 +336,7 @@ export default function ChreosiAccounts() {
       </div>
     )},
     { key: 'is_active', label: 'Κατάσταση', render: (val) => (
-      <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 text-emerald-700' : ''}>
+      <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'dark:bg-slate-700 dark:text-slate-300'}>
         {val ? 'Ενεργός' : 'Ανενεργός'}
       </Badge>
     )}
