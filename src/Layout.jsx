@@ -476,9 +476,9 @@ export default function Layout({ children, currentPageName }) {
             );
           }
           return (
-            <Link
+            <button
               key={item.page}
-              to={createPageUrl(item.page)}
+              onClick={() => navigate(createPageUrl(item.page))}
               className={cn(
                 "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
                 isActive ? "text-blue-600" : "text-slate-500"
@@ -486,7 +486,7 @@ export default function Layout({ children, currentPageName }) {
             >
               <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
-            </Link>
+            </button>
           );
         })}
       </nav>
