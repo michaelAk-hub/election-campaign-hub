@@ -111,6 +111,28 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
+  // Dark mode detection
+  useEffect(() => {
+    const root = document.documentElement;
+    const apply = (e) => {
+      if (e.matches) root.classList.add('dark');
+      else root.classList.remove('dark');
+    };
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    apply(mq);
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  // Track navigation history for back-button detection
+  useEffect(() => {
+    historyStackRef.current = [...historyStackRef.current, location.pathname];
+    // Keep last 20 entries
+    if (historyStackRef.current.length > 20) {
+      historyStackRef.current = historyStackRef.current.slice(-20);
+    }
+  }, [location.pathname]);
+
   // Activity-based heartbeat - only send when user is active
   const sendHeartbeat = useCallback(async () => {
     const sessionToken = localStorage.getItem('app_session_token');
