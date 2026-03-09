@@ -1,13 +1,13 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.20";
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.6";
 
 const POSTGRAD = ["Δ", "Μ", "Μεταπτυχιακός Εράσμους"];
 const UNDERGRAD = ["Π", "Προπτυχιακός Εράσμους"];
+const IDLE_TIMEOUT_SECONDS = 15 * 60;
 
 function buildPartitionCondition(partition) {
   if (partition === "postgrad") return { academic_level: { $in: POSTGRAD } };
   if (partition === "undergrad") return { academic_level: { $in: UNDERGRAD } };
   if (partition === "unknown") return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
-  // "all" or anything else = no condition (return all)
   return null;
 }
 
@@ -27,18 +27,70 @@ function toDbField(field) {
   return field;
 }
 
+async function validateSession(base44, session_token) {
+  if (!session_token) {
+    return { error: "Απαιτείται session token", status: 401 };
+  }
+
+  const sessions = await base44.asServiceRole.entities.AppSession.filter({
+    session_token,
+    is_active: true
+  });
+
+  if (sessions.length === 0) {
+    return { error: "Μη έγκυρη συνεδρία", status: 401 };
+  }
+
+  const session = sessions[0];
+
+  if (new Date(session.expires_at) < new Date()) {
+    await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+    return { error: "Η συνεδρία έληξε", status: 401 };
+  }
+
+  const user = await base44.asServiceRole.entities.AppUser.get(session.app_user_id);
+  if (!user) {
+    return { error: "Χρήστης δεν βρέθηκε", status: 401 };
+  }
+
+  if (session.session_version_at_login !== user.session_version) {
+    await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+    return { error: "Η συνεδρία σας έληξε. Παρακαλώ συνδεθείτε ξανά.", status: 401, force_logout: true };
+  }
+
+  if (user.role === "ORGANOTIKI" && !user.is_active) {
+    return { error: "Ο λογαριασμός σας έχει απενεργοποιηθεί", status: 403 };
+  }
+
+  if (session.last_seen_at) {
+    const idleSeconds = (new Date() - new Date(session.last_seen_at)) / 1000;
+    if (idleSeconds > IDLE_TIMEOUT_SECONDS) {
+      await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+      return { error: "Η συνεδρία σας έληξε λόγω αδράνειας", status: 401, reason: "idle_timeout" };
+    }
+  }
+
+  // Update last_seen_at
+  await base44.asServiceRole.entities.AppSession.update(session.id, { last_seen_at: new Date().toISOString() });
+
+  return { user, session };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-
-    const me = await base44.auth.me();
-    if (!me) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     let body = null;
     try { body = await req.json(); } catch {}
 
     const { searchParams } = new URL(req.url);
     const getAny = (k, fb) => body?.[k] ?? searchParams.get(k) ?? fb;
+
+    const session_token = getAny("session_token", null);
+    const auth = await validateSession(base44, session_token);
+    if (auth.error) {
+      return Response.json({ error: auth.error, ...(auth.force_logout ? { force_logout: true } : {}), ...(auth.reason ? { reason: auth.reason } : {}) }, { status: auth.status });
+    }
 
     const startRow = Number(getAny("startRow", 0));
     const endRow   = Number(getAny("endRow", 100));
@@ -52,7 +104,6 @@ Deno.serve(async (req) => {
     const limit = Math.max(1, Math.min((endRow - startRow) || 100, 1000));
     const sort = sortDirection === "asc" ? sortField : `-${sortField}`;
 
-    // Resolve dataset: prefer explicit datasetId, fall back to active dataset
     let resolvedDatasetId = datasetId;
     if (!resolvedDatasetId) {
       const active = await base44.asServiceRole.entities.Dataset.filter({ status: "active" });
@@ -79,7 +130,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Raw AG Grid filterModel
     if (filters && typeof filters === "object") {
       for (const [rawField, model] of Object.entries(filters)) {
         if (!model) continue;
@@ -123,7 +173,6 @@ Deno.serve(async (req) => {
 
     const rows = await base44.asServiceRole.entities.Person.filter(query, sort, limit, startRow);
 
-    // Avoid full count scan — use end-reached heuristic
     let lastRow = -1;
     if (rows.length < limit) lastRow = startRow + rows.length;
 

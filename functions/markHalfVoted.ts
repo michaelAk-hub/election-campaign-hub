@@ -1,14 +1,68 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+const IDLE_TIMEOUT_SECONDS = 15 * 60;
+
+async function validateSession(base44, session_token) {
+    if (!session_token) {
+        return { error: "Απαιτείται session token", status: 401 };
+    }
+
+    const sessions = await base44.asServiceRole.entities.AppSession.filter({
+        session_token,
+        is_active: true
+    });
+
+    if (sessions.length === 0) {
+        return { error: "Μη έγκυρη συνεδρία", status: 401 };
+    }
+
+    const session = sessions[0];
+
+    if (new Date(session.expires_at) < new Date()) {
+        await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+        return { error: "Η συνεδρία έληξε", status: 401 };
+    }
+
+    const user = await base44.asServiceRole.entities.AppUser.get(session.app_user_id);
+    if (!user) {
+        return { error: "Χρήστης δεν βρέθηκε", status: 401 };
+    }
+
+    if (session.session_version_at_login !== user.session_version) {
+        await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+        return { error: "Η συνεδρία σας έληξε. Παρακαλώ συνδεθείτε ξανά.", status: 401, force_logout: true };
+    }
+
+    if (user.role === "ORGANOTIKI" && !user.is_active) {
+        return { error: "Ο λογαριασμός σας έχει απενεργοποιηθεί", status: 403 };
+    }
+
+    if (user.role !== "ADMIN") {
+        return { error: "Απαιτούνται δικαιώματα διαχειριστή", status: 403 };
+    }
+
+    if (session.last_seen_at) {
+        const idleSeconds = (new Date() - new Date(session.last_seen_at)) / 1000;
+        if (idleSeconds > IDLE_TIMEOUT_SECONDS) {
+            await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+            return { error: "Η συνεδρία σας έληξε λόγω αδράνειας", status: 401, reason: "idle_timeout" };
+        }
+    }
+
+    return { user, session };
+}
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const user = await base44.auth.me();
-        if (!user) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        const body = await req.json();
+        const { session_token } = body;
+
+        const auth = await validateSession(base44, session_token);
+        if (auth.error) {
+            return Response.json({ error: auth.error, ...(auth.force_logout ? { force_logout: true } : {}), ...(auth.reason ? { reason: auth.reason } : {}) }, { status: auth.status });
         }
 
-        // Fetch all persons with prediction_symbol in Σ, Ο, Π that haven't voted yet
         const targetSymbols = ['Σ', 'Ο', 'Π'];
         let allPersons = [];
 
@@ -29,23 +83,19 @@ Deno.serve(async (req) => {
             }
         }
 
-        // Take half
         const half = Math.ceil(allPersons.length / 2);
-        // Shuffle randomly
         for (let i = allPersons.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [allPersons[i], allPersons[j]] = [allPersons[j], allPersons[i]];
         }
         const toMark = allPersons.slice(0, half);
 
-        // Today's date (Cyprus timezone = UTC+2, but we'll use today's date in UTC)
         const today = new Date();
         const todayStr = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`;
 
         let updated = 0;
         for (const person of toMark) {
-            // Random time between 09:00 and 18:00
-            const hours = 9 + Math.floor(Math.random() * 9); // 9..17
+            const hours = 9 + Math.floor(Math.random() * 9);
             const minutes = Math.floor(Math.random() * 60);
             const seconds = Math.floor(Math.random() * 60);
             const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
