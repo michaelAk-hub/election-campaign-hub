@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 // ─── Tree mutation helpers ─────────────────────────────────────────────────────
 
@@ -88,6 +89,29 @@ const OP_BADGE = {
   OR:  'bg-purple-100 text-purple-700 border-purple-300',
 };
 
+// Touch-friendly AND/OR toggle button
+function OpToggle({ value, onChange }) {
+  return (
+    <div className="flex rounded-md border overflow-hidden">
+      {['AND', 'OR'].map(op => (
+        <button
+          key={op}
+          type="button"
+          onClick={() => onChange(op)}
+          className={cn(
+            "px-3 py-1.5 text-xs font-bold transition-colors",
+            value === op
+              ? op === 'AND' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
+              : 'bg-white text-slate-500 hover:bg-slate-50'
+          )}
+        >
+          {op}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function RuleTreeBuilder({ tree, setTree, availableColumns, operatorsByType }) {
@@ -105,18 +129,10 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 font-medium">Ομάδα</span>
-              <Select
+              <OpToggle
                 value={node.op}
-                onValueChange={(v) => setTree(prev => updateNodeAtPath(prev, path, (n) => ({ ...n, op: v })))}
-              >
-                <SelectTrigger className={`w-[100px] h-7 text-xs font-bold border ${OP_BADGE[node.op]}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AND">AND</SelectItem>
-                  <SelectItem value="OR">OR</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(v) => setTree(prev => updateNodeAtPath(prev, path, (n) => ({ ...n, op: v })))}
+              />
             </div>
 
             <div className="flex items-center gap-1 flex-wrap">
@@ -169,7 +185,7 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
       const ops = operatorsByType[type] || operatorsByType.text;
 
       return (
-        <div className="flex items-center gap-2 flex-wrap bg-white border border-slate-200 rounded-lg px-3 py-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
           <Select
             value={node.field}
             onValueChange={(v) => {
@@ -180,7 +196,7 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
               })));
             }}
           >
-            <SelectTrigger className="w-[170px] h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="sm:w-[170px] h-9 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               {availableColumns.map(col => (
                 <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
@@ -192,7 +208,7 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
             value={node.operator}
             onValueChange={(v) => setTree(prev => updateNodeAtPath(prev, path, (n) => ({ ...n, operator: v })))}
           >
-            <SelectTrigger className="w-[120px] h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="sm:w-[120px] h-9 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               {ops.map(op => <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>)}
             </SelectContent>
@@ -203,7 +219,7 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
               value={String(node.value)}
               onValueChange={(v) => setTree(prev => updateNodeAtPath(prev, path, (n) => ({ ...n, value: v })))}
             >
-              <SelectTrigger className="flex-1 h-8 text-sm min-w-[80px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="flex-1 h-9 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="true">Ναι</SelectItem>
                 <SelectItem value="false">Όχι</SelectItem>
@@ -214,11 +230,11 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
               value={node.value ?? ''}
               onChange={(e) => setTree(prev => updateNodeAtPath(prev, path, (n) => ({ ...n, value: e.target.value })))}
               placeholder="Τιμή..."
-              className="flex-1 h-8 text-sm min-w-[80px]"
+              className="flex-1 h-9 text-sm"
             />
           )}
 
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600 shrink-0"
+          <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-red-400 hover:text-red-600 shrink-0 self-end sm:self-auto"
             onClick={() => setTree(prev => removeNodeAtPath(prev, path))}>
             <X className="h-4 w-4" />
           </Button>
