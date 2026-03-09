@@ -491,7 +491,7 @@ export default function ChreosiAccounts() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, ids: [], single: false, username: '' })}>
-        <DialogContent>
+        <DialogContent className="flex flex-col max-h-[95vh]">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
@@ -541,15 +541,16 @@ export default function ChreosiAccounts() {
 
       {/* Create Accounts Dialog */}
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
-        <DialogContent>
+        <DialogContent className="flex flex-col max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Δημιουργία Χρεωστικών</DialogTitle>
             <DialogDescription>
               Θα δημιουργηθούν λογαριασμοί για όλα τα μοναδικά άτομα επικοινωνίας που δεν έχουν ήδη λογαριασμό.
             </DialogDescription>
-          </DialogHeader>
-          
-          {createdAccounts.length > 0 ? (
+            </DialogHeader>
+
+            <div className="overflow-y-auto flex-1">
+            {createdAccounts.length > 0 ? (
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-emerald-600">
                 <CheckCircle2 className="h-5 w-5" />
@@ -592,9 +593,10 @@ export default function ChreosiAccounts() {
                 {accounts.length} λογαριασμοί υπάρχουν ήδη.
               </p>
             </div>
-          )}
+            )}
+            </div>
 
-          <DialogFooter>
+            <DialogFooter>
             <Button variant="outline" onClick={() => {
               setCreateDialog(false);
               setCreatedAccounts([]);
@@ -612,14 +614,14 @@ export default function ChreosiAccounts() {
 
       {/* Bulk Symbol Assignment Dialog */}
       <Dialog open={bulkSymbolDialog} onOpenChange={setBulkSymbolDialog}>
-        <DialogContent>
+        <DialogContent className="flex flex-col max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Ορισμός Συμβόλων σε {selectedIds.length} Χρήστες</DialogTitle>
             <DialogDescription>
               Επιλέξτε τα σύμβολα που θα ανατεθούν σε όλους τους επιλεγμένους χρήστες.
             </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
+            </DialogHeader>
+            <div className="space-y-3 py-2 overflow-y-auto flex-1">
             <div className="border rounded-md p-3 space-y-2 max-h-60 overflow-y-auto">
               {availableSymbols.length === 0 ? (
                 <p className="text-sm text-slate-500">Δεν βρέθηκαν σύμβολα</p>
@@ -840,12 +842,12 @@ export default function ChreosiAccounts() {
       <Dialog open={editDialog.open} onOpenChange={(open) => {
         if (!open) setEditDialog({ open: false, account: null });
       }}>
-        <DialogContent>
+        <DialogContent className="flex flex-col max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Επεξεργασία Λογαριασμού</DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-4 py-4">
+
+          <div className="space-y-4 py-4 overflow-y-auto flex-1">
             <div className="space-y-2">
               <Label>Όνομα Χρήστη</Label>
               <Input value={formData.username || ''} disabled />
