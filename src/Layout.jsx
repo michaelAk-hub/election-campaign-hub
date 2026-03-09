@@ -388,13 +388,9 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main
-        className="lg:pl-64 min-h-screen"
-        style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}
-      >
-        <div className="lg:pt-0 p-4 sm:p-6 lg:p-8 mobile-content-pb lg:pb-8"
-          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-          {/* Override paddingTop on lg since sidebar handles spacing */}
+      <main className="lg:pl-64 min-h-screen">
+        <div className="p-4 sm:p-6 lg:p-8 mobile-content-pb lg:pb-8"
+             style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}>
           <div className="lg:pt-0">
             {children}
           </div>
