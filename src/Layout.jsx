@@ -363,11 +363,36 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen">
+      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen pb-16 lg:pb-0">
         <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 flex"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {[
+          { label: 'Πίνακας', icon: LayoutDashboard, page: 'Dashboard' },
+          { label: 'Εγγραφές', icon: Database, page: 'Records' },
+          { label: 'Ειδοποιήσεις', icon: Bell, page: 'NotificationPreferences' },
+        ].map(item => (
+          <Link
+            key={item.page}
+            to={createPageUrl(item.page)}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
+              currentPageName === item.page
+                ? "text-blue-600"
+                : "text-slate-500"
+            )}
+          >
+            <item.icon className="h-5 w-5" />
+            <span>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
 
       {/* Timeout Warning Modal */}
       <Dialog open={showTimeoutWarning} onOpenChange={() => {}}>
