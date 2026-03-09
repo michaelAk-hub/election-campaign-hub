@@ -835,6 +835,7 @@ export default function Records() {
       )}
 
       {/* Upload Dialog */}
+
       <Dialog open={uploadDialog} onOpenChange={(open) => { if (!uploadLoading) setUploadDialog(open); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Εισαγωγή Αρχείου</DialogTitle></DialogHeader>
