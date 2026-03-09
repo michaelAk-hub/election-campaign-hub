@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+// React hooks are accessed via React.useState etc. - no separate imports needed
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import { Drawer, DrawerContent } from "@/components/ui/drawer"
