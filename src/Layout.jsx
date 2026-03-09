@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createPageUrl } from './utils';
 import { base44 } from '@/api/base44Client';
 import NotificationCenter from './components/notifications/NotificationCenter';
@@ -19,7 +20,9 @@ import {
     UserCog,
     Search as SearchIcon,
     AlertTriangle,
-    Bell
+    Bell,
+    ChevronLeft,
+    Trash2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
