@@ -66,6 +66,7 @@ export default function Layout({ children, currentPageName }) {
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const historyStackRef = useRef([]);
+  const tabScrollRef = useRef({}); // stores scrollY per tab page
 
   const lastActivityRef = useRef(Date.now());
   const lastHeartbeatRef = useRef(Date.now());
