@@ -517,6 +517,28 @@ export default function Portal() {
     navigate(createPageUrl('PortalLogin'));
   };
 
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      if (session.portalType === 'chreosi') {
+        const accounts = await base44.entities.ChreosiAccount.filter({ username: session.username });
+        if (accounts[0]) await base44.entities.ChreosiAccount.update(accounts[0].id, { is_active: false });
+      } else {
+        const accounts = await base44.entities.KanaliAccount.filter({ username: session.username });
+        if (accounts[0]) await base44.entities.KanaliAccount.update(accounts[0].id, { is_active: false });
+      }
+      // Delete portal session
+      const sessions = await base44.entities.PortalSession.filter({ session_token: session.token });
+      if (sessions[0]) await base44.entities.PortalSession.update(sessions[0].id, { is_active: false });
+    } finally {
+      localStorage.removeItem('portal_session');
+      localStorage.removeItem('portal_type');
+      localStorage.removeItem('portal_username');
+      localStorage.removeItem('kanali_type');
+      navigate(createPageUrl('PortalLogin'));
+    }
+  };
+
   const acknowledgePushMessage = async () => {
     if (!pushMessage || !session) return;
     await base44.entities.PushMessageAck.create({
