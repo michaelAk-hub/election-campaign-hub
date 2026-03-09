@@ -304,7 +304,9 @@ export default function Layout({ children, currentPageName }) {
         button, [role="button"], svg { user-select: none; -webkit-user-select: none; }
       `}</style>
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4"
+        style={{ paddingTop: 'env(safe-area-inset-top)', minHeight: 'calc(env(safe-area-inset-top) + 64px)' }}
+      >
         {isDeepPage ? (
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ChevronLeft className="h-5 w-5" />
