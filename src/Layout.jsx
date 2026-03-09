@@ -271,10 +271,19 @@ export default function Layout({ children, currentPageName }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4">
-        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-          <Menu className="h-5 w-5" />
-        </Button>
+      <div
+        className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 h-14"
+        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
+      >
+        {isChildPage ? (
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
         <div className="flex items-center gap-2">
           <Vote className="h-5 w-5 text-blue-600" />
           <span className="font-semibold">Εκλογές</span>
