@@ -32,6 +32,7 @@ import {
   Loader2
 } from 'lucide-react';
 import NotificationCenter from '../components/notifications/NotificationCenter';
+import PullToRefresh from '../components/common/PullToRefresh';
 import { toast } from 'sonner';
 
 function normalizeUsername(str) {
