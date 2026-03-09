@@ -451,24 +451,40 @@ export default function Layout({ children, currentPageName }) {
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {[
-          { label: 'Πίνακας', icon: LayoutDashboard, page: 'Dashboard' },
-          { label: 'Εγγραφές', icon: Database, page: 'Records' },
-          { label: 'Ειδοποιήσεις', icon: Bell, page: 'NotificationPreferences' },
-        ].map(item => (
-          <Link
-            key={item.page}
-            to={createPageUrl(item.page)}
-            className={cn(
-              "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
-              currentPageName === item.page
-                ? "text-blue-600"
-                : "text-slate-500"
-            )}
-          >
-            <item.icon className="h-5 w-5" />
-            <span>{item.label}</span>
-          </Link>
-        ))}
+          { label: 'Πίνακας', icon: LayoutDashboard, page: 'Dashboard', relatedPages: ['Dashboard'] },
+          { label: 'Εγγραφές', icon: Database, page: 'Records', relatedPages: ['Records', 'DataGrid', 'SavedQueries', 'CompareMerge', 'Predictions'] },
+          { label: 'Μενού', icon: Menu, page: null, relatedPages: [] },
+        ].map(item => {
+          const isActive = item.relatedPages.includes(currentPageName);
+          if (!item.page) {
+            return (
+              <button
+                key="menu"
+                onClick={() => setSidebarOpen(true)}
+                className={cn(
+                  "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
+                  "text-slate-500"
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          }
+          return (
+            <Link
+              key={item.page}
+              to={createPageUrl(item.page)}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
+                isActive ? "text-blue-600" : "text-slate-500"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Delete Account Dialog */}
