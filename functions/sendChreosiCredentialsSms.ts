@@ -76,11 +76,12 @@ async function twilioSendSms({ accountSid, authToken, toE164, body, messagingSer
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-
     const body = await req.json();
+
+    const auth = await validateSession(base44, body.session_token);
+    if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
+    const user = auth.user;
+
     const sendTarget = body.sendTarget || "chreosi";
     const mode = body.mode || "selected";
     const usernames = body.usernames || [];
