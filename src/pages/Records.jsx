@@ -349,6 +349,7 @@ export default function Records() {
       const batchSize = 5000;
       while (true) {
         const { data: result } = await base44.functions.invoke('personGridFetch', {
+          session_token: localStorage.getItem('app_session_token'),
           datasetId: activeDatasetId,
           partition,
           startRow,
