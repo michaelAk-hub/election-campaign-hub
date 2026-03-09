@@ -48,11 +48,20 @@ async function twilioSendSms({ accountSid, authToken, toE164, body, messagingSer
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-
     const body = await req.json();
+
+    // Validate AppSession (same pattern as other admin functions)
+    const sessionToken = body.session_token;
+    if (!sessionToken) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token: sessionToken, is_active: true });
+    if (sessions.length === 0) return Response.json({ error: "Μη έγκυρη συνεδρία" }, { status: 401 });
+    const session = sessions[0];
+    if (new Date(session.expires_at) < new Date()) return Response.json({ error: "Η συνεδρία έληξε" }, { status: 401 });
+    const appUser = await base44.asServiceRole.entities.AppUser.get(session.app_user_id);
+    if (!appUser) return Response.json({ error: "Χρήστης δεν βρέθηκε" }, { status: 401 });
+    const user = { id: appUser.id, role: appUser.role };
+
     const sendTarget = body.sendTarget || "chreosi";
     const mode = body.mode || "selected";
     const usernames = body.usernames || [];
