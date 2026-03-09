@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { base44 } from '@/api/base44Client';
 import NotificationCenter from './components/notifications/NotificationCenter';
@@ -18,8 +18,7 @@ import {
     Vote,
     UserCog,
     Search as SearchIcon,
-    AlertTriangle,
-    ChevronLeft
+    AlertTriangle
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -49,28 +48,12 @@ const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const WARNING_AT_MS = 13 * 60 * 1000; // 13 minutes
 const HEARTBEAT_THROTTLE_MS = 45 * 1000; // 45 seconds
 
-// Bottom tab bar items for mobile
-const mobileTabItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, label: 'Αρχική', page: 'Dashboard' },
-  { name: 'Records', icon: Database, label: 'Εγγραφές', page: 'Records' },
-  { name: 'SendMessage', icon: MessageSquare, label: 'Μήνυμα', page: 'SendMessage' },
-  { name: 'PortalLogin', icon: Vote, label: 'Πύλη', page: 'PortalLogin' },
-];
-
-// Pages that are "child" screens (show back button instead of menu)
-const childPages = ['ChreosiSmsCredentials', 'NotFoundVoters', 'SavedQueries', 'Predictions',
-  'CompareMerge', 'ChreosiAccounts', 'KanaliAccounts', 'UserManagement',
-  'NotificationPreferences', 'DataGrid', 'PushMessages', 'SendMessage'];
-
 export default function Layout({ children, currentPageName }) {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const [timeoutCountdown, setTimeoutCountdown] = useState(120);
-
-  const isChildPage = childPages.includes(currentPageName);
   
   const lastActivityRef = useRef(Date.now());
   const lastHeartbeatRef = useRef(Date.now());
@@ -271,19 +254,10 @@ export default function Layout({ children, currentPageName }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Mobile Header */}
-      <div
-        className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 h-14"
-        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
-      >
-        {isChildPage ? (
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        ) : (
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4">
+        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+          <Menu className="h-5 w-5" />
+        </Button>
         <div className="flex items-center gap-2">
           <Vote className="h-5 w-5 text-blue-600" />
           <span className="font-semibold">Εκλογές</span>
@@ -388,36 +362,11 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pl-64 min-h-screen">
-        <div className="p-4 sm:p-6 lg:p-8 mobile-content-pb lg:pb-8 lg:pt-8"
-             style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}>
+      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen">
+        <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>
-
-      {/* Mobile Bottom Tab Bar */}
-      <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 flex"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        {mobileTabItems.map(item => {
-          const isActive = currentPageName === item.page ||
-            (item.page === 'Dashboard' && currentPageName === 'Dashboard');
-          return (
-            <Link
-              key={item.page}
-              to={createPageUrl(item.page)}
-              className={cn(
-                'flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors',
-                isActive ? 'text-blue-600' : 'text-slate-500'
-              )}
-            >
-              <item.icon className={cn('h-5 w-5', isActive ? 'text-blue-600' : 'text-slate-400')} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
 
       {/* Timeout Warning Modal */}
       <Dialog open={showTimeoutWarning} onOpenChange={() => {}}>

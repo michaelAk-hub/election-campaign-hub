@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import PageHeader from '../components/common/PageHeader';
@@ -37,7 +37,6 @@ import {
 import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const queryClient = useQueryClient();
   const [uploadDialog, setUploadDialog] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [importMode, setImportMode] = useState('append');
@@ -46,34 +45,6 @@ export default function Dashboard() {
   const [isMarkingVotedX, setIsMarkingVotedX] = useState(false);
   const [isMarkingVotedX2, setIsMarkingVotedX2] = useState(false);
   const [isMarkingVotedX3, setIsMarkingVotedX3] = useState(false);
-
-  // Pull-to-refresh
-  const [refreshing, setRefreshing] = useState(false);
-  const [pullY, setPullY] = useState(0);
-  const touchStartY = useRef(null);
-  const PULL_THRESHOLD = 70;
-
-  const handleTouchStart = useCallback((e) => {
-    if (window.scrollY === 0) touchStartY.current = e.touches[0].clientY;
-  }, []);
-
-  const handleTouchMove = useCallback((e) => {
-    if (touchStartY.current === null || refreshing) return;
-    const delta = e.touches[0].clientY - touchStartY.current;
-    if (delta > 0) {
-      setPullY(Math.min(delta, PULL_THRESHOLD * 1.5));
-    }
-  }, [refreshing]);
-
-  const handleTouchEnd = useCallback(async () => {
-    if (pullY >= PULL_THRESHOLD) {
-      setRefreshing(true);
-      await queryClient.invalidateQueries();
-      setRefreshing(false);
-    }
-    setPullY(0);
-    touchStartY.current = null;
-  }, [pullY, queryClient]);
 
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
     queryKey: ['people'],
