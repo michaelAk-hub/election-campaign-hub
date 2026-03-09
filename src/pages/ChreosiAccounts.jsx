@@ -702,7 +702,7 @@ export default function ChreosiAccounts() {
 
       {/* SMS Credentials Dialog */}
       <Dialog open={smsDialog.open} onOpenChange={(open) => { if (!open) { setSmsDialog({ open: false, mode: 'selected', username: null }); setSmsSearch(""); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[95vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Αποστολή SMS Credentials</DialogTitle>
             <DialogDescription>
@@ -714,7 +714,7 @@ export default function ChreosiAccounts() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
+          <div className="space-y-3 py-2 overflow-y-auto flex-1">
             {/* Audience info */}
             {!smsDialog.username && (
               <div className="rounded-md bg-slate-50 dark:bg-slate-800 dark:border-slate-700 border px-3 py-2 text-sm flex gap-4">
