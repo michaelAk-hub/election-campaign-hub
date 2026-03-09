@@ -208,6 +208,7 @@ export default function Records() {
       try {
         await base44.functions.invoke('gridPreferencesSave', {
           grid_key: GRID_KEY,
+          session_token: localStorage.getItem('app_session_token'),
           state_json: {
             columnOrder: newOrder,
             filterModel: filterModelRef.current,
