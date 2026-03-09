@@ -47,6 +47,9 @@ const adminNavItems = [
 
 const portalPages = ['Portal', 'PortalLogin', 'AdminLogin', 'MfaVerify'];
 
+// Tab root pages for bottom nav
+const TAB_ROOT_PAGES = ['Dashboard', 'Records', 'NotificationPreferences'];
+
 // Inactivity timeout constants (in milliseconds)
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const WARNING_AT_MS = 13 * 60 * 1000; // 13 minutes
