@@ -328,7 +328,8 @@ export default function ChreosiSmsCredentials() {
               disabled={
                 sending ||
                 (sendTarget === "chreosi" && mode === "selected" && selectedUsernames.length === 0) ||
-                (sendTarget === "manual" && !manualPhoneNumbers.trim())
+                (sendTarget === "manual" && !manualPhoneNumbers.trim()) ||
+                (sendTarget === "group" && !selectedGroupId)
               }
               className="w-full"
             >
