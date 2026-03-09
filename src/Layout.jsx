@@ -473,7 +473,6 @@ export default function Layout({ children, currentPageName }) {
       >
         {[
           { label: 'Πίνακας', icon: LayoutDashboard, page: 'Dashboard', relatedPages: ['Dashboard'] },
-          { label: 'Εγγραφές', icon: Database, page: 'Records', relatedPages: ['Records', 'DataGrid', 'SavedQueries', 'CompareMerge'] },
           { label: 'Προβλέψεις', icon: GitCompare, page: 'Predictions', relatedPages: ['Predictions'] },
           { label: 'Μενού', icon: Menu, page: null, relatedPages: [] },
         ].map(item => {
