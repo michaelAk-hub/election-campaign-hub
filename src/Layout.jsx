@@ -111,10 +111,7 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
-  // Force light mode always
-  useEffect(() => {
-    document.documentElement.classList.remove('dark');
-  }, []);
+
 
   // Track navigation history for back-button detection
   useEffect(() => {
