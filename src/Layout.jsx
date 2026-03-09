@@ -389,11 +389,9 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Main Content */}
       <main className="lg:pl-64 min-h-screen">
-        <div className="p-4 sm:p-6 lg:p-8 mobile-content-pb lg:pb-8"
+        <div className="p-4 sm:p-6 lg:p-8 mobile-content-pb lg:pb-8 lg:pt-8"
              style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}>
-          <div className="lg:pt-0">
-            {children}
-          </div>
+          {children}
         </div>
       </main>
 
