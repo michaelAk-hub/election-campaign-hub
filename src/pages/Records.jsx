@@ -149,7 +149,8 @@ export default function Records() {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await base44.functions.invoke('gridPreferencesLoad', { grid_key: GRID_KEY });
+        const sessionToken = localStorage.getItem('app_session_token');
+        const { data } = await base44.functions.invoke('gridPreferencesLoad', { grid_key: GRID_KEY, session_token: sessionToken });
         if (!cancelled) {
           const sj = data?.state_json || {};
           setColumnOrder(sj.columnOrder || COLUMNS.filter(c => c.reorderable).map(c => c.key));
