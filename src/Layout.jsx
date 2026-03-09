@@ -305,12 +305,22 @@ export default function Layout({ children, currentPageName }) {
       `}</style>
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4">
-        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-          <Menu className="h-5 w-5" />
-        </Button>
+        {isDeepPage ? (
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
         <div className="flex items-center gap-2">
           <Vote className="h-5 w-5 text-blue-600" />
-          <span className="font-semibold">Εκλογές</span>
+          <span className="font-semibold text-sm truncate max-w-[140px]">
+            {isDeepPage
+              ? (adminNavItems.find(i => i.page === currentPageName)?.name || 'Εκλογές')
+              : 'Εκλογές'}
+          </span>
         </div>
         {user && <NotificationCenter userType={user.role === 'admin' ? 'admin' : 'organotikos'} />}
       </div>
