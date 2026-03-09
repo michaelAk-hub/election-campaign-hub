@@ -432,9 +432,18 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Main Content */}
       <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen pb-16 lg:pb-0">
-        <div className="p-4 sm:p-6 lg:p-8">
-          {children}
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ x: 24, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -24, opacity: 0 }}
+            transition={{ duration: 0.18, ease: 'easeInOut' }}
+            className="p-4 sm:p-6 lg:p-8"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
