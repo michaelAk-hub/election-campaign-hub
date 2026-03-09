@@ -393,14 +393,14 @@ export default function DataGrid({
                             <Draggable key={col.key} draggableId={col.key} index={reorderableIndex}>
                               {(dragProvided, snapshot) => (
                                 <TableHead
-                                  ref={dragProvided.innerRef}
-                                  {...dragProvided.draggableProps}
-                                  className={cn(
-                                    "font-semibold text-slate-700 select-none",
-                                    sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100",
-                                    snapshot.isDragging && "bg-blue-50 shadow-lg opacity-90",
-                                    hasActiveFilter && "bg-blue-50"
-                                  )}
+                                ref={dragProvided.innerRef}
+                                {...dragProvided.draggableProps}
+                                className={cn(
+                                  "font-semibold text-slate-700 dark:text-slate-200 select-none",
+                                  sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800",
+                                  snapshot.isDragging && "bg-blue-50 dark:bg-blue-900/40 shadow-lg opacity-90",
+                                  hasActiveFilter && "bg-blue-50 dark:bg-blue-900/40"
+                                )}
                                   onClick={() => !snapshot.isDragging && sortable && col.sortable !== false && handleSort(col.key)}
                                 >
                                   {headerContent(dragProvided, snapshot)}
@@ -414,9 +414,9 @@ export default function DataGrid({
                           <TableHead
                             key={col.key}
                             className={cn(
-                              "font-semibold text-slate-700",
-                              sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 select-none",
-                              hasActiveFilter && "bg-blue-50"
+                              "font-semibold text-slate-700 dark:text-slate-200",
+                              sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 select-none",
+                              hasActiveFilter && "bg-blue-50 dark:bg-blue-900/40"
                             )}
                             onClick={() => sortable && col.sortable !== false && handleSort(col.key)}
                           >
@@ -444,7 +444,7 @@ export default function DataGrid({
                 visibleData.map((row, rowIndex) => (
                   <TableRow
                     key={row.id || rowIndex}
-                    className={cn("hover:bg-slate-50 transition-colors", onRowClick && "cursor-pointer", selectedIds.includes(row.id) && "bg-blue-50")}
+                    className={cn("hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors", onRowClick && "cursor-pointer", selectedIds.includes(row.id) && "bg-blue-50 dark:bg-blue-900/40")}
                     onClick={() => onRowClick?.(row)}
                   >
                     {selectable && (
@@ -480,7 +480,7 @@ export default function DataGrid({
                           className={cn(
                             "text-sm outline-none",
                             canEdit && "cursor-text",
-                            isFocused && !isEditing && "ring-2 ring-inset ring-blue-400 bg-blue-50"
+                            isFocused && !isEditing && "ring-2 ring-inset ring-blue-400 bg-blue-50 dark:ring-blue-600 dark:bg-blue-900/40"
                           )}
                           onFocus={() => setFocusedCell({ rowIndex, colIndex })}
                           onKeyDown={e => handleCellKeyDown(e, row, col, rowIndex, colIndex)}
@@ -530,7 +530,7 @@ export default function DataGrid({
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <div className={cn(canEdit && "hover:bg-slate-100 rounded px-1 -mx-1")} title={canEdit ? 'Διπλό κλικ για επεξεργασία' : undefined}>
+                              <div className={cn(canEdit && "hover:bg-slate-100 dark:hover:bg-slate-700 rounded px-1 -mx-1")} title={canEdit ? 'Διπλό κλικ για επεξεργασία' : undefined}>
                                 {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '-')}
                               </div>
                               {isSaving && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
