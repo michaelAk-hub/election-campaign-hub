@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MessageSquare, Send, RefreshCw, CheckCircle2, XCircle, Phone } from "lucide-react";
+import { MessageSquare, Send, RefreshCw, CheckCircle2, XCircle, Phone, Users } from "lucide-react";
 import { toast } from "sonner";
 import PageHeader from "../components/common/PageHeader";
+import SmsPhoneGroupManager from "../components/sms/SmsPhoneGroupManager";
 
 export default function ChreosiSmsCredentials() {
   const PORTAL_DEFAULT = "https://votecontrol.info/PortalLogin";
@@ -20,6 +21,7 @@ export default function ChreosiSmsCredentials() {
   const [sendTarget, setSendTarget] = useState("chreosi");
   const [mode, setMode] = useState("selected");
   const [manualPhoneNumbers, setManualPhoneNumbers] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState("");
   const [onlyActive, setOnlyActive] = useState(true);
   const [includeTitleLine, setIncludeTitleLine] = useState(false);
   const [title, setTitle] = useState("Στοιχεία πρόσβασης");
