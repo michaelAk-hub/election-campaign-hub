@@ -229,7 +229,7 @@ export default function ChreosiSmsCredentials() {
             <div className="space-y-3">
               <Label>Τρόπος αποστολής</Label>
               {/* Primary send target */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant={sendTarget === "chreosi" ? "default" : "outline"}
@@ -246,6 +246,15 @@ export default function ChreosiSmsCredentials() {
                 >
                   <Phone className="h-3 w-3 mr-1" />
                   Εισαγωγή Τηλεφώνων
+                </Button>
+                <Button
+                  type="button"
+                  variant={sendTarget === "group" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSendTarget("group")}
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  Αποστολή σε Ομάδα
                 </Button>
               </div>
 
