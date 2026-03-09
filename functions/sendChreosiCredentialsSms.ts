@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
     const mode = body.mode || "selected";
     const usernames = body.usernames || [];
     const manualPhones = body.manualPhones || [];
+    const groupId = body.groupId || null;
     const title = body.title || "Στοιχεία πρόσβασης";
     const portalUrl = body.portalUrl || "https://votecontrol.info/PortalLogin";
     const template =
@@ -76,6 +77,75 @@ Deno.serve(async (req) => {
     }
     if (!messagingServiceSid && !from) {
       return Response.json({ error: "Missing TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM" }, { status: 500 });
+    }
+
+    // ── GROUP PHONE MODE ───────────────────────────────────────────────────────
+    if (sendTarget === "group") {
+      if (!groupId) return Response.json({ error: "No group selected" }, { status: 400 });
+
+      // Fetch group members
+      const members = await base44.asServiceRole.entities.SmsPhoneGroupMember.filter({ group_id: groupId });
+      const activeMembers = members.filter(m => m.is_active !== false);
+
+      if (activeMembers.length === 0) {
+        return Response.json({ error: "Η ομάδα δεν έχει μέλη" }, { status: 400 });
+      }
+
+      // Block unsupported placeholders in group mode
+      const unsupported = ["{USERNAME}", "{PASSWORD}", "{NAME}"];
+      const found = unsupported.filter((p) => template.includes(p));
+      if (found.length > 0) {
+        return Response.json({
+          error: `Group mode only supports {PORTAL_URL}. The placeholders ${found.join(", ")} require a Chreosi account.`,
+        }, { status: 400 });
+      }
+
+      const seen = new Set();
+      let sent = 0, failed = 0, skipped_invalid = 0, skipped_duplicate = 0;
+      const results = [];
+
+      for (const member of activeMembers) {
+        const toE164 = member.normalized_phone;
+        if (!toE164) { skipped_invalid++; continue; }
+        if (seen.has(toE164)) { skipped_duplicate++; continue; }
+        seen.add(toE164);
+
+        let msg = template.replaceAll("{PORTAL_URL}", portalUrl);
+        if (includeTitleLine && title) msg = `${title}\n${msg}`;
+
+        try {
+          const tw = await twilioSendSms({
+            accountSid, authToken, toE164, body: msg,
+            messagingServiceSid: messagingServiceSid || undefined,
+            from: !messagingServiceSid ? from : undefined,
+          });
+          sent++;
+          await base44.asServiceRole.entities.SmsLog.create({
+            category: "chreosi_credentials_manual",
+            title,
+            to_phone: toE164,
+            to_username: member.display_name || "",
+            message_preview: msg.slice(0, 240),
+            provider: "twilio",
+            provider_message_id: tw?.sid || "",
+            status: "sent",
+            sent_by_user_id: user.id,
+          });
+          results.push({ phone: toE164, status: "sent", messageId: tw?.sid || "" });
+        } catch (e) {
+          failed++;
+          await base44.asServiceRole.entities.SmsLog.create({
+            category: "chreosi_credentials_manual",
+            title, to_phone: toE164, provider: "twilio",
+            status: "failed", error: e?.message || String(e), sent_by_user_id: user.id,
+          });
+          results.push({ phone: toE164, status: "failed", error: e?.message || String(e) });
+        }
+
+        if (throttleMs > 0) await new Promise((r) => setTimeout(r, throttleMs));
+      }
+
+      return Response.json({ ok: true, sent, failed, skipped: skipped_invalid + skipped_duplicate, skipped_invalid, skipped_duplicate, results });
     }
 
     // ── MANUAL PHONE MODE ──────────────────────────────────────────────────────
