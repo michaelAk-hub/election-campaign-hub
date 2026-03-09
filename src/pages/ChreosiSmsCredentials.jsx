@@ -132,6 +132,7 @@ export default function ChreosiSmsCredentials() {
       : [];
 
     const payload = {
+      session_token: localStorage.getItem('app_session_token'),
       sendTarget,
       mode,
       usernames: sendTarget === "chreosi" && mode === "selected" ? selectedUsernames : [],
