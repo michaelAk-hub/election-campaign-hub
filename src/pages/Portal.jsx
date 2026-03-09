@@ -170,7 +170,7 @@ function ChreosiPortal({ username }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Αναζήτηση..."
             value={search}
@@ -202,7 +202,7 @@ function ChreosiPortal({ username }) {
         </Select>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
+      <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 mb-4">
         <span>{filteredPeople.length} άτομα</span>
         <span>Σύνολο ανατεθημένων: {assignedPeople.length}</span>
       </div>
@@ -222,7 +222,7 @@ function ChreosiPortal({ username }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="font-semibold text-slate-900">
+                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">
                         {person.last_name} {person.first_name}
                       </h3>
                       <div className="flex flex-wrap gap-2 mt-1">
@@ -233,7 +233,7 @@ function ChreosiPortal({ username }) {
                     {person.mobile_phone && (
                       <a
                         href={`tel:${person.mobile_phone}`}
-                        className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                        className="flex items-center gap-1 px-3 py-2 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors"
                       >
                         <Phone className="h-4 w-4" />
                         <span className="text-sm">{person.mobile_phone}</span>
@@ -242,18 +242,18 @@ function ChreosiPortal({ username }) {
                   </div>
                   <div className="mt-3">
                     <div 
-                      className="text-sm text-slate-600 cursor-pointer hover:bg-slate-50 p-2 rounded-lg -ml-2"
-                      onClick={() => {
-                        setEditingNotes(person);
-                        setNotesValue(person.notes || '');
-                      }}
-                    >
-                      {person.notes ? (
-                        <p>{person.notes}</p>
-                      ) : (
-                        <p className="text-slate-400 italic">Κλικ για προσθήκη σημειώσεων...</p>
-                      )}
-                    </div>
+                       className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg -ml-2"
+                       onClick={() => {
+                         setEditingNotes(person);
+                         setNotesValue(person.notes || '');
+                       }}
+                     >
+                       {person.notes ? (
+                         <p className="dark:text-slate-300">{person.notes}</p>
+                       ) : (
+                         <p className="text-slate-400 dark:text-slate-500 italic">Κλικ για προσθήκη σημειώσεων...</p>
+                       )}
+                     </div>
                   </div>
                 </div>
               </div>
@@ -262,8 +262,8 @@ function ChreosiPortal({ username }) {
         ))}
 
         {filteredPeople.length === 0 && (
-          <div className="text-center py-12 text-slate-500">
-            <User className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+          <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+            <User className="h-12 w-12 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
             <p>Δεν βρέθηκαν άτομα</p>
           </div>
         )}
@@ -382,11 +382,11 @@ function KanaliTypeAPortal({ username }) {
     <div className="max-w-md mx-auto">
       <Card>
         <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Vote className="h-8 w-8 text-blue-600" />
+          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Vote className="h-8 w-8 text-blue-600 dark:text-blue-400" />
           </div>
           <CardTitle>Καταχώρηση Ψήφου</CardTitle>
-          <p className="text-slate-500 text-sm mt-2">
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
             Εισάγετε το ID του ψηφοφόρου
           </p>
         </CardHeader>
@@ -425,8 +425,8 @@ function KanaliTypeAPortal({ username }) {
             <Alert 
               className={`mt-6 ${
                 lastResult.status === 'MARKED_VOTED' 
-                  ? 'bg-emerald-50 border-emerald-200' 
-                  : 'bg-red-50 border-red-200'
+                  ? 'bg-emerald-50 dark:bg-emerald-900/40 border-emerald-200 dark:border-emerald-900' 
+                  : 'bg-red-50 dark:bg-red-900/40 border-red-200 dark:border-red-900'
               }`}
             >
               {lastResult.status === 'MARKED_VOTED' ? (
@@ -556,26 +556,26 @@ export default function Portal() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
               <Vote className="h-5 w-5 text-white" />
             </div>
             <div>
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
                 {session.portalType === 'chreosi' ? 'Χρεωστικός' : 'Κανάλι'}
               </span>
-              <p className="text-xs text-slate-500">{session.username}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{session.username}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -602,9 +602,9 @@ export default function Portal() {
           ) : session.kanaliType === 'A' ? (
             <KanaliTypeAPortal username={session.username} />
           ) : (
-            <div className="text-center py-12">
-              <p className="text-slate-500">Ο τύπος B θα είναι διαθέσιμος σύντομα.</p>
-            </div>
+           <div className="text-center py-12">
+             <p className="text-slate-500 dark:text-slate-400">Ο τύπος B θα είναι διαθέσιμος σύντομα.</p>
+           </div>
           )}
         </PullToRefresh>
       </main>
@@ -614,8 +614,8 @@ export default function Portal() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                <Trash2 className="h-6 w-6 text-red-600" />
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
               </div>
               <DialogTitle className="text-xl">Διαγραφή Λογαριασμού</DialogTitle>
             </div>
@@ -639,12 +639,12 @@ export default function Portal() {
         <DialogContent className="sm:max-w-md" hideCloseButton>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-blue-600" />
+              <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               {pushMessage?.title}
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-slate-600">{pushMessage?.body}</p>
+            <p className="text-slate-600 dark:text-slate-400">{pushMessage?.body}</p>
           </div>
           <div className="flex justify-end">
             <Button onClick={acknowledgePushMessage}>
