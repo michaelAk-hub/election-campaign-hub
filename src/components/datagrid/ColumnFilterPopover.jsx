@@ -66,7 +66,7 @@ export default function ColumnFilterPopover({ columnKey, columnLabel, partition 
   const handleSearchChange = (value) => {
     setSearchText(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => loadFilterValues(value), 250);
+    debounceRef.current = setTimeout(() => loadFilterValues(value), 300);
   };
 
   const handleSelectAll = () => {

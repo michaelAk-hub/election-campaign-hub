@@ -10,11 +10,13 @@ import { cn } from "@/lib/utils"
 
 // Hook to detect mobile
 function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState(() => window.innerWidth < 768);
+  const query = '(max-width: 1023px)';
+  const [isMobile, setIsMobile] = React.useState(() => window.matchMedia(query).matches);
   React.useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
+    const mq = window.matchMedia(query);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
   return isMobile;
 }
