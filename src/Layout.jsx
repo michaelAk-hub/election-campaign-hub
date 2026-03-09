@@ -114,31 +114,9 @@ export default function Layout({ children, currentPageName }) {
 
 
 
-  // Sync dark mode: respect system preference on mobile, force light on desktop (lg+)
+  // Always force light mode — app UI is only styled for light theme
   useEffect(() => {
-    const applyTheme = () => {
-      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-      if (isDesktop) {
-        // Desktop: always light mode
-        document.documentElement.classList.remove('dark');
-      } else {
-        // Mobile/tablet: follow system preference
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', prefersDark);
-      }
-    };
-
-    applyTheme();
-
-    const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const widthQuery = window.matchMedia('(min-width: 1024px)');
-    colorSchemeQuery.addEventListener('change', applyTheme);
-    widthQuery.addEventListener('change', applyTheme);
-
-    return () => {
-      colorSchemeQuery.removeEventListener('change', applyTheme);
-      widthQuery.removeEventListener('change', applyTheme);
-    };
+    document.documentElement.classList.remove('dark');
   }, []);
 
   // Track navigation history for back-button detection
