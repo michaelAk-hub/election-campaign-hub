@@ -400,7 +400,7 @@ export default function Predictions() {
                                     </div>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                    <div className="border-t dark:border-slate-700 p-4">
+                                    <div className="border-t dark:border-slate-700 p-2 sm:p-4 overflow-x-auto">
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
