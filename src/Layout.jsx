@@ -241,6 +241,18 @@ export default function Layout({ children, currentPageName }) {
     };
   }, [user, handleActivity]);
 
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    const sessionToken = localStorage.getItem('app_session_token');
+    await base44.functions.invoke('deleteAppAccount', { session_token: sessionToken });
+    localStorage.removeItem('app_session_token');
+    localStorage.removeItem('app_user');
+    window.location.href = createPageUrl('AdminLogin');
+  };
+
+  // Determine if we're deep in the nav stack (back button should show)
+  const isDeepPage = !TAB_ROOT_PAGES.includes(currentPageName) && historyStackRef.current.length > 1;
+
   // Portal pages have their own layout
   if (portalPages.includes(currentPageName)) {
       return <>{children}</>;
