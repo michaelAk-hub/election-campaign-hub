@@ -469,7 +469,7 @@ export default function Layout({ children, currentPageName }) {
                 onClick={() => setSidebarOpen(true)}
                 className={cn(
                   "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
-                  "text-slate-500"
+                  "text-slate-500 dark:text-slate-400"
                 )}
               >
                 <item.icon className="h-5 w-5" />
