@@ -387,7 +387,7 @@ export default function Layout({ children, currentPageName }) {
         </nav>
 
         {/* User */}
-        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-100 bg-white">
+        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center">
               <span className="text-sm font-medium text-slate-600">
