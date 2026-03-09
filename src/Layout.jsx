@@ -114,9 +114,16 @@ export default function Layout({ children, currentPageName }) {
 
 
 
-  // Always force light mode — app UI is only styled for light theme
+  // Follow system dark mode preference
   useEffect(() => {
-    document.documentElement.classList.remove('dark');
+    const applyTheme = () => {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('dark', prefersDark);
+    };
+    applyTheme();
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', applyTheme);
+    return () => mq.removeEventListener('change', applyTheme);
   }, []);
 
   // Track navigation history for back-button detection
