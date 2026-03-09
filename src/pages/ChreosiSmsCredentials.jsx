@@ -364,7 +364,7 @@ export default function ChreosiSmsCredentials() {
         </Card>
 
         {/* Account Selection Card — hidden in manual mode */}
-        <Card className={sendTarget === "manual" ? "opacity-40 pointer-events-none" : ""}>
+        <Card className={(sendTarget === "manual" || sendTarget === "group") ? "opacity-40 pointer-events-none" : ""}>
           <CardHeader>
             <CardTitle className="text-base">Επιλογή Χρεωστικών</CardTitle>
           </CardHeader>
