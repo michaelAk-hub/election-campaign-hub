@@ -453,7 +453,7 @@ export default function Layout({ children, currentPageName }) {
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 flex"
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 z-40 flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {[
