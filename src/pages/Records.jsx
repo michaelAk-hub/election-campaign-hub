@@ -179,11 +179,12 @@ export default function Records() {
         const currentSort = sortModelRef.current;
         await base44.functions.invoke('gridPreferencesSave', {
           grid_key: GRID_KEY,
+          session_token: localStorage.getItem('app_session_token'),
           state_json: {
             columnOrder: currentOrder,
             filterModel: currentFilter,
             sortModel: currentSort,
-            ...patch, // allow explicit override if needed
+            ...patch,
           },
         });
       } catch {
