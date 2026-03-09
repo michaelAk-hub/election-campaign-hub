@@ -254,6 +254,10 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <style>{`
+        body { overscroll-behavior: none; }
+        button, [role="button"], svg { user-select: none; -webkit-user-select: none; }
+      `}</style>
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4">
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
