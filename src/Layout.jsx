@@ -31,7 +31,6 @@ import { cn } from "@/lib/utils";
 const adminNavItems = [
   { name: 'Πίνακας Ελέγχου', icon: LayoutDashboard, page: 'Dashboard' },
   { name: 'Εγγραφές', icon: Database, page: 'Records' },
-  { name: 'Πλέγμα Δεδομένων', icon: Database, page: 'DataGrid' },
   { name: 'Αποθηκευμένα Ερωτήματα', icon: SearchIcon, page: 'SavedQueries' },
   { name: 'Προβλέψεις', icon: GitCompare, page: 'Predictions' },
   { name: 'Σύγκριση & Συγχώνευση', icon: GitCompare, page: 'CompareMerge' },

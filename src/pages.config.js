@@ -54,7 +54,6 @@ import ChreosiSmsCredentials from './pages/ChreosiSmsCredentials';
 import CompareMerge from './pages/CompareMerge';
 import CreateTestUser from './pages/CreateTestUser';
 import Dashboard from './pages/Dashboard';
-import DataGrid from './pages/DataGrid';
 import KanaliAccounts from './pages/KanaliAccounts';
 import KanaliPortal from './pages/KanaliPortal';
 import MfaVerify from './pages/MfaVerify';
@@ -79,7 +78,6 @@ export const PAGES = {
     "CompareMerge": CompareMerge,
     "CreateTestUser": CreateTestUser,
     "Dashboard": Dashboard,
-    "DataGrid": DataGrid,
     "KanaliAccounts": KanaliAccounts,
     "KanaliPortal": KanaliPortal,
     "MfaVerify": MfaVerify,
