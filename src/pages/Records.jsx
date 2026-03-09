@@ -880,5 +880,6 @@ export default function Records() {
         </DialogContent>
       </Dialog>
     </div>
+    </PullToRefresh>
   );
 }
