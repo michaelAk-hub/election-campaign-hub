@@ -433,7 +433,9 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen pb-16 lg:pb-0">
+      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen pb-16 lg:pb-0"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 4rem)' }}
+      >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
