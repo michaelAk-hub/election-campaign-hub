@@ -570,7 +570,7 @@ export default function Records() {
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-    <div className="space-y-6">
+      <div className="space-y-6">
       <PageHeader
         title="Εγγραφές"
         subtitle={subtitle}
