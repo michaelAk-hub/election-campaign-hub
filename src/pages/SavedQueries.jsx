@@ -720,9 +720,9 @@ th{background:#f3f4f6;font-weight:700}
       />
 
       {/* Page description */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-1">
+      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-800 dark:text-blue-300 space-y-1">
         <p className="font-semibold">📋 Πώς λειτουργεί η σελίδα:</p>
-        <ul className="list-disc list-inside space-y-1 text-blue-700">
+        <ul className="list-disc list-inside space-y-1 text-blue-700 dark:text-blue-400">
           <li><strong>Νέο Ερώτημα:</strong> Δημιουργήστε ένα ερώτημα με οπτικό builder (groups/παρενθέσεις) ή χειροκίνητη έκφραση. Επιλέξτε ποιες στήλες θέλετε να εμφανίζονται.</li>
           <li><strong>Εκτέλεση:</strong> Εφαρμόζει τα φίλτρα του ερωτήματος σε όλα τα πρόσωπα και εμφανίζει τα αποτελέσματα σε πίνακα.</li>
           <li><strong>Εξαγωγή:</strong> Κατεβάζει τα αποτελέσματα ως αρχείο CSV (συμβατό με Excel) με τις επιλεγμένες στήλες.</li>
@@ -744,7 +744,7 @@ th{background:#f3f4f6;font-weight:700}
         />
       ) : (
         <div className="space-y-3">
-          <div className="flex items-center justify-between border rounded-lg p-3 bg-slate-50">
+          <div className="flex items-center justify-between border rounded-lg p-3 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
             <div className="flex items-center gap-2">
               <Checkbox
                 checked={allSelected ? true : (isIndeterminate ? "indeterminate" : false)}
@@ -752,7 +752,7 @@ th{background:#f3f4f6;font-weight:700}
               />
               <span className="text-sm font-medium">Επιλογή όλων</span>
             </div>
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-slate-600 dark:text-slate-400">
               Επιλεγμένα: <strong>{selectedQueryIds.length}</strong>
             </span>
           </div>
@@ -777,8 +777,8 @@ th{background:#f3f4f6;font-weight:700}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {query.description && <p className="text-sm text-slate-500 mb-4">{query.description}</p>}
-                <div className="text-xs text-slate-400 mb-4">
+                {query.description && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{query.description}</p>}
+                <div className="text-xs text-slate-400 dark:text-slate-500 mb-4">
                   <div>{(query.columns || []).length} στήλες</div>
                   {query.logicalExpression && (
                     <div className="mt-1 font-mono text-[10px] text-blue-600 truncate" title={query.logicalExpression}>
@@ -828,7 +828,7 @@ th{background:#f3f4f6;font-weight:700}
             {/* Columns */}
             <div className="space-y-2">
               <Label>Στήλες αποτελεσμάτων</Label>
-              <div className="grid grid-cols-2 gap-2 border rounded-lg p-3 bg-slate-50">
+              <div className="grid grid-cols-2 gap-2 border rounded-lg p-3 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
                 {AVAILABLE_COLUMNS.map(col => (
                   <div key={col.key} className="flex items-center gap-2">
                     <Checkbox
@@ -896,18 +896,18 @@ th{background:#f3f4f6;font-weight:700}
               )}
 
               {exprError && (
-                <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 text-sm">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span className="font-mono">{exprError}</span>
                 </div>
               )}
 
-              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
                 <div className="flex items-center gap-2">
                   {previewCount > 0
                     ? <CheckCircle2 className="h-5 w-5 text-green-600" />
                     : <AlertCircle className="h-5 w-5 text-amber-600" />}
-                  <span className="text-sm font-medium text-slate-700">Αποτελέσματα:</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Αποτελέσματα:</span>
                 </div>
                 <Badge variant="default" className="text-base px-3 py-1">
                   {previewCount.toLocaleString()} / {people.length.toLocaleString()}
@@ -935,7 +935,7 @@ th{background:#f3f4f6;font-weight:700}
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-600 font-medium">{queryResults.length.toLocaleString()} εγγραφές</span>
               {queryResults.length > 100 && (
-                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded px-2 py-0.5">
                   Εμφανίζονται οι πρώτες 100 — εξάγετε για όλες
                 </span>
               )}
@@ -960,9 +960,9 @@ th{background:#f3f4f6;font-weight:700}
               </TooltipProvider>
             </div>
           </div>
-          <div className="overflow-auto max-h-[50vh] border rounded-lg">
+          <div className="overflow-auto max-h-[50vh] border rounded-lg dark:border-slate-700">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 sticky top-0">
+              <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0">
                 <tr>
                   {(runDialog.query?.columns || []).map(k => (
                     <th key={k} className="text-left p-3 font-semibold">
@@ -973,7 +973,7 @@ th{background:#f3f4f6;font-weight:700}
               </thead>
               <tbody>
                 {queryResults.slice(0, 100).map((row, idx) => (
-                  <tr key={idx} className="border-t hover:bg-slate-50">
+                  <tr key={idx} className="border-t dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">
                     {(runDialog.query?.columns || []).map(k => (
                       <td key={k} className="p-3">
                         {k === 'voted' ? (row[k] ? 'ΝΑΙ' : 'ΟΧΙ') : (row[k] || '-')}
@@ -1022,11 +1022,11 @@ th{background:#f3f4f6;font-weight:700}
             <div className="space-y-2">
               <Label>Σειρά στηλών εκτύπωσης</Label>
 
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 Τσέκαρε ποιες στήλες θα τυπωθούν. Ο αριθμός (1, 2, 3…) δείχνει τη σειρά εμφάνισης στο χαρτί.
               </p>
 
-              <div className="border rounded-lg p-3 space-y-2 max-h-72 overflow-y-auto">
+              <div className="border rounded-lg p-3 space-y-2 max-h-72 overflow-y-auto dark:border-slate-700">
                 {AVAILABLE_COLUMNS.map((c) => {
                   const checked = printSettings.columns.includes(c.key);
                   const idx = printSettings.columns.indexOf(c.key);
@@ -1035,7 +1035,7 @@ th{background:#f3f4f6;font-weight:700}
                       <Checkbox checked={checked} onCheckedChange={(v) => toggleCol(c.key, !!v)} />
                       <div className="w-7 text-center">
                         {checked ? (
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold">
                             {idx + 1}
                           </span>
                         ) : (
@@ -1070,7 +1070,7 @@ th{background:#f3f4f6;font-weight:700}
                 })}
               </div>
 
-              <div className="text-xs text-slate-500 space-y-1">
+              <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
                 <div>✅ Τσέκαρε στήλες για να μπουν στην εκτύπωση</div>
                 <div>🔢 Άλλαξε τη "Θέση" για να αλλάξει η σειρά (1η στήλη = πρώτη στο χαρτί)</div>
               </div>
