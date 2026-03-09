@@ -99,7 +99,10 @@ export default function PortalLogin() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div
+            className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 cursor-pointer active:opacity-70 transition-opacity"
+            onClick={() => navigate(createPageUrl('AdminLogin'))}
+          >
             <Vote className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Πύλη Εκλογών</h1>
