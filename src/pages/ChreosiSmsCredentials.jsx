@@ -292,6 +292,19 @@ export default function ChreosiSmsCredentials() {
                 </div>
               )}
 
+              {/* Group selector */}
+              {sendTarget === "group" && (
+                <div className="pl-2 border-l-2 border-slate-200">
+                  <SmsPhoneGroupManager
+                    selectedGroupId={selectedGroupId}
+                    onGroupSelect={setSelectedGroupId}
+                  />
+                  <p className="text-xs text-slate-500 mt-2">
+                    Υποστηρίζεται μόνο το placeholder <code className="bg-slate-100 px-1 rounded">{"{PORTAL_URL}"}</code>.
+                  </p>
+                </div>
+              )}
+
               {/* Manual phone textarea */}
               {sendTarget === "manual" && (
                 <div className="space-y-1 pl-2 border-l-2 border-slate-200">
