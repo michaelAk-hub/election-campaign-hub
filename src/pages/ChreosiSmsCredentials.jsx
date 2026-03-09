@@ -98,6 +98,11 @@ export default function ChreosiSmsCredentials() {
         toast.error("Επιλέξτε τουλάχιστον έναν χρήστη");
         return;
       }
+    } else if (sendTarget === "group") {
+      if (!selectedGroupId) {
+        toast.error("Επιλέξτε μια ομάδα");
+        return;
+      }
     } else {
       // Manual mode: validate phone input
       const parsed = manualPhoneNumbers
@@ -131,6 +136,7 @@ export default function ChreosiSmsCredentials() {
       mode,
       usernames: sendTarget === "chreosi" && mode === "selected" ? selectedUsernames : [],
       manualPhones: manualParsed,
+      groupId: sendTarget === "group" ? selectedGroupId : null,
       onlyActive,
       title,
       portalUrl,
