@@ -609,6 +609,31 @@ export default function Portal() {
         </PullToRefresh>
       </main>
 
+      {/* Delete Account Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              <DialogTitle className="text-xl">Διαγραφή Λογαριασμού</DialogTitle>
+            </div>
+            <DialogDescription className="text-base">
+              Είστε σίγουροι ότι θέλετε να απενεργοποιήσετε μόνιμα τον λογαριασμό σας; Δεν θα μπορείτε να συνδεθείτε ξανά.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deletingAccount} className="w-full">
+              Ακύρωση
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAccount} disabled={deletingAccount} className="w-full">
+              {deletingAccount ? 'Απενεργοποίηση...' : 'Διαγραφή Λογαριασμού'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Push Message Modal */}
       <Dialog open={!!pushMessage} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md" hideCloseButton>
