@@ -319,8 +319,8 @@ export default function Layout({ children, currentPageName }) {
           </Button>
         )}
         <div className="flex items-center gap-2">
-          <Vote className="h-5 w-5 text-blue-600" />
-          <span className="font-semibold text-sm truncate max-w-[140px]">
+          <Vote className="h-5 w-5 text-blue-500" />
+          <span className="font-semibold text-sm truncate max-w-[140px] text-slate-900 dark:text-slate-100">
             {isDeepPage
               ? (adminNavItems.find(i => i.page === currentPageName)?.name || 'Εκλογές')
               : 'Εκλογές'}
