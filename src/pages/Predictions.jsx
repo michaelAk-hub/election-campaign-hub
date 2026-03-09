@@ -309,14 +309,14 @@ export default function Predictions() {
                 <CardHeader className="pb-3 sm:pb-6">
                     <CardTitle className="text-base sm:text-lg">Ανά Σύμβολο Πρόβλεψης</CardTitle>
                 </CardHeader>
-                <CardContent className="overflow-x-auto -mx-2 sm:mx-0">
+                <CardContent className="overflow-x-auto px-0 sm:px-6">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="text-xs sm:text-sm">Σύμβολο</TableHead>
                                 <TableHead className="text-right text-xs sm:text-sm">Σύνολο</TableHead>
-                                <TableHead className="text-right text-xs sm:text-sm hidden sm:table-cell">Ψήφισαν</TableHead>
-                                <TableHead className="text-right text-xs sm:text-sm hidden sm:table-cell">Δεν Ψήφισαν</TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm">Ψήφισαν</TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm">Δεν Ψήφισαν</TableHead>
                                 <TableHead className="text-right text-xs sm:text-sm">%</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -333,8 +333,8 @@ export default function Predictions() {
                                         <TableRow key={idx}>
                                             <TableCell className="font-medium text-xs sm:text-sm">{row.symbol}</TableCell>
                                             <TableCell className="text-right font-bold text-xs sm:text-sm">{row.total.toLocaleString('el-GR')}</TableCell>
-                                            <TableCell className="text-right font-bold text-green-600 text-xs sm:text-sm hidden sm:table-cell">{row.voted_yes.toLocaleString('el-GR')}</TableCell>
-                                            <TableCell className="text-right font-bold text-orange-600 text-xs sm:text-sm hidden sm:table-cell">{row.voted_no.toLocaleString('el-GR')}</TableCell>
+                                            <TableCell className="text-right font-bold text-green-600 text-xs sm:text-sm">{row.voted_yes.toLocaleString('el-GR')}</TableCell>
+                                            <TableCell className="text-right font-bold text-orange-600 text-xs sm:text-sm">{row.voted_no.toLocaleString('el-GR')}</TableCell>
                                             <TableCell className="text-right font-bold text-xs sm:text-sm">
                                                 {row.total > 0 ? `${((row.voted_yes / row.total) * 100).toFixed(0)}%` : '0%'}
                                             </TableCell>
@@ -377,7 +377,7 @@ export default function Predictions() {
                                             <ChevronDown className="h-5 w-5 text-slate-400" />
                                             <span className="font-semibold text-lg">{yearData.year}</span>
                                         </div>
-                                        <div className="flex gap-6 text-sm">
+                                        <div className="flex flex-wrap gap-3 text-xs sm:text-sm">
                                             <div className="text-right">
                                                 <div className="text-slate-600 dark:text-slate-400">Σύνολο</div>
                                                 <div className="font-bold">{yearData.total.toLocaleString('el-GR')}</div>
@@ -387,13 +387,13 @@ export default function Predictions() {
                                                 <div className="font-bold text-green-600">{yearData.voted_yes.toLocaleString('el-GR')}</div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-slate-600 dark:text-slate-400">Δεν Ψήφισαν</div>
+                                                <div className="text-slate-600 dark:text-slate-400">Δεν Ψήφ.</div>
                                                 <div className="font-bold text-orange-600">{yearData.voted_no.toLocaleString('el-GR')}</div>
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-slate-600 dark:text-slate-400">%</div>
                                                 <div className="font-bold text-blue-600">
-                                                    {yearData.total > 0 ? `${((yearData.voted_yes / yearData.total) * 100).toFixed(2)}%` : '0.00%'}
+                                                    {yearData.total > 0 ? `${((yearData.voted_yes / yearData.total) * 100).toFixed(1)}%` : '0%'}
                                                 </div>
                                             </div>
                                         </div>
