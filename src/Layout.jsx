@@ -350,8 +350,8 @@ export default function Layout({ children, currentPageName }) {
               <Vote className="h-5 w-5 text-white" />
             </div>
             <div>
-              <span className="font-bold text-slate-900">Εκλογές</span>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider">2026</p>
+              <span className="font-bold text-slate-900 dark:text-slate-100">Εκλογές</span>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">2026</p>
             </div>
           </div>
           <Button 
