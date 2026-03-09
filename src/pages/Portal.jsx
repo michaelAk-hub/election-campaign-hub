@@ -31,7 +31,8 @@ import {
   Filter,
   MessageSquare,
   X,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import NotificationCenter from '../components/notifications/NotificationCenter';
 import PullToRefresh from '../components/common/PullToRefresh';
