@@ -403,6 +403,15 @@ export default function Layout({ children, currentPageName }) {
               <Button
                 variant="ghost"
                 size="icon"
+                onClick={() => setShowDeleteAccountDialog(true)}
+                className="text-slate-400 hover:text-red-500"
+                title="Διαγραφή Λογαριασμού"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={async () => {
                   const sessionToken = localStorage.getItem('app_session_token');
                   if (sessionToken) {
