@@ -495,7 +495,7 @@ export default function Layout({ children, currentPageName }) {
               }}
               className={cn(
                 "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
-                isActive ? "text-blue-600" : "text-slate-500"
+                isActive ? "text-blue-500 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"
               )}
             >
               <item.icon className="h-5 w-5" />
