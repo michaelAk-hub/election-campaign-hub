@@ -583,9 +583,6 @@ export default function Portal() {
               userType={session.portalType} 
               username={session.username}
             />
-            <Button variant="ghost" size="icon" onClick={() => setShowDeleteDialog(true)} className="text-slate-400 hover:text-red-500" title="Διαγραφή Λογαριασμού">
-              <Trash2 className="h-4 w-4" />
-            </Button>
             <Button variant="ghost" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Αποσύνδεση
