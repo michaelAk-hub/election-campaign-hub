@@ -266,10 +266,10 @@ export default function Layout({ children, currentPageName }) {
       const portalToken = localStorage.getItem('portal_session_token');
       if (portalToken && !user) {
           return (
-              <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+              <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
                   <div className="text-center">
-                      <h1 className="text-2xl font-bold text-slate-900 mb-2">Δεν επιτρέπεται η πρόσβαση</h1>
-                      <p className="text-slate-600 mb-4">Μόνο διαχειριστές και οργανωτικοί έχουν πρόσβαση σε αυτή τη σελίδα.</p>
+                      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">Δεν επιτρέπεται η πρόσβαση</h1>
+                      <p className="text-slate-600 dark:text-slate-400 mb-4">Μόνο διαχειριστές και οργανωτικοί έχουν πρόσβαση σε αυτή τη σελίδα.</p>
                       <Button onClick={() => window.location.href = createPageUrl('Portal')}>
                           Επιστροφή
                       </Button>
