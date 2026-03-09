@@ -111,17 +111,9 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
-  // Dark mode detection
+  // Force light mode always
   useEffect(() => {
-    const root = document.documentElement;
-    const apply = (e) => {
-      if (e.matches) root.classList.add('dark');
-      else root.classList.remove('dark');
-    };
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    apply(mq);
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
+    document.documentElement.classList.remove('dark');
   }, []);
 
   // Track navigation history for back-button detection
