@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteProgressModal from '../components/records/DeleteProgressModal';
+import PullToRefresh from '../components/common/PullToRefresh';
 
 const PEOPLE_PAGE_SIZE = 500;
 
