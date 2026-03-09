@@ -49,12 +49,28 @@ const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const WARNING_AT_MS = 13 * 60 * 1000; // 13 minutes
 const HEARTBEAT_THROTTLE_MS = 45 * 1000; // 45 seconds
 
+// Bottom tab bar items for mobile
+const mobileTabItems = [
+  { name: 'Dashboard', icon: LayoutDashboard, label: 'Αρχική', page: 'Dashboard' },
+  { name: 'Records', icon: Database, label: 'Εγγραφές', page: 'Records' },
+  { name: 'SendMessage', icon: MessageSquare, label: 'Μήνυμα', page: 'SendMessage' },
+  { name: 'PortalLogin', icon: Vote, label: 'Πύλη', page: 'PortalLogin' },
+];
+
+// Pages that are "child" screens (show back button instead of menu)
+const childPages = ['ChreosiSmsCredentials', 'NotFoundVoters', 'SavedQueries', 'Predictions',
+  'CompareMerge', 'ChreosiAccounts', 'KanaliAccounts', 'UserManagement',
+  'NotificationPreferences', 'DataGrid', 'PushMessages', 'SendMessage'];
+
 export default function Layout({ children, currentPageName }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const [timeoutCountdown, setTimeoutCountdown] = useState(120);
+
+  const isChildPage = childPages.includes(currentPageName);
   
   const lastActivityRef = useRef(Date.now());
   const lastHeartbeatRef = useRef(Date.now());
