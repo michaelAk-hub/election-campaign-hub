@@ -217,8 +217,8 @@ export default function UserManagement() {
     }
 
     const roleColors = {
-        ADMIN: 'bg-purple-100 text-purple-800',
-        ORGANOTIKI: 'bg-blue-100 text-blue-800'
+        ADMIN: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+        ORGANOTIKI: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
     };
 
     const isAdmin = currentUser?.role === 'ADMIN';
@@ -232,7 +232,7 @@ export default function UserManagement() {
                             <Users className="h-6 w-6 text-blue-600" />
                             <div>
                                 <CardTitle>Διαχείριση Χρηστών - ADMIN & ORGANOTIKI</CardTitle>
-                                <p className="text-sm text-slate-500 mt-1">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                                     {filteredUsers.length} από {allUsers.length} χρήστες
                                 </p>
                             </div>
@@ -293,25 +293,25 @@ export default function UserManagement() {
                     </div>
 
                     {/* Users Table */}
-                    <div className="border rounded-lg overflow-hidden">
+                    <div className="border dark:border-slate-700 rounded-lg overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-slate-50 border-b">
+                                <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΡΟΛΟΣ</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΟΝΟΜΑ</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΕΠΩΝΥΜΟ</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΤΗΛΕΦΩΝΟ</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">EMAIL</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΚΩΔΙΚΟΣ</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ONLINE</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΚΑΤΑΣΤΑΣΗ</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">ΕΝΕΡΓΕΙΕΣ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΡΟΛΟΣ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΟΝΟΜΑ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΕΠΩΝΥΜΟ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΤΗΛΕΦΩΝΟ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">EMAIL</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΚΩΔΙΚΟΣ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ONLINE</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΚΑΤΑΣΤΑΣΗ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΕΝΕΡΓΕΙΕΣ</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y">
+                                <tbody className="divide-y dark:divide-slate-700">
                                     {filteredUsers.map((user) => (
-                                        <tr key={user.id} className="hover:bg-slate-50">
+                                        <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
                                             <td className="px-4 py-3">
                                                 <Badge className={roleColors[user.role]}>
                                                     {user.role}
@@ -321,7 +321,7 @@ export default function UserManagement() {
                                             <td className="px-4 py-3 text-sm">{user.surname}</td>
                                             <td className="px-4 py-3 text-sm">{user.phone}</td>
                                             <td className="px-4 py-3 text-sm">{user.email}</td>
-                                            <td className="px-4 py-3 text-sm text-slate-400">••••••••</td>
+                                            <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">••••••••</td>
                                             <td className="px-4 py-3">
                                                 {onlineStatus.online_user_ids.includes(user.id) ? (
                                                     <div className="flex items-center gap-2">
@@ -383,7 +383,7 @@ export default function UserManagement() {
                                                             {user.is_active ? 'Απενεργοποίηση' : 'Ενεργοποίηση'}
                                                         </Button>
                                                     ) : (
-                                                        <span className="text-xs text-slate-400">
+                                                        <span className="text-xs text-slate-400 dark:text-slate-500">
                                                             {user.role === 'ADMIN' ? 'Πάντα ενεργός' : 'Μη διαθέσιμο'}
                                                         </span>
                                                     )}
@@ -408,7 +408,7 @@ export default function UserManagement() {
                         </div>
 
                         {filteredUsers.length === 0 && (
-                            <div className="p-8 text-center text-slate-500">
+                            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
                                 Δεν βρέθηκαν χρήστες
                             </div>
                         )}
@@ -422,7 +422,7 @@ export default function UserManagement() {
                     <DialogHeader>
                         <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                         Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον χρήστη Organotiki; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
                     </p>
                     <DialogFooter>

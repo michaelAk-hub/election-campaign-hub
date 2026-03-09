@@ -208,7 +208,7 @@ export default function KanaliAccounts() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-500">Τύπος A</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Τύπος A</p>
                 <p className="text-2xl font-bold">{accounts.filter(a => a.user_type === 'A').length}</p>
               </div>
               <Badge variant="outline" className="border-blue-300 text-blue-700">A</Badge>
@@ -219,7 +219,7 @@ export default function KanaliAccounts() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-500">Τύπος B</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Τύπος B</p>
                 <p className="text-2xl font-bold">{accounts.filter(a => a.user_type === 'B').length}</p>
               </div>
               <Badge variant="outline" className="border-purple-300 text-purple-700">B</Badge>
@@ -391,7 +391,7 @@ export default function KanaliAccounts() {
                 <CardContent className="max-h-60 overflow-y-auto">
                   <div className="space-y-2 text-sm font-mono">
                     {createdAccounts.map((a, i) => (
-                      <div key={i} className="p-2 bg-slate-50 rounded flex justify-between">
+                      <div key={i} className="p-2 bg-slate-50 dark:bg-slate-800 rounded flex justify-between">
                         <span>{a.username}</span>
                         <span className="text-slate-500">{a.password}</span>
                       </div>

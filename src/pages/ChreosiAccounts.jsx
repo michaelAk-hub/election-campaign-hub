@@ -562,7 +562,7 @@ export default function ChreosiAccounts() {
                 <CardContent className="max-h-60 overflow-y-auto">
                   <div className="space-y-2 text-sm font-mono">
                     {createdAccounts.map((a, i) => (
-                      <div key={i} className="p-2 bg-slate-50 rounded flex justify-between">
+                      <div key={i} className="p-2 bg-slate-50 dark:bg-slate-800 rounded flex justify-between">
                         <span>{a.username}</span>
                         <span className="text-slate-500">{a.password}</span>
                       </div>
@@ -627,7 +627,7 @@ export default function ChreosiAccounts() {
                 availableSymbols.map(symbol => {
                   const selected = bulkSymbols.includes(symbol);
                   return (
-                    <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                    <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded">
                       <input
                         type="checkbox"
                         checked={selected}
@@ -717,7 +717,7 @@ export default function ChreosiAccounts() {
           <div className="space-y-3 py-2">
             {/* Audience info */}
             {!smsDialog.username && (
-              <div className="rounded-md bg-slate-50 border px-3 py-2 text-sm flex gap-4">
+              <div className="rounded-md bg-slate-50 dark:bg-slate-800 dark:border-slate-700 border px-3 py-2 text-sm flex gap-4">
                 {smsDialog.mode === 'all_active' ? (
                   <span className="text-slate-700">Κοινό: <strong>Όλοι οι ενεργοί</strong></span>
                 ) : (
@@ -776,15 +776,15 @@ export default function ChreosiAccounts() {
                   value={smsSearch}
                   onChange={(e) => setSmsSearch(e.target.value)}
                 />
-                <div className="max-h-56 overflow-auto border rounded p-1 space-y-0.5">
+                <div className="max-h-56 overflow-auto border dark:border-slate-700 rounded p-1 space-y-0.5">
                   {visibleSmsAccounts.length === 0 ? (
-                    <div className="text-sm text-slate-500 p-2">Δεν βρέθηκαν χρήστες.</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400 p-2">Δεν βρέθηκαν χρήστες.</div>
                   ) : (
                     visibleSmsAccounts.map((a) => {
                       const checked = selectedSet.has(a.id);
                       const hasPhone = !!(a.phone || "").trim();
                       return (
-                        <label key={a.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-50 cursor-pointer">
+                        <label key={a.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={checked}
@@ -808,7 +808,7 @@ export default function ChreosiAccounts() {
             )}
 
             {smsResult && (
-              <div className="rounded-lg border p-3 text-sm space-y-1">
+              <div className="rounded-lg border dark:border-slate-700 p-3 text-sm space-y-1">
                 <div className="flex gap-4 font-medium">
                   <span className="text-green-600">✓ Εστάλησαν: {smsResult.sent}</span>
                   <span className="text-red-600">✗ Απέτυχαν: {smsResult.failed}</span>
@@ -873,14 +873,14 @@ export default function ChreosiAccounts() {
             </div>
             <div className="space-y-2">
               <Label>Επιτρεπόμενα Σύμβολα Πρόβλεψης</Label>
-              <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+              <div className="border dark:border-slate-700 rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
                 {availableSymbols.length === 0 ? (
-                  <p className="text-sm text-slate-500">Δεν βρέθηκαν σύμβολα</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Δεν βρέθηκαν σύμβολα</p>
                 ) : (
                   availableSymbols.map(symbol => {
                     const selected = (formData.allowed_prediction_symbols || []).includes(symbol);
                     return (
-                      <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                      <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded">
                         <input
                           type="checkbox"
                           checked={selected}

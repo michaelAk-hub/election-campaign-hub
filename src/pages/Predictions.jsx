@@ -197,8 +197,8 @@ export default function Predictions() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Προβλέψεις</h1>
-                    <p className="text-sm sm:text-base text-slate-600 mt-1">Ανάλυση συμβόλων πρόβλεψης και ψηφοφορίας</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Προβλέψεις</h1>
+                    <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">Ανάλυση συμβόλων πρόβλεψης και ψηφοφορίας</p>
                 </div>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     <Button
@@ -249,13 +249,13 @@ export default function Predictions() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
                     <CardHeader className="pb-2 sm:pb-3">
-                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-1 sm:gap-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1 sm:gap-2">
                             <Users className="h-3 w-3 sm:h-4 sm:w-4" />
                             <span className="truncate">Σύνολο</span>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-xl sm:text-3xl font-bold text-slate-900">
+                        <div className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
                             {loading ? '...' : kpis?.total?.toLocaleString('el-GR') || 0}
                         </div>
                     </CardContent>
@@ -263,7 +263,7 @@ export default function Predictions() {
 
                 <Card>
                     <CardHeader className="pb-2 sm:pb-3">
-                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-1 sm:gap-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1 sm:gap-2">
                             <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
                             <span className="truncate">Ψήφισαν</span>
                         </CardTitle>
@@ -277,7 +277,7 @@ export default function Predictions() {
 
                 <Card>
                     <CardHeader className="pb-2 sm:pb-3">
-                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-1 sm:gap-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1 sm:gap-2">
                             <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
                             <span className="truncate">Δεν Ψήφισαν</span>
                         </CardTitle>
@@ -291,7 +291,7 @@ export default function Predictions() {
 
                 <Card>
                     <CardHeader className="pb-2 sm:pb-3">
-                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-1 sm:gap-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1 sm:gap-2">
                             <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                             <span className="truncate">% Ψήφισαν</span>
                         </CardTitle>
@@ -340,7 +340,7 @@ export default function Predictions() {
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    <TableRow className="bg-slate-50 font-bold">
+                                    <TableRow className="bg-slate-50 dark:bg-slate-800 font-bold">
                                         <TableCell>Σύνολο</TableCell>
                                         <TableCell className="text-right">{kpis?.total?.toLocaleString('el-GR') || 0}</TableCell>
                                         <TableCell className="text-right text-green-600">{kpis?.voted_yes?.toLocaleString('el-GR') || 0}</TableCell>
@@ -367,11 +367,11 @@ export default function Predictions() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                     {loading ? (
-                        <div className="text-center py-8 text-slate-500">Φόρτωση...</div>
+                        <div className="text-center py-8 text-slate-500 dark:text-slate-400">Φόρτωση...</div>
                     ) : Object.values(groupedByYear).length > 0 ? (
                         Object.values(groupedByYear).map((yearData) => (
                             <Collapsible key={yearData.year} className="border rounded-lg">
-                                <CollapsibleTrigger className="w-full p-4 hover:bg-slate-50 transition-colors">
+                                <CollapsibleTrigger className="w-full p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-lg">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <ChevronDown className="h-5 w-5 text-slate-400" />
@@ -430,7 +430,7 @@ export default function Predictions() {
                             </Collapsible>
                         ))
                     ) : (
-                        <div className="text-center py-8 text-slate-500">Δεν υπάρχουν δεδομένα</div>
+                        <div className="text-center py-8 text-slate-500 dark:text-slate-400">Δεν υπάρχουν δεδομένα</div>
                     )}
                 </CardContent>
             </Card>
