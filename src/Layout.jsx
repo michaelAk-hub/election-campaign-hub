@@ -435,7 +435,7 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen pb-16 lg:pb-0 overflow-x-hidden"
+      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen pb-16 lg:pb-0 w-full max-w-full"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 4rem)' }}
       >
         <AnimatePresence mode="wait" initial={false}>
@@ -445,7 +445,7 @@ export default function Layout({ children, currentPageName }) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -24, opacity: 0 }}
             transition={{ duration: 0.18, ease: 'easeInOut' }}
-            className="p-4 sm:p-6 lg:p-8 w-full"
+            className="p-4 sm:p-6 lg:p-8 w-full max-w-full"
           >
             {children}
           </motion.div>
