@@ -1,12 +1,63 @@
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
+import { Drawer, DrawerContent } from "@/components/ui/drawer"
 
 import { cn } from "@/lib/utils"
 
-const DropdownMenu = DropdownMenuPrimitive.Root
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(() => window.innerWidth < 768);
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
 
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
+const DropdownMenu = ({ children, open, onOpenChange, ...props }) => {
+  const isMobile = useIsMobile();
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isOpen = open !== undefined ? open : internalOpen;
+  const setIsOpen = onOpenChange ?? setInternalOpen;
+
+  if (isMobile) {
+    return (
+      <DropdownMobileContext.Provider value={{ isOpen, setIsOpen }}>
+        {children}
+      </DropdownMobileContext.Provider>
+    );
+  }
+  return (
+    <DropdownMenuPrimitive.Root open={open} onOpenChange={onOpenChange} {...props}>
+      {children}
+    </DropdownMenuPrimitive.Root>
+  );
+};
+
+const DropdownMobileContext = React.createContext(null);
+
+const DropdownMenuTrigger = React.forwardRef(({ children, asChild, ...props }, ref) => {
+  const ctx = React.useContext(DropdownMobileContext);
+  if (ctx) {
+    const Comp = asChild && React.isValidElement(children) ? children.type : 'div';
+    const childProps = asChild && React.isValidElement(children) ? children.props : {};
+    return (
+      <div
+        ref={ref}
+        onClick={() => ctx.setIsOpen(true)}
+        style={{ display: 'contents' }}
+      >
+        {asChild ? children : <button type="button" {...props}>{children}</button>}
+      </div>
+    );
+  }
+  return (
+    <DropdownMenuPrimitive.Trigger ref={ref} asChild={asChild} {...props}>
+      {children}
+    </DropdownMenuPrimitive.Trigger>
+  );
+});
 
 const DropdownMenuGroup = DropdownMenuPrimitive.Group
 
