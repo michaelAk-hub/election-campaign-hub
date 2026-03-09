@@ -388,11 +388,42 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen">
-        <div className="p-4 sm:p-6 lg:p-8">
-          {children}
+      <main
+        className="lg:pl-64 min-h-screen"
+        style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}
+      >
+        <div className="lg:pt-0 p-4 sm:p-6 lg:p-8 mobile-content-pb lg:pb-8"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          {/* Override paddingTop on lg since sidebar handles spacing */}
+          <div className="lg:pt-0">
+            {children}
+          </div>
         </div>
       </main>
+
+      {/* Mobile Bottom Tab Bar */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 flex"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {mobileTabItems.map(item => {
+          const isActive = currentPageName === item.page ||
+            (item.page === 'Dashboard' && currentPageName === 'Dashboard');
+          return (
+            <Link
+              key={item.page}
+              to={createPageUrl(item.page)}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors',
+                isActive ? 'text-blue-600' : 'text-slate-500'
+              )}
+            >
+              <item.icon className={cn('h-5 w-5', isActive ? 'text-blue-600' : 'text-slate-400')} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
 
       {/* Timeout Warning Modal */}
       <Dialog open={showTimeoutWarning} onOpenChange={() => {}}>
