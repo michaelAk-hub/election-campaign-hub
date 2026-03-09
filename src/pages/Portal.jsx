@@ -566,15 +566,17 @@ export default function Portal() {
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
-        {session.portalType === 'chreosi' ? (
-          <ChreosiPortal username={session.username} />
-        ) : session.kanaliType === 'A' ? (
-          <KanaliTypeAPortal username={session.username} />
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-slate-500">Ο τύπος B θα είναι διαθέσιμος σύντομα.</p>
-          </div>
-        )}
+        <PullToRefresh onRefresh={async () => { window.location.reload(); }}>
+          {session.portalType === 'chreosi' ? (
+            <ChreosiPortal username={session.username} />
+          ) : session.kanaliType === 'A' ? (
+            <KanaliTypeAPortal username={session.username} />
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-slate-500">Ο τύπος B θα είναι διαθέσιμος σύντομα.</p>
+            </div>
+          )}
+        </PullToRefresh>
       </main>
 
       {/* Push Message Modal */}
