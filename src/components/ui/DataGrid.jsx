@@ -320,7 +320,7 @@ export default function DataGrid({
         )}
       </div>
 
-      <div className="border rounded-lg overflow-hidden bg-white">
+      <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-950 dark:border-slate-700">
         <div
           ref={scrollContainerRef}
           className={cn("overflow-x-auto", mode === 'infinite' && "overflow-y-auto")}
@@ -333,7 +333,7 @@ export default function DataGrid({
                 <Droppable droppableId="column-headers" direction="horizontal">
                   {(provided) => (
                     <TableRow
-                      className="bg-slate-50"
+                      className="bg-slate-50 dark:bg-slate-900"
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                     >
