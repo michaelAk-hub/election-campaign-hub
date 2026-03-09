@@ -379,19 +379,19 @@ export default function Predictions() {
                                         </div>
                                         <div className="flex gap-6 text-sm">
                                             <div className="text-right">
-                                                <div className="text-slate-600">Σύνολο</div>
+                                                <div className="text-slate-600 dark:text-slate-400">Σύνολο</div>
                                                 <div className="font-bold">{yearData.total.toLocaleString('el-GR')}</div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-slate-600">Ψήφισαν</div>
+                                                <div className="text-slate-600 dark:text-slate-400">Ψήφισαν</div>
                                                 <div className="font-bold text-green-600">{yearData.voted_yes.toLocaleString('el-GR')}</div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-slate-600">Δεν Ψήφισαν</div>
+                                                <div className="text-slate-600 dark:text-slate-400">Δεν Ψήφισαν</div>
                                                 <div className="font-bold text-orange-600">{yearData.voted_no.toLocaleString('el-GR')}</div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-slate-600">%</div>
+                                                <div className="text-slate-600 dark:text-slate-400">%</div>
                                                 <div className="font-bold text-blue-600">
                                                     {yearData.total > 0 ? `${((yearData.voted_yes / yearData.total) * 100).toFixed(2)}%` : '0.00%'}
                                                 </div>
@@ -400,7 +400,7 @@ export default function Predictions() {
                                     </div>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                    <div className="border-t p-4">
+                                    <div className="border-t dark:border-slate-700 p-4">
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
