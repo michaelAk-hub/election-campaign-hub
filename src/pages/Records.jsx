@@ -560,9 +560,16 @@ export default function Records() {
     return `${activeDataset.name} • Φορτώθηκαν ${loaded.toLocaleString('el-GR')} / ${total} (${partLabel})`;
   }, [activeDataset, loadedPeople.length, partition]);
 
+  const handlePullRefresh = useCallback(async () => {
+    queryClient.removeQueries({ queryKey: ['people'] });
+    await queryClient.invalidateQueries({ queryKey: ['people'] });
+    await queryClient.invalidateQueries({ queryKey: ['datasets'] });
+  }, [queryClient]);
+
   if (datasetsLoading) return <LoadingSpinner />;
 
   return (
+    <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="space-y-6">
       <PageHeader
         title="Εγγραφές"
