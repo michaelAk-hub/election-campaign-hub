@@ -56,12 +56,17 @@ const WARNING_AT_MS = 13 * 60 * 1000; // 13 minutes
 const HEARTBEAT_THROTTLE_MS = 45 * 1000; // 45 seconds
 
 export default function Layout({ children, currentPageName }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const [timeoutCountdown, setTimeoutCountdown] = useState(120);
-  
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const historyStackRef = useRef([]);
+
   const lastActivityRef = useRef(Date.now());
   const lastHeartbeatRef = useRef(Date.now());
   const idleTimerRef = useRef(null);
