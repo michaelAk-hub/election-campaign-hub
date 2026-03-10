@@ -360,11 +360,13 @@ function KanaliTypeAPortal({ username }) {
             <div className="space-y-2">
               <Label>ID Ψηφοφόρου</Label>
               <Input
-                value={inputId}
-                onChange={(e) => setInputId(e.target.value)}
-                placeholder="Εισάγετε ID"
-                className="text-center text-lg font-mono"
-                autoFocus
+              value={inputId}
+              onChange={(e) => setInputId(e.target.value)}
+              placeholder="Εισάγετε ID"
+              className="text-center text-lg font-mono"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoFocus
               />
             </div>
             <Button 
