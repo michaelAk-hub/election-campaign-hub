@@ -89,7 +89,7 @@ export default function MfaVerify() {
                         <ShieldCheck className="h-8 w-8 text-white" />
                     </div>
                     <CardTitle className="text-2xl font-bold">Επαλήθευση 2FA</CardTitle>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
                         Εισάγετε τον κωδικό που στάλθηκε στο{' '}
                         {maskedPhone ? <strong>{maskedPhone}</strong> : 'τηλέφωνό σας'}
                     </p>
