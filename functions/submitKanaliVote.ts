@@ -58,18 +58,9 @@ Deno.serve(async (req) => {
                 row_version: (person.row_version || 1) + 1
             });
 
-            // Re-fetch to verify the update succeeded and wasn't a race condition
-            const updated = await base44.asServiceRole.entities.Person.filter({ id: person.id, voted: true });
-            if (updated.length > 0) {
-                status = 'MARKED_VOTED';
-                reason = 'Η ψήφος καταχωρήθηκε επιτυχώς';
-                personRecordId = person.id;
-            } else {
-                // Should not happen, but handle gracefully
-                status = 'ALREADY_VOTED';
-                reason = 'Ήδη ήταν Ψήφισε = ΝΑΙ';
-                personRecordId = person.id;
-            }
+            status = 'MARKED_VOTED';
+            reason = 'Η ψήφος καταχωρήθηκε επιτυχώς';
+            personRecordId = person.id;
         }
 
         // Always log the submission
