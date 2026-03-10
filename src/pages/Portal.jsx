@@ -362,7 +362,7 @@ function KanaliTypeAPortal({ username }) {
               <Input
               value={inputId}
               onChange={(e) => setInputId(e.target.value)}
-              placeholder="Εισάγετε ID"
+              placeholder="Εισάγετε Μοναδικό Αριθμό"
               className="text-center text-lg font-mono"
               inputMode="numeric"
               pattern="[0-9]*"
