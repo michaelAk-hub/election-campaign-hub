@@ -63,8 +63,8 @@ Deno.serve(async (req) => {
             personRecordId = person.id;
         }
 
-        // Always log the submission
-        await base44.asServiceRole.entities.KanaliSubmission.create({
+        // Fire-and-forget the log — don't await so response is immediate
+        base44.asServiceRole.entities.KanaliSubmission.create({
             kanali_username: username,
             submitted_id: submittedId,
             status,
