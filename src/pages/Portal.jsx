@@ -314,49 +314,14 @@ function KanaliTypeAPortal({ username }) {
 
   const submitMutation = useMutation({
     mutationFn: async (submittedId) => {
-      // Find person by ID
-      const people = await base44.entities.Person.filter({ monadikos_kanali: submittedId });
-      
-      let status, reason;
-      let personRecordId = null;
-
-      if (people.length === 0) {
-        status = 'NOT_FOUND';
-        reason = 'Δεν βρέθηκε εγγραφή με αυτό το ID';
-        await base44.entities.NotFoundVoter.create({
-          submitted_id: submittedId,
-          reason_text: reason,
-          kanali_username: username
-        });
-      } else if (people[0].voted) {
-        status = 'ALREADY_VOTED';
-        reason = 'Ήδη ήταν Ψήφισε = ΝΑΙ';
-        personRecordId = people[0].id;
-        await base44.entities.NotFoundVoter.create({
-          submitted_id: submittedId,
-          reason_text: reason,
-          kanali_username: username
-        });
-      } else {
-        status = 'MARKED_VOTED';
-        reason = 'Η ψήφος καταχωρήθηκε επιτυχώς';
-        personRecordId = people[0].id;
-        await base44.entities.Person.update(people[0].id, { 
-          voted: true,
-          voted_at: new Date().toISOString()
-        });
-      }
-
-      // Log submission
-      await base44.entities.KanaliSubmission.create({
-        kanali_username: username,
-        submitted_id: submittedId,
-        status,
-        reason_text: reason,
-        person_record_id: personRecordId
+      const sessionToken = localStorage.getItem('portal_session');
+      const response = await base44.functions.invoke('submitKanaliVote', {
+        submittedId,
+        username,
+        sessionToken
       });
-
-      return { status, reason };
+      if (response.data.error) throw new Error(response.data.error);
+      return response.data;
     },
     onSuccess: (result) => {
       setLastResult(result);
