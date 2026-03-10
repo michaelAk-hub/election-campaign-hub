@@ -9,13 +9,16 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Validate portal session
-        const sessions = await base44.asServiceRole.entities.PortalSession.filter({
-            session_token: sessionToken,
-            username,
-            portal_type: 'kanali',
-            is_active: true
-        });
+        // Run session validation + person lookup in parallel
+        const [sessions, people] = await Promise.all([
+            base44.asServiceRole.entities.PortalSession.filter({
+                session_token: sessionToken,
+                username,
+                portal_type: 'kanali',
+                is_active: true
+            }),
+            base44.asServiceRole.entities.Person.filter({ monadikos_kanali: submittedId })
+        ]);
 
         if (sessions.length === 0) {
             return Response.json({ error: 'Invalid or expired session' }, { status: 401 });
@@ -25,9 +28,6 @@ Deno.serve(async (req) => {
         if (session.expires_at && new Date(session.expires_at) < new Date()) {
             return Response.json({ error: 'Session expired' }, { status: 401 });
         }
-
-        // Find person by monadikos_kanali ID
-        const people = await base44.asServiceRole.entities.Person.filter({ monadikos_kanali: submittedId });
 
         let status, reason;
         let personRecordId = null;
