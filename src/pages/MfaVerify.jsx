@@ -113,7 +113,7 @@ export default function MfaVerify() {
                                 maxLength={6}
                                 value={code}
                                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                className="text-center text-3xl font-bold tracking-[0.5em] w-52 border-2 border-slate-300 rounded-lg py-4 px-2 focus:outline-none focus:border-blue-500"
+                                className="text-center text-3xl font-bold tracking-[0.5em] w-52 border-2 border-slate-300 dark:border-slate-600 rounded-lg py-4 px-2 focus:outline-none focus:border-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                                 placeholder="······"
                                 required
                             />
