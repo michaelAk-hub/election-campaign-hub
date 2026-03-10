@@ -129,7 +129,7 @@ export default function MfaVerify() {
 
                         <div className="text-center">
                             {resendCountdown > 0 ? (
-                                <p className="text-sm text-slate-500">
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
                                     Επαναποστολή σε {resendCountdown}δ
                                 </p>
                             ) : (
