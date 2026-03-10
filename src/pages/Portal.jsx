@@ -387,7 +387,7 @@ function KanaliTypeAPortal({ username }) {
           </div>
           <CardTitle>Καταχώρηση Ψήφου</CardTitle>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
-            Εισάγετε το ID του ψηφοφόρου
+            Εισάγετε τον Μοναδικό αριθμό του ψηφοφόρου
           </p>
         </CardHeader>
         <CardContent>
