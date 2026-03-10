@@ -315,7 +315,7 @@ function KanaliTypeAPortal({ username }) {
   const submitMutation = useMutation({
     mutationFn: async (submittedId) => {
       // Find person by ID
-      const people = await base44.entities.Person.filter({ person_id: submittedId });
+      const people = await base44.entities.Person.filter({ monadikos_kanali: submittedId });
       
       let status, reason;
       let personRecordId = null;
