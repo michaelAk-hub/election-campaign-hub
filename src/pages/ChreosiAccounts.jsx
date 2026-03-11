@@ -133,6 +133,8 @@ export default function ChreosiAccounts() {
     mutationFn: ({ id, data }) => base44.entities.ChreosiAccount.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['chreosi-accounts']);
+      setEditDialog({ open: false, account: null });
+      toast.success('Ο λογαριασμός ενημερώθηκε');
     }
   });
 
@@ -968,11 +970,7 @@ export default function ChreosiAccounts() {
               Ακύρωση
             </Button>
             <Button 
-              onClick={async () => {
-                await updateMutation.mutateAsync({ id: editDialog.account.id, data: formData });
-                setEditDialog({ open: false, account: null });
-                toast.success('Ο λογαριασμός ενημερώθηκε');
-              }}
+              onClick={() => updateMutation.mutate({ id: editDialog.account.id, data: formData })}
               disabled={updateMutation.isPending}
             >
               Αποθήκευση
