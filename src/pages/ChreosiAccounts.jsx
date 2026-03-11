@@ -441,73 +441,7 @@ export default function ChreosiAccounts() {
             </Button>
           </>
         }
-        actions={(row) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={e => e.stopPropagation()}>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="z-[9999]">
-              <DropdownMenuItem onClick={() => {
-                setFormData({ ...row });
-                setEditDialog({ open: true, account: row });
-              }}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Επεξεργασία
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                setSmsResult(null);
-                setSmsDialog({ open: true, mode: 'selected', username: row.username });
-              }}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Στείλε SMS credentials
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={async () => {
-                const newPassword = generatePassword();
-                await updateMutation.mutateAsync({
-                  id: row.id,
-                  data: { ...row, password_hash: newPassword }
-                });
-                
-                // Send notification
-                await base44.entities.Notification.create({
-                  recipient_type: 'chreosi',
-                  recipient_username: row.username,
-                  type: 'warning',
-                  category: 'password_change',
-                  title: 'Ο κωδικός σας άλλαξε',
-                  message: `Ο κωδικός πρόσβασής σας επαναφέρθηκε. Νέος κωδικός: ${newPassword}`
-                });
-                
-                toast.success(`Νέος κωδικός: ${newPassword}`);
-                navigator.clipboard.writeText(newPassword);
-              }}>
-                <Key className="h-4 w-4 mr-2" />
-                Επαναφορά Κωδικού
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                updateMutation.mutate({
-                  id: row.id,
-                  data: { ...row, is_active: !row.is_active }
-                });
-              }}>
-                {row.is_active ? (
-                  <><UserX className="h-4 w-4 mr-2" />Απενεργοποίηση</>
-                ) : (
-                  <><UserCheck className="h-4 w-4 mr-2" />Ενεργοποίηση</>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => setDeleteDialog({ open: true, ids: [row.id], single: true, username: row.username })}
-                className="text-red-600"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Διαγραφή
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+
       />
 
       {/* Delete Confirmation Dialog */}
