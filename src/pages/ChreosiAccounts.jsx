@@ -41,7 +41,8 @@ import {
   AlertTriangle,
   MessageSquare,
   Send,
-  RefreshCw
+  RefreshCw,
+  Printer
 } from 'lucide-react';
 import { toast } from 'sonner';
 
