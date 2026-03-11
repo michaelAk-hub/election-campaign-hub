@@ -391,6 +391,22 @@ export default function ChreosiAccounts() {
         onSelectionChange={setSelectedIds}
         bulkActions={
           <>
+            {selectedIds.length === 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const account = accounts.find(a => a.id === selectedIds[0]);
+                  if (account) {
+                    setFormData({ ...account });
+                    setEditDialog({ open: true, account });
+                  }
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Επεξεργασία
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
