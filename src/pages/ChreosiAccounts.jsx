@@ -345,6 +345,11 @@ export default function ChreosiAccounts() {
         {val || <span className="italic text-slate-400 dark:text-slate-500">—</span>}
       </span>
     )},
+    { key: 'use_custom_query', label: 'Ερώτημα', render: (val) => (
+      <Badge variant="outline" className={val ? 'border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-400'}>
+        {val ? 'Custom' : 'Προεπιλογή'}
+      </Badge>
+    )},
     { key: 'is_active', label: 'Κατάσταση', render: (val) => (
       <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'dark:bg-slate-700 dark:text-slate-300'}>
         {val ? 'Ενεργός' : 'Ανενεργός'}
