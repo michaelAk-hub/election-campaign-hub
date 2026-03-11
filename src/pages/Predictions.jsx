@@ -83,7 +83,7 @@ export default function Predictions() {
 
     const loading = kpisLoading || symbolLoading || yearSymbolLoading;
 
-    const groupedByYear = React.useMemo(() => {
+    const groupedByYear = useMemo(() => {
         if (!byYearSymbol?.rows) return {};
         const grouped = {};
         byYearSymbol.rows.forEach(row => {

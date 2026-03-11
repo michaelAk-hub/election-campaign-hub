@@ -125,7 +125,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
         localStorage.removeItem('voteFlow_chartData');
     };
 
-    const transformedData = React.useMemo(() => {
+    const transformedData = useMemo(() => {
         if (!chartData) return [];
         return chartData.labels.map((label, index) => {
             const point = { time: label };
