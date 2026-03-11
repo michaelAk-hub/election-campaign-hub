@@ -78,6 +78,50 @@ export default function ChreosiAccounts() {
   const [smsSending, setSmsSending] = useState(false);
   const [smsResult, setSmsResult] = useState(null);
   const [smsSearch, setSmsSearch] = useState("");
+  const [printDialog, setPrintDialog] = useState(false);
+  const [printColumns, setPrintColumns] = useState(['department','admission_year','last_name','first_name','mobile_phone','notes']);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const PRINT_COLUMN_OPTIONS = [
+    { key: 'department', label: 'Τμήμα' },
+    { key: 'admission_year', label: 'Έτος Εισδοχής' },
+    { key: 'last_name', label: 'Επίθετο' },
+    { key: 'first_name', label: 'Όνομα' },
+    { key: 'mobile_phone', label: 'Κινητό' },
+    { key: 'notes', label: 'Σημειώσεις' },
+  ];
+
+  const handlePrint = async () => {
+    const account = accounts.find(a => a.id === selectedIds[0]);
+    if (!account || printColumns.length === 0) return;
+    setIsPrinting(true);
+    try {
+      const response = await base44.functions.invoke('generateChreosiStatementPDF', {
+        accountId: account.id,
+        selectedColumns: printColumns
+      });
+      // response.data is arraybuffer when content-type is application/pdf
+      // but axios returns it as... let's fetch directly
+      const resp = await fetch(`/api/functions/generateChreosiStatementPDF`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('app_session_token')}` },
+        body: JSON.stringify({ accountId: account.id, selectedColumns: printColumns })
+      });
+      if (!resp.ok) throw new Error('Σφάλμα δημιουργίας PDF');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chreosi_${account.username}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setPrintDialog(false);
+      toast.success('Το PDF δημιουργήθηκε επιτυχώς');
+    } catch (e) {
+      toast.error(e.message || 'Σφάλμα εκτύπωσης');
+    }
+    setIsPrinting(false);
+  };
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['chreosi-accounts'],
