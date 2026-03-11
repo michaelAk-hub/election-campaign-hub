@@ -53,7 +53,7 @@ export default function Predictions() {
     });
 
     const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
-        queryKey: ['predictionBySymbol', queryParams],
+        queryKey: ['predictionBySymbol'],
         queryFn: async () => {
             const { data } = await base44.functions.invoke('predictionBySymbol', { queryParams });
             return data;
