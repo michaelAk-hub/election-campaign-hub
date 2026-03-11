@@ -96,27 +96,16 @@ export default function ChreosiAccounts() {
     if (!account || printColumns.length === 0) return;
     setIsPrinting(true);
     try {
-      const sessionToken = localStorage.getItem('app_session_token');
-      const resp = await fetch('/api/functions/generateChreosiStatementPDF', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-session-token': sessionToken || '',
-          'Authorization': `Bearer ${sessionToken || ''}`
-        },
-        body: JSON.stringify({ accountId: account.id, selectedColumns: printColumns })
+      const resp = await base44.functions.invoke('generateChreosiStatementPDF', {
+        accountId: account.id,
+        selectedColumns: printColumns
       });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || 'Σφάλμα δημιουργίας PDF');
-      }
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
+      const data = resp.data;
+      if (!data?.ok) throw new Error(data?.error || 'Σφάλμα δημιουργίας PDF');
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `chreosi_${account.username}.pdf`;
+      a.href = data.pdf_base64;
+      a.download = data.filename;
       a.click();
-      URL.revokeObjectURL(url);
       setPrintDialog(false);
       toast.success('Το PDF δημιουργήθηκε επιτυχώς');
     } catch (e) {
