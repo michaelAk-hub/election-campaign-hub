@@ -856,59 +856,40 @@ export default function ChreosiAccounts() {
         </DialogContent>
       </Dialog>
 
-      {/* Custom Create Dialog */}
-      <Dialog open={customCreateDialog} onOpenChange={setCustomCreateDialog}>
-        <DialogContent className="flex flex-col max-h-[95vh]">
-          <DialogHeader>
-            <DialogTitle>Δημιουργία Custom Χρεωστικού</DialogTitle>
-            <DialogDescription>
-              Εισάγετε το username και τον κωδικό για τον νέο λογαριασμό.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Όνομα Χρήστη (Username)</Label>
-              <Input
-                value={customForm.username}
-                onChange={(e) => setCustomForm({ ...customForm, username: e.target.value })}
-                placeholder="π.χ. Γιώργος Παπαδόπουλος"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Κωδικός (Password)</Label>
-              <Input
-                value={customForm.password}
-                onChange={(e) => setCustomForm({ ...customForm, password: e.target.value })}
-                placeholder="Εισάγετε κωδικό"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCustomCreateDialog(false)}>Ακύρωση</Button>
-            <Button
-              disabled={createMutation.isPending || !customForm.username.trim() || !customForm.password.trim()}
-              onClick={async () => {
-                const username = normalizeUsername(customForm.username);
-                const existing = accounts.find(a => normalizeUsername(a.username) === username);
-                if (existing) {
-                  toast.error('Υπάρχει ήδη λογαριασμός με αυτό το username.');
-                  return;
-                }
-                await createMutation.mutateAsync({
-                  username,
-                  password_hash: customForm.password.trim(),
-                  display_name: username,
-                  is_active: true
-                });
-                toast.success(`Λογαριασμός "${username}" δημιουργήθηκε`);
-                setCustomCreateDialog(false);
-              }}
-            >
-              Δημιουργία
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Custom Create / Query Dialog */}
+      <ChreosiCustomQueryDialog
+        open={queryDialog.open}
+        onOpenChange={(v) => { if (!v) setQueryDialog({ open: false, account: null }); }}
+        existingAccount={queryDialog.account}
+        onSave={async ({ username, password_hash, use_custom_query, custom_query }) => {
+          if (queryDialog.account) {
+            // Edit mode — update query settings only
+            await updateMutation.mutateAsync({
+              id: queryDialog.account.id,
+              data: { ...queryDialog.account, use_custom_query, custom_query }
+            });
+            toast.success('Το ερώτημα αποθηκεύτηκε');
+          } else {
+            // Create mode
+            const norm = normalizeUsername(username);
+            const existing = accounts.find(a => normalizeUsername(a.username) === norm);
+            if (existing) {
+              toast.error('Υπάρχει ήδη λογαριασμός με αυτό το username.');
+              return;
+            }
+            await createMutation.mutateAsync({
+              username: norm,
+              password_hash,
+              display_name: norm,
+              is_active: true,
+              use_custom_query,
+              custom_query
+            });
+            toast.success(`Λογαριασμός "${norm}" δημιουργήθηκε`);
+          }
+          setQueryDialog({ open: false, account: null });
+        }}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={editDialog.open} onOpenChange={(open) => {
