@@ -44,7 +44,7 @@ export default function Predictions() {
     const refetchInterval = autoRefresh ? 8000 : false;
 
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
-        queryKey: ['predictionKPIs', queryParams],
+        queryKey: ['predictionKPIs'],
         queryFn: async () => {
             const { data } = await base44.functions.invoke('predictionKPIs', { queryParams });
             return data;
