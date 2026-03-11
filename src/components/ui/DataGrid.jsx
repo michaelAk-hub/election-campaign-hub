@@ -320,7 +320,7 @@ export default function DataGrid({
         )}
       </div>
 
-      <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-950 dark:border-slate-700">
+      <div className="border rounded-lg bg-white dark:bg-slate-950 dark:border-slate-700" style={{ overflow: 'clip' }}>
         <div
           ref={scrollContainerRef}
           className={cn("overflow-x-auto", mode === 'infinite' && "overflow-y-auto")}
