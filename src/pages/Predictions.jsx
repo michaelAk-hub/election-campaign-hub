@@ -93,6 +93,7 @@ export default function Predictions() {
         refetchByYearSymbol();
     };
 
+    // eslint-disable-next-line no-unused-vars
     const handleExport = () => {
         if (!bySymbol?.rows || !byYearSymbol?.rows) return;
         const BOM = '\uFEFF';
