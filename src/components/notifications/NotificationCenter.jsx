@@ -40,17 +40,15 @@ export default function NotificationCenter({ userType, username }) {
   const sessionToken = localStorage.getItem('app_session_token');
 
   const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ['notifications', userType, username],
+    queryKey: ['notifications'],
     queryFn: async () => {
       if (!sessionToken) return [];
       const { data } = await base44.functions.invoke('notificationsFetch', {
         session_token: sessionToken,
-        recipient_type: userType,
-        username: username || null,
       });
       return data.notifications || [];
     },
-    refetchInterval: 30000,
+    refetchInterval: 8000,
     enabled: !!sessionToken,
   });
 

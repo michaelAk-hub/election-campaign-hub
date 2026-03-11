@@ -45,39 +45,23 @@ export default function SendMessage() {
 
   const sendNotificationMutation = useMutation({
     mutationFn: async () => {
-      const notifications = [];
-
-      if (recipientMode === 'groups') {
-        // Send to selected groups
-        for (const group of selectedGroups) {
-          notifications.push({
-            recipient_type: group,
-            type: 'info',
-            title,
-            message,
-            read: false
-          });
-        }
-      } else {
-        // Send to specific users
-        for (const user of selectedUsers) {
-          notifications.push({
-            recipient_type: user.type,
-            recipient_username: user.username,
-            type: 'info',
-            title,
-            message,
-            read: false
-          });
-        }
-      }
-
-      // Create all notifications
-      await base44.entities.Notification.bulkCreate(notifications);
-      return notifications.length;
+      const sessionToken = localStorage.getItem('app_session_token');
+      const { data } = await base44.functions.invoke('notificationsSend', {
+        session_token: sessionToken,
+        title,
+        message,
+        selectedGroups: recipientMode === 'groups' ? selectedGroups : [],
+        selectedUsers: recipientMode === 'specific' ? selectedUsers : [],
+      });
+      return data;
     },
-    onSuccess: (count) => {
-      toast.success(`Το μήνυμα στάλθηκε επιτυχώς σε ${count} παραλήπτες!`);
+    onSuccess: (data) => {
+      const notifCount = data.notifications_created || 0;
+      const pushCount = data.push_messages_created || 0;
+      const parts = [];
+      if (notifCount > 0) parts.push(`${notifCount} admin/οργανωτικοί`);
+      if (pushCount > 0) parts.push(`portal χρήστες`);
+      toast.success(`Το μήνυμα στάλθηκε επιτυχώς${parts.length ? ` σε: ${parts.join(', ')}` : ''}!`);
       setTitle('');
       setMessage('');
       setSelectedGroups([]);
