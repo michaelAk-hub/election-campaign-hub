@@ -230,8 +230,8 @@ function ChreosiPortal({ username }) {
       </div>
 
       {/* Personal Note Section */}
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6">
-        <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2 flex items-center gap-2">
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-4 mb-6">
+        <h3 className="font-semibold text-amber-900 dark:text-amber-300 mb-2 flex items-center gap-2">
           <MessageSquare className="h-4 w-4" />
           Προσωπικές Σημειώσεις
         </h3>
