@@ -90,16 +90,16 @@ export function printChreosiStatement({ account, people, selectedColumns }) {
     th {
       background: #f0f0f0;
       border-bottom: 2px solid #333;
-      padding: 5px 4px;
+      padding: 3px 4px;
       text-align: left;
-      font-size: 8pt;
+      font-size: 7.5pt;
       font-weight: bold;
     }
     td {
       border-bottom: 1px solid #ddd;
-      padding: 4px 4px;
+      padding: 2px 4px;
       vertical-align: top;
-      font-size: 8pt;
+      font-size: 7.5pt;
       word-wrap: break-word;
     }
     tr:nth-child(even) td { background: #fafafa; }
