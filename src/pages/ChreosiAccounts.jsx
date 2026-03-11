@@ -968,7 +968,11 @@ export default function ChreosiAccounts() {
               Ακύρωση
             </Button>
             <Button 
-              onClick={() => updateMutation.mutate({ id: editDialog.account.id, data: formData })}
+              onClick={async () => {
+                await updateMutation.mutateAsync({ id: editDialog.account.id, data: formData });
+                setEditDialog({ open: false, account: null });
+                toast.success('Ο λογαριασμός ενημερώθηκε');
+              }}
               disabled={updateMutation.isPending}
             >
               Αποθήκευση
