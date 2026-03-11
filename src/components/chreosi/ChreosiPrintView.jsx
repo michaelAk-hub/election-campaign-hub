@@ -99,7 +99,7 @@ export function printChreosiStatement({ account, people, selectedColumns }) {
     td {
       border-bottom: 1px solid #ddd;
       padding: 1px 3px;
-      vertical-align: top;
+      vertical-align: middle;
       font-size: 7pt;
       word-wrap: break-word;
       line-height: 1.2;
