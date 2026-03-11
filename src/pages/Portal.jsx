@@ -50,6 +50,8 @@ function ChreosiPortal({ username }) {
   const [yearFilter, setYearFilter] = useState('all');
   const [editingNotes, setEditingNotes] = useState(null);
   const [notesValue, setNotesValue] = useState('');
+  const [personalNote, setPersonalNote] = useState('');
+  const [savingPersonalNote, setSavingPersonalNote] = useState(false);
 
   const normalizedUsername = normalizeUsername(username);
 
