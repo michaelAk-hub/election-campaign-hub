@@ -66,6 +66,7 @@ export default function ChreosiAccounts() {
   const [createDialog, setCreateDialog] = useState(false);
   const [customCreateDialog, setCustomCreateDialog] = useState(false);
   const [customForm, setCustomForm] = useState({ username: '', password: '' });
+  const [queryDialog, setQueryDialog] = useState({ open: false, account: null });
   const [createdAccounts, setCreatedAccounts] = useState([]);
   const [formData, setFormData] = useState({});
   const [selectedIds, setSelectedIds] = useState([]);
