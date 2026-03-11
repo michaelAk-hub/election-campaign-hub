@@ -440,27 +440,37 @@ export default function ChreosiAccounts() {
         actions={(row) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="bottom" sideOffset={6} className="z-[10000] w-48">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setFormData({ ...row }); setEditDialog({ open: true, account: row }); }}>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                setFormData({ ...row });
+                setEditDialog({ open: true, account: row });
+              }}>
                 <Pencil className="h-4 w-4 mr-2" />
                 Επεξεργασία
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setQueryDialog({ open: true, account: row }); }}>
+              <DropdownMenuItem onClick={() => setQueryDialog({ open: true, account: row })}>
                 <Filter className="h-4 w-4 mr-2" />
                 Custom Ερώτημα
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSmsResult(null); setSmsDialog({ open: true, mode: 'selected', username: row.username }); }}>
+              <DropdownMenuItem onClick={() => {
+                setSmsResult(null);
+                setSmsDialog({ open: true, mode: 'selected', username: row.username });
+              }}>
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Στείλε SMS credentials
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={async (e) => {
-                e.stopPropagation();
+              <DropdownMenuItem onClick={async () => {
                 const newPassword = generatePassword();
-                await updateMutation.mutateAsync({ id: row.id, data: { ...row, password_hash: newPassword } });
+                await updateMutation.mutateAsync({
+                  id: row.id,
+                  data: { ...row, password_hash: newPassword }
+                });
+                
+                // Send notification
                 await base44.entities.Notification.create({
                   recipient_type: 'chreosi',
                   recipient_username: row.username,
@@ -469,21 +479,27 @@ export default function ChreosiAccounts() {
                   title: 'Ο κωδικός σας άλλαξε',
                   message: `Ο κωδικός πρόσβασής σας επαναφέρθηκε. Νέος κωδικός: ${newPassword}`
                 });
+                
                 toast.success(`Νέος κωδικός: ${newPassword}`);
                 navigator.clipboard.writeText(newPassword);
               }}>
                 <Key className="h-4 w-4 mr-2" />
                 Επαναφορά Κωδικού
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: row.id, data: { ...row, is_active: !row.is_active } }); }}>
+              <DropdownMenuItem onClick={() => {
+                updateMutation.mutate({
+                  id: row.id,
+                  data: { ...row, is_active: !row.is_active }
+                });
+              }}>
                 {row.is_active ? (
                   <><UserX className="h-4 w-4 mr-2" />Απενεργοποίηση</>
                 ) : (
                   <><UserCheck className="h-4 w-4 mr-2" />Ενεργοποίηση</>
                 )}
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => { e.stopPropagation(); setDeleteDialog({ open: true, ids: [row.id], single: true, username: row.username }); }}
+              <DropdownMenuItem 
+                onClick={() => setDeleteDialog({ open: true, ids: [row.id], single: true, username: row.username })}
                 className="text-red-600"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
