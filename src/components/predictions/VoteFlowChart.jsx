@@ -60,7 +60,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
         } finally {
             setLoading(false);
         }
-    }, [parataksiList, sessionToken, filters]);
+    }, [parataksiList, sessionToken]);
 
     // Auto-refresh
     useEffect(() => {
