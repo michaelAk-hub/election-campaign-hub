@@ -96,18 +96,20 @@ export default function ChreosiAccounts() {
     if (!account || printColumns.length === 0) return;
     setIsPrinting(true);
     try {
-      const response = await base44.functions.invoke('generateChreosiStatementPDF', {
-        accountId: account.id,
-        selectedColumns: printColumns
-      });
-      // response.data is arraybuffer when content-type is application/pdf
-      // but axios returns it as... let's fetch directly
-      const resp = await fetch(`/api/functions/generateChreosiStatementPDF`, {
+      const sessionToken = localStorage.getItem('app_session_token');
+      const resp = await fetch('/api/functions/generateChreosiStatementPDF', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('app_session_token')}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-token': sessionToken || '',
+          'Authorization': `Bearer ${sessionToken || ''}`
+        },
         body: JSON.stringify({ accountId: account.id, selectedColumns: printColumns })
       });
-      if (!resp.ok) throw new Error('Σφάλμα δημιουργίας PDF');
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || 'Σφάλμα δημιουργίας PDF');
+      }
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
