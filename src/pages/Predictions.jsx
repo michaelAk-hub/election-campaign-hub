@@ -72,7 +72,7 @@ export default function Predictions() {
 
     const loading = kpisLoading || symbolLoading || yearSymbolLoading;
 
-    const groupedByYear = useMemo(() => {  // eslint-disable-line
+    const groupedByYear = useMemo(() => {
         if (!byYearSymbol?.rows) return {};
         const grouped = {};
         byYearSymbol.rows.forEach(row => {
