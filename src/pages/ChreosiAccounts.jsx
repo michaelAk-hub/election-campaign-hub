@@ -860,6 +860,15 @@ export default function ChreosiAccounts() {
                 <p className="text-xs text-amber-600">⚠️ Κανένα σύμβολο δεν επιλέχθηκε — ο χρήστης θα βλέπει όλες τις εγγραφές.</p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label>Προσωπικές Σημειώσεις</Label>
+              <Textarea
+                value={formData.personal_note || ''}
+                onChange={(e) => setFormData({...formData, personal_note: e.target.value})}
+                rows={4}
+                placeholder="Δεν υπάρχουν σημειώσεις..."
+              />
+            </div>
           </div>
 
           <DialogFooter>
