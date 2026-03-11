@@ -25,7 +25,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuPortal,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -433,7 +432,6 @@ export default function ChreosiAccounts() {
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuPortal>
             <DropdownMenuContent align="end" className="z-[9999]">
               <DropdownMenuItem onClick={() => {
                 setFormData({ ...row });
