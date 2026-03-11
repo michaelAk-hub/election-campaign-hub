@@ -429,11 +429,12 @@ export default function ChreosiAccounts() {
         actions={(row) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={e => e.stopPropagation()}>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuPortal>
+            <DropdownMenuContent align="end" className="z-[9999]">
               <DropdownMenuItem onClick={() => {
                 setFormData({ ...row });
                 setEditDialog({ open: true, account: row });
