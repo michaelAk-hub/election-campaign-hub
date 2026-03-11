@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { evaluateRuleTree } from '../components/chreosi/ChreosiCustomQueryDialog';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -107,15 +106,7 @@ function ChreosiPortal({ username }) {
         page++;
       }
 
-      // Step 3: Filter - custom query or default matching
-      if (account?.use_custom_query && account?.custom_query) {
-        return all.filter(p => {
-          if (p.voted) return false;
-          return evaluateRuleTree(account.custom_query, p);
-        });
-      }
-
-      // Default: filter by assignment + not voted + allowed symbols
+      // Step 3: Filter by assignment + not voted + allowed symbols
       return all.filter(p => {
         if (p.voted) return false;
         const cp1 = normalizeUsername(p.contact_person_1);

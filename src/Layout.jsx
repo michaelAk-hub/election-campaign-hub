@@ -388,7 +388,11 @@ export default function Layout({ children, currentPageName }) {
         {/* User */}
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900">
           <div className="flex items-center gap-3 px-3 py-2">
-
+            <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                {user.full_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+              </span>
+            </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                 {user.full_name || user.email}
@@ -399,7 +403,15 @@ export default function Layout({ children, currentPageName }) {
             </div>
             <div className="flex items-center gap-1">
               <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
-
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowDeleteAccountDialog(true)}
+                className="text-slate-400 hover:text-red-500"
+                title="Διαγραφή Λογαριασμού"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

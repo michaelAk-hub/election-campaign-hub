@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import ChreosiCustomQueryDialog from '../components/chreosi/ChreosiCustomQueryDialog';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -29,7 +28,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Filter,
   UserPlus,
   MoreHorizontal,
   Pencil,
@@ -64,9 +62,6 @@ export default function ChreosiAccounts() {
   const queryClient = useQueryClient();
   const [editDialog, setEditDialog] = useState({ open: false, account: null });
   const [createDialog, setCreateDialog] = useState(false);
-  const [customCreateDialog, setCustomCreateDialog] = useState(false);
-  const [customForm, setCustomForm] = useState({ username: '', password: '' });
-  const [queryDialog, setQueryDialog] = useState({ open: false, account: null });
   const [createdAccounts, setCreatedAccounts] = useState([]);
   const [formData, setFormData] = useState({});
   const [selectedIds, setSelectedIds] = useState([]);
@@ -345,11 +340,6 @@ export default function ChreosiAccounts() {
         {val || <span className="italic text-slate-400 dark:text-slate-500">—</span>}
       </span>
     )},
-    { key: 'use_custom_query', label: 'Ερώτημα', render: (val) => (
-      <Badge variant="outline" className={val ? 'border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-400'}>
-        {val ? 'Custom' : 'Προεπιλογή'}
-      </Badge>
-    )},
     { key: 'is_active', label: 'Κατάσταση', render: (val) => (
       <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'dark:bg-slate-700 dark:text-slate-300'}>
         {val ? 'Ενεργός' : 'Ανενεργός'}
@@ -383,10 +373,6 @@ export default function ChreosiAccounts() {
             >
               <Send className="h-4 w-4 mr-2" />
               SMS σε όλους
-            </Button>
-            <Button variant="outline" onClick={() => setQueryDialog({ open: true, account: null })}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Δημιουργία Custom
             </Button>
             <Button onClick={() => setCreateDialog(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
@@ -453,10 +439,6 @@ export default function ChreosiAccounts() {
               }}>
                 <Pencil className="h-4 w-4 mr-2" />
                 Επεξεργασία
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setQueryDialog({ open: true, account: row })}>
-                <Filter className="h-4 w-4 mr-2" />
-                Custom Ερώτημα
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
                 setSmsResult(null);
@@ -860,41 +842,6 @@ export default function ChreosiAccounts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Custom Create / Query Dialog */}
-      <ChreosiCustomQueryDialog
-        open={queryDialog.open}
-        onOpenChange={(v) => { if (!v) setQueryDialog({ open: false, account: null }); }}
-        existingAccount={queryDialog.account}
-        onSave={async ({ username, password_hash, use_custom_query, custom_query }) => {
-          if (queryDialog.account) {
-            // Edit mode — update query settings only
-            await updateMutation.mutateAsync({
-              id: queryDialog.account.id,
-              data: { ...queryDialog.account, use_custom_query, custom_query }
-            });
-            toast.success('Το ερώτημα αποθηκεύτηκε');
-          } else {
-            // Create mode
-            const norm = normalizeUsername(username);
-            const existing = accounts.find(a => normalizeUsername(a.username) === norm);
-            if (existing) {
-              toast.error('Υπάρχει ήδη λογαριασμός με αυτό το username.');
-              return;
-            }
-            await createMutation.mutateAsync({
-              username: norm,
-              password_hash,
-              display_name: norm,
-              is_active: true,
-              use_custom_query,
-              custom_query
-            });
-            toast.success(`Λογαριασμός "${norm}" δημιουργήθηκε`);
-          }
-          setQueryDialog({ open: false, account: null });
-        }}
-      />
 
       {/* Edit Dialog */}
       <Dialog open={editDialog.open} onOpenChange={(open) => {
