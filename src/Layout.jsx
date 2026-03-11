@@ -403,15 +403,7 @@ export default function Layout({ children, currentPageName }) {
             </div>
             <div className="flex items-center gap-1">
               <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowDeleteAccountDialog(true)}
-                className="text-slate-400 hover:text-red-500"
-                title="Διαγραφή Λογαριασμού"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+
               <Button
                 variant="ghost"
                 size="icon"
