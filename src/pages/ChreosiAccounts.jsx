@@ -376,6 +376,10 @@ export default function ChreosiAccounts() {
               <Send className="h-4 w-4 mr-2" />
               SMS σε όλους
             </Button>
+            <Button variant="outline" onClick={() => { setCustomForm({ username: '', password: '' }); setCustomCreateDialog(true); }}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Δημιουργία Custom
+            </Button>
             <Button onClick={() => setCreateDialog(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
               Δημιουργία Χρεωστικών
