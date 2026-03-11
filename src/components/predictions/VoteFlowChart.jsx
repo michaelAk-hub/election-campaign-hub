@@ -16,7 +16,7 @@ const CHART_COLORS = [
     '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
 ];
 
-export default function VoteFlowChart({ sessionToken, availableSymbols = [], filters = {} }) {
+export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
     const [showConfig, setShowConfig] = useState(false);
     const [parataksiList, setParataksiList] = useState(() => {
         const saved = localStorage.getItem('voteFlow_parataksiList');
@@ -52,9 +52,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                 session_token: sessionToken,
                 bucket_minutes: 5,
                 mapping,
-                year: filters.years?.join(',') || undefined,
-                symbol: filters.symbols?.join(',') || undefined,
-                department: filters.departments?.join(',') || undefined,
             });
             setChartData(data);
             setShowConfig(false);
