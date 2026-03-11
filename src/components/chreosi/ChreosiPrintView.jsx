@@ -90,17 +90,20 @@ export function printChreosiStatement({ account, people, selectedColumns }) {
     th {
       background: #f0f0f0;
       border-bottom: 2px solid #333;
-      padding: 3px 4px;
+      padding: 2px 3px;
       text-align: left;
-      font-size: 7.5pt;
+      font-size: 7pt;
       font-weight: bold;
+      line-height: 1.2;
     }
     td {
       border-bottom: 1px solid #ddd;
-      padding: 2px 4px;
+      padding: 1px 3px;
       vertical-align: top;
-      font-size: 7.5pt;
+      font-size: 7pt;
       word-wrap: break-word;
+      line-height: 1.2;
+      height: 8mm;
     }
     tr:nth-child(even) td { background: #fafafa; }
     .header { margin-bottom: 10px; }
