@@ -9,9 +9,27 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Απαιτείται session token' }, { status: 401 });
         }
 
+        // Validate session
         const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
         if (!sessions.length) {
             return Response.json({ error: 'Μη έγκυρη συνεδρία' }, { status: 401 });
+        }
+
+        const session = sessions[0];
+        const appUsers = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+        if (!appUsers.length) {
+            return Response.json({ error: 'Χρήστης δεν βρέθηκε' }, { status: 401 });
+        }
+
+        const appUser = appUsers[0];
+
+        // Ownership check - only delete if this notification belongs to the current user
+        const userNotifs = await base44.asServiceRole.entities.Notification.filter({
+            recipient_username: appUser.email,
+        });
+        const owned = userNotifs.find(n => n.id === notification_id);
+        if (!owned) {
+            return Response.json({ error: 'Δεν επιτρέπεται' }, { status: 403 });
         }
 
         await base44.asServiceRole.entities.Notification.delete(notification_id);

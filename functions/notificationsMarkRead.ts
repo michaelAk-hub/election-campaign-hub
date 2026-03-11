@@ -15,13 +15,36 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Μη έγκυρη συνεδρία' }, { status: 401 });
         }
 
+        const session = sessions[0];
+        const appUsers = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+        if (!appUsers.length) {
+            return Response.json({ error: 'Χρήστης δεν βρέθηκε' }, { status: 401 });
+        }
+
+        const appUser = appUsers[0];
         const now = new Date().toISOString();
 
         if (mark_all && notification_ids?.length) {
+            // Fetch all user notifications once and build a set of owned IDs
+            const userNotifs = await base44.asServiceRole.entities.Notification.filter({
+                recipient_username: appUser.email,
+            });
+            const ownedIds = new Set(userNotifs.map(n => n.id));
+
             for (const id of notification_ids) {
-                await base44.asServiceRole.entities.Notification.update(id, { read: true, read_at: now });
+                if (ownedIds.has(id)) {
+                    await base44.asServiceRole.entities.Notification.update(id, { read: true, read_at: now });
+                }
             }
         } else if (notification_id) {
+            // Ownership check
+            const userNotifs = await base44.asServiceRole.entities.Notification.filter({
+                recipient_username: appUser.email,
+            });
+            const owned = userNotifs.find(n => n.id === notification_id);
+            if (!owned) {
+                return Response.json({ error: 'Δεν επιτρέπεται' }, { status: 403 });
+            }
             await base44.asServiceRole.entities.Notification.update(notification_id, { read: true, read_at: now });
         }
 
