@@ -492,6 +492,7 @@ export default function ChreosiAccounts() {
                 Διαγραφή
               </DropdownMenuItem>
             </DropdownMenuContent>
+            </DropdownMenuPortal>
           </DropdownMenu>
         )}
       />
