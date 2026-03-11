@@ -849,6 +849,60 @@ export default function ChreosiAccounts() {
         </DialogContent>
       </Dialog>
 
+      {/* Custom Create Dialog */}
+      <Dialog open={customCreateDialog} onOpenChange={setCustomCreateDialog}>
+        <DialogContent className="flex flex-col max-h-[95vh]">
+          <DialogHeader>
+            <DialogTitle>Δημιουργία Custom Χρεωστικού</DialogTitle>
+            <DialogDescription>
+              Εισάγετε το username και τον κωδικό για τον νέο λογαριασμό.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Όνομα Χρήστη (Username)</Label>
+              <Input
+                value={customForm.username}
+                onChange={(e) => setCustomForm({ ...customForm, username: e.target.value })}
+                placeholder="π.χ. Γιώργος Παπαδόπουλος"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Κωδικός (Password)</Label>
+              <Input
+                value={customForm.password}
+                onChange={(e) => setCustomForm({ ...customForm, password: e.target.value })}
+                placeholder="Εισάγετε κωδικό"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomCreateDialog(false)}>Ακύρωση</Button>
+            <Button
+              disabled={createMutation.isPending || !customForm.username.trim() || !customForm.password.trim()}
+              onClick={async () => {
+                const username = normalizeUsername(customForm.username);
+                const existing = accounts.find(a => normalizeUsername(a.username) === username);
+                if (existing) {
+                  toast.error('Υπάρχει ήδη λογαριασμός με αυτό το username.');
+                  return;
+                }
+                await createMutation.mutateAsync({
+                  username,
+                  password_hash: customForm.password.trim(),
+                  display_name: username,
+                  is_active: true
+                });
+                toast.success(`Λογαριασμός "${username}" δημιουργήθηκε`);
+                setCustomCreateDialog(false);
+              }}
+            >
+              Δημιουργία
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={editDialog.open} onOpenChange={(open) => {
         if (!open) setEditDialog({ open: false, account: null });
