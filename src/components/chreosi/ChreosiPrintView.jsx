@@ -28,7 +28,7 @@ export function printChreosiStatement({ account, people, selectedColumns }) {
     const cp2 = normalizeUsername(p.contact_person_2);
     const isAssigned = cp1 === normalizedUsername || cp2 === normalizedUsername;
     const hasSymbol = !allowedSymbols || allowedSymbols.length === 0 || allowedSymbols.includes(p.prediction_symbol);
-    return isAssigned && hasSymbol;
+    return isAssigned && hasSymbol && p.voted === false;
   });
 
   // Sort: Department -> Admission Year -> Last Name -> First Name
