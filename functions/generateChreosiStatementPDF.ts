@@ -146,14 +146,8 @@ Deno.serve(async (req) => {
             doc.text(`Σελίδα ${i} / ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
         }
 
-        const pdfBytes = doc.output('arraybuffer');
-        return new Response(pdfBytes, {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename=chreosi_${chreosiAccount.username}.pdf`
-            }
-        });
+        const pdfBase64 = doc.output('datauristring');
+        return Response.json({ ok: true, pdf_base64: pdfBase64, filename: `chreosi_${chreosiAccount.username}.pdf` });
 
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
