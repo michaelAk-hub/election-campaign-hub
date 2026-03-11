@@ -55,10 +55,35 @@ function ChreosiPortal({ username }) {
 
   const normalizedUsername = normalizeUsername(username);
 
+  const { data: account, isLoading: accountLoading } = useQuery({
+    queryKey: ['chreosi-account', normalizedUsername],
+    queryFn: async () => {
+      const accounts = await base44.entities.ChreosiAccount.filter({ username: normalizedUsername });
+      return accounts[0] || null;
+    },
+    onSuccess: (acc) => {
+      setPersonalNote(acc?.personal_note || '');
+    }
+  });
+
+  // Sync personalNote when account loads
+  React.useEffect(() => {
+    if (account) setPersonalNote(account.personal_note || '');
+  }, [account?.id]);
+
+  const savePersonalNote = async () => {
+    if (!account) return;
+    setSavingPersonalNote(true);
+    await base44.entities.ChreosiAccount.update(account.id, { personal_note: personalNote });
+    setSavingPersonalNote(false);
+    toast.success('Οι προσωπικές σημειώσεις αποθηκεύτηκαν');
+    queryClient.invalidateQueries(['chreosi-account', normalizedUsername]);
+  };
+
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['chreosi-people', normalizedUsername],
     queryFn: async () => {
-      // Step 1: Load account to get allowed symbols
+      // Step 1: Load account to get allowed symbols (reuse account data)
       const accounts = await base44.entities.ChreosiAccount.filter({ username: normalizedUsername });
       const account = accounts[0] || null;
       const allowedSymbols = account?.allowed_prediction_symbols;
