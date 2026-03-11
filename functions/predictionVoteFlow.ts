@@ -1,160 +1,134 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        
-        // Authenticate user
-        const user = await base44.auth.me();
-        if (!user) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        }
 
-        // Parse request body
         const body = await req.json();
-        const { bucket_minutes = 5, from, to, mapping } = body;
+        const { session_token, bucket_minutes = 5, mapping, year, symbol, department } = body;
 
-        // Validate mapping
-        if (!mapping || !Array.isArray(mapping) || mapping.length === 0) {
-            return Response.json({ error: 'Mapping is required and must contain at least one parataksi' }, { status: 400 });
+        if (!session_token) {
+            return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
         }
 
-        // Validate bucket_minutes
+        const sessions = await base44.asServiceRole.entities.AppSession.filter({
+            session_token,
+            is_active: true
+        });
+
+        if (sessions.length === 0) {
+            return Response.json({ error: 'Invalid session' }, { status: 401 });
+        }
+
+        const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
+        if (users.length === 0 || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
+            return Response.json({ error: 'Unauthorized' }, { status: 403 });
+        }
+
+        if (!mapping || !Array.isArray(mapping) || mapping.length === 0) {
+            return Response.json({ error: 'Mapping is required' }, { status: 400 });
+        }
+
         if (bucket_minutes < 1 || bucket_minutes > 60) {
             return Response.json({ error: 'bucket_minutes must be between 1 and 60' }, { status: 400 });
         }
 
         // Get active dataset
-        const datasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
-        if (datasets.length === 0) {
-            return Response.json({ error: 'No active dataset found' }, { status: 404 });
+        const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
+        if (activeDatasets.length === 0) {
+            return Response.json({ bucket_minutes, labels: [], series: [], meta: {} });
         }
-        const activeDatasetId = datasets[0].id;
+        const activeDatasetId = activeDatasets[0].id;
 
-        // Fetch all voted persons with voted_at using pagination
-        let query = {
-            dataset_id: activeDatasetId,
-            voted: true
-        };
-
-        let persons = [];
+        // Paginate through all voted persons
+        let allPersons = [];
         let skip = 0;
         const limit = 5000;
         let hasMore = true;
 
         while (hasMore) {
-            const batch = await base44.asServiceRole.entities.Person.filter(query, '-created_date', limit, skip);
-            persons = persons.concat(batch);
+            const batch = await base44.asServiceRole.entities.Person.filter(
+                { dataset_id: activeDatasetId, voted: true },
+                '-created_date',
+                limit,
+                skip
+            );
+            allPersons = allPersons.concat(batch);
             skip += limit;
             hasMore = batch.length === limit;
         }
-        
-        // Filter only persons with valid voted_at
-        const validPersons = persons.filter(p => p.voted_at && p.prediction_symbol);
 
-        // Apply time range filter if provided
-        let filteredPersons = validPersons;
-        if (from || to) {
-            filteredPersons = validPersons.filter(p => {
-                const votedAt = new Date(p.voted_at);
-                if (from && votedAt < new Date(from)) return false;
-                if (to && votedAt > new Date(to)) return false;
-                return true;
-            });
+        // Apply optional filters
+        let filtered = allPersons.filter(p => p.voted_at && p.prediction_symbol);
+
+        if (year) {
+            const years = year.split(',').map(y => y.trim());
+            filtered = filtered.filter(p => years.includes(String(p.admission_year || '')));
+        }
+        if (symbol) {
+            const symbols = symbol.split(',').map(s => s.trim());
+            filtered = filtered.filter(p => symbols.includes((p.prediction_symbol || '').trim()));
+        }
+        if (department) {
+            const departments = department.split(',').map(d => d.trim());
+            filtered = filtered.filter(p => departments.includes(p.department || ''));
         }
 
-        if (filteredPersons.length === 0) {
-            return Response.json({
-                bucket_minutes,
-                labels: [],
-                series: [],
-                meta: { dataset_id: activeDatasetId }
-            });
+        if (filtered.length === 0) {
+            return Response.json({ bucket_minutes, labels: [], series: [], meta: { dataset_id: activeDatasetId } });
         }
 
-        // Create symbol to parataksi mapping
+        // Build symbol → parataksi mapping
         const symbolToParataksi = new Map();
         mapping.forEach(({ parataxi, symbols }) => {
-            symbols.forEach(symbol => {
-                if (!symbolToParataksi.has(symbol)) {
-                    symbolToParataksi.set(symbol, []);
-                }
-                symbolToParataksi.get(symbol).push(parataxi);
+            symbols.forEach(sym => {
+                if (!symbolToParataksi.has(sym)) symbolToParataksi.set(sym, []);
+                symbolToParataksi.get(sym).push(parataxi);
             });
         });
 
-        // Find time range
-        const voteTimes = filteredPersons.map(p => new Date(p.voted_at).getTime());
+        // Time bucketing
+        const voteTimes = filtered.map(p => new Date(p.voted_at).getTime());
         const minTime = Math.min(...voteTimes);
         const maxTime = Math.max(...voteTimes);
-
-        // Create buckets
         const bucketSizeMs = bucket_minutes * 60 * 1000;
         const startBucket = Math.floor(minTime / bucketSizeMs) * bucketSizeMs;
         const endBucket = Math.ceil(maxTime / bucketSizeMs) * bucketSizeMs;
 
-        // Generate all bucket timestamps
         const buckets = [];
         for (let t = startBucket; t <= endBucket; t += bucketSizeMs) {
             buckets.push(t);
         }
 
         // Count votes per bucket per symbol
-        const bucketCounts = new Map(); // bucket -> symbol -> count
-
-        filteredPersons.forEach(person => {
-            const voteTime = new Date(person.voted_at).getTime();
-            const bucket = Math.floor(voteTime / bucketSizeMs) * bucketSizeMs;
-            const symbol = person.prediction_symbol;
-
-            if (!bucketCounts.has(bucket)) {
-                bucketCounts.set(bucket, new Map());
-            }
+        const bucketCounts = new Map();
+        filtered.forEach(person => {
+            const bucket = Math.floor(new Date(person.voted_at).getTime() / bucketSizeMs) * bucketSizeMs;
+            const sym = person.prediction_symbol;
+            if (!bucketCounts.has(bucket)) bucketCounts.set(bucket, new Map());
             const symbolMap = bucketCounts.get(bucket);
-            symbolMap.set(symbol, (symbolMap.get(symbol) || 0) + 1);
+            symbolMap.set(sym, (symbolMap.get(sym) || 0) + 1);
         });
 
-        // Build series for each parataksi
-        const seriesData = new Map(); // parataxi -> cumulative array
-
-        mapping.forEach(({ parataxi, symbols }) => {
+        // Build cumulative series per parataksi
+        const series = mapping.map(({ parataxi, symbols }) => {
             let cumulative = 0;
-            const points = [];
-
-            buckets.forEach(bucket => {
-                // Add counts for all symbols in this parataksi
-                let bucketCount = 0;
+            const points = buckets.map(bucket => {
+                let count = 0;
                 if (bucketCounts.has(bucket)) {
                     const symbolMap = bucketCounts.get(bucket);
-                    symbols.forEach(symbol => {
-                        bucketCount += symbolMap.get(symbol) || 0;
-                    });
+                    symbols.forEach(sym => { count += symbolMap.get(sym) || 0; });
                 }
-                cumulative += bucketCount;
-                points.push(cumulative);
+                cumulative += count;
+                return cumulative;
             });
-
-            seriesData.set(parataxi, points);
+            return { parataxi, points };
         });
 
-        // Convert buckets to ISO strings for labels
         const labels = buckets.map(t => new Date(t).toISOString());
 
-        // Build series array
-        const series = mapping.map(({ parataxi }) => ({
-            parataxi,
-            points: seriesData.get(parataxi)
-        }));
-
-        return Response.json({
-            bucket_minutes,
-            labels,
-            series,
-            meta: { dataset_id: activeDatasetId }
-        });
-
+        return Response.json({ bucket_minutes, labels, series, meta: { dataset_id: activeDatasetId } });
     } catch (error) {
-        console.error('Error in predictionVoteFlow:', error);
         return Response.json({ error: error.message }, { status: 500 });
     }
 });

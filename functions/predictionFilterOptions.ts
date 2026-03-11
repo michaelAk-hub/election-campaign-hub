@@ -5,9 +5,7 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
 
         const body = await req.json();
-        const queryParams = new URLSearchParams(body.queryParams || '');
-
-        const sessionToken = queryParams.get('session_token');
+        const sessionToken = body.session_token;
 
         if (!sessionToken) {
             return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
@@ -27,15 +25,15 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
-        const yearFilter = queryParams.get('year');
-        const symbolFilter = queryParams.get('symbol');
-        const departmentFilter = queryParams.get('department');
-
+        // Get active dataset
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
         if (activeDatasets.length === 0) {
-            return Response.json({ total: 0, voted_yes: 0, voted_no: 0, voted_yes_percent: 0, generated_at: new Date().toISOString() });
+            return Response.json({ years: [], symbols: [], departments: [] });
         }
 
+        const activeDatasetId = activeDatasets[0].id;
+
+        // Paginate through all Person records
         let allPersons = [];
         let skip = 0;
         const limit = 5000;
@@ -43,7 +41,7 @@ Deno.serve(async (req) => {
 
         while (hasMore) {
             const batch = await base44.asServiceRole.entities.Person.filter(
-                { dataset_id: activeDatasets[0].id },
+                { dataset_id: activeDatasetId },
                 '-created_date',
                 limit,
                 skip
@@ -53,27 +51,16 @@ Deno.serve(async (req) => {
             hasMore = batch.length === limit;
         }
 
-        let filtered = allPersons;
+        const years = [...new Set(allPersons.map(p => p.admission_year).filter(Boolean))]
+            .sort((a, b) => String(b).localeCompare(String(a)));
 
-        if (yearFilter) {
-            const years = yearFilter.split(',').map(y => y.trim());
-            filtered = filtered.filter(p => years.includes(String(p.admission_year || '')));
-        }
-        if (symbolFilter) {
-            const symbols = symbolFilter.split(',').map(s => s.trim());
-            filtered = filtered.filter(p => symbols.includes((p.prediction_symbol || '').trim() || '(Κενό)'));
-        }
-        if (departmentFilter) {
-            const departments = departmentFilter.split(',').map(d => d.trim());
-            filtered = filtered.filter(p => departments.includes(p.department || ''));
-        }
+        const symbols = [...new Set(allPersons.map(p => (p.prediction_symbol || '').trim()).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, 'el'));
 
-        const total = filtered.length;
-        const voted_yes = filtered.filter(p => p.voted === true).length;
-        const voted_no = total - voted_yes;
-        const voted_yes_percent = total > 0 ? parseFloat((voted_yes / total * 100).toFixed(2)) : 0;
+        const departments = [...new Set(allPersons.map(p => p.department).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, 'el'));
 
-        return Response.json({ total, voted_yes, voted_no, voted_yes_percent, generated_at: new Date().toISOString() });
+        return Response.json({ years, symbols, departments });
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
     }
