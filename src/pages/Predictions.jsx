@@ -29,29 +29,18 @@ function buildQueryParams(filters) {
 }
 
 export default function Predictions() {
-    const [filters, setFilters] = useState({ years: [], symbols: [], departments: [] });
     const [autoRefresh, setAutoRefresh] = useState(false);
-    const [availableFilters, setAvailableFilters] = useState({ years: [], symbols: [], departments: [] });
-    const [filterOptionsLoaded, setFilterOptionsLoaded] = useState(false);
+    const [availableSymbols, setAvailableSymbols] = useState([]);
 
-    // Load filter options from backend
+    // Load available symbols for VoteFlowChart config from backend
     useEffect(() => {
-        if (!sessionToken || filterOptionsLoaded) return;
+        if (!sessionToken) return;
         base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
-            .then(({ data }) => {
-                if (data) {
-                    setAvailableFilters({
-                        years: data.years || [],
-                        symbols: data.symbols || [],
-                        departments: data.departments || [],
-                    });
-                    setFilterOptionsLoaded(true);
-                }
-            })
+            .then(({ data }) => { if (data) setAvailableSymbols(data.symbols || []); })
             .catch(err => console.error('Filter options error:', err));
-    }, [filterOptionsLoaded]);
+    }, []);
 
-    const queryParams = buildQueryParams(filters);
+    const queryParams = buildQueryParams({});
     const refetchInterval = autoRefresh ? 8000 : false;
 
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
