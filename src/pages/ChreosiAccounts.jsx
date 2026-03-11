@@ -449,6 +449,10 @@ export default function ChreosiAccounts() {
                 <Pencil className="h-4 w-4 mr-2" />
                 Επεξεργασία
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setQueryDialog({ open: true, account: row })}>
+                <Filter className="h-4 w-4 mr-2" />
+                Custom Ερώτημα
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
                 setSmsResult(null);
                 setSmsDialog({ open: true, mode: 'selected', username: row.username });
