@@ -541,7 +541,7 @@ export default function DataGrid({
                     })}
 
                     {actions && (
-                      <TableCell onClick={e => e.stopPropagation()}>
+                      <TableCell className="relative overflow-visible" onClick={e => e.stopPropagation()}>
                         {actions(row)}
                       </TableCell>
                     )}
