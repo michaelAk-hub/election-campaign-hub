@@ -7,32 +7,25 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
     Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, X } from 'lucide-react';
+import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 
 const sessionToken = localStorage.getItem('app_session_token');
 
-function buildQueryParams(filters) {
+const queryParams = (() => {
     const params = new URLSearchParams();
     if (sessionToken) params.set('session_token', sessionToken);
-    if (filters.years.length > 0) params.set('year', filters.years.join(','));
-    if (filters.symbols.length > 0) params.set('symbol', filters.symbols.join(','));
-    if (filters.departments.length > 0) params.set('department', filters.departments.join(','));
     return params.toString();
-}
+})();
 
 export default function Predictions() {
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [availableSymbols, setAvailableSymbols] = useState([]);
 
-    // Load available symbols for VoteFlowChart config from backend
+    // Load available symbols for VoteFlowChart grouping config
     useEffect(() => {
         if (!sessionToken) return;
         base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
@@ -40,7 +33,6 @@ export default function Predictions() {
             .catch(err => console.error('Filter options error:', err));
     }, []);
 
-    const queryParams = buildQueryParams({});
     const refetchInterval = autoRefresh ? 8000 : false;
 
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
@@ -93,7 +85,6 @@ export default function Predictions() {
         refetchByYearSymbol();
     };
 
-    // eslint-disable-next-line no-unused-vars
     const handleExport = () => {
         if (!bySymbol?.rows || !byYearSymbol?.rows) return;
         const BOM = '\uFEFF';
@@ -116,18 +107,6 @@ export default function Predictions() {
         link.download = `provlepseis_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
     };
-
-    const toggleFilter = (type, value) => {
-        setFilters(prev => {
-            const current = prev[type];
-            const updated = current.includes(value) ? current.filter(v => v !== value) : [...current, value];
-            return { ...prev, [type]: updated };
-        });
-    };
-
-    const clearFilters = () => setFilters({ years: [], symbols: [], departments: [] });
-
-    const hasActiveFilters = filters.years.length > 0 || filters.symbols.length > 0 || filters.departments.length > 0;
 
     return (
         <div className="space-y-6">
@@ -157,86 +136,6 @@ export default function Predictions() {
                     </Button>
                 </div>
             </div>
-
-            {/* Filter Bar */}
-            <Card>
-                <CardContent className="pt-4 pb-4">
-                    <div className="flex flex-wrap gap-3 items-end">
-                        {/* Department */}
-                        <div className="min-w-[180px]">
-                            <p className="text-xs font-medium text-slate-500 mb-1">Τμήμα</p>
-                            <Select onValueChange={(v) => toggleFilter('departments', v)}>
-                                <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Επιλογή τμήματος..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableFilters.departments.map(d => (
-                                        <SelectItem key={d} value={d}>{d}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Admission Year */}
-                        <div className="min-w-[150px]">
-                            <p className="text-xs font-medium text-slate-500 mb-1">Έτος Εισδοχής</p>
-                            <Select onValueChange={(v) => toggleFilter('years', v)}>
-                                <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Επιλογή έτους..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableFilters.years.map(y => (
-                                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Symbol */}
-                        <div className="min-w-[160px]">
-                            <p className="text-xs font-medium text-slate-500 mb-1">Σύμβολο Πρόβλεψης</p>
-                            <Select onValueChange={(v) => toggleFilter('symbols', v)}>
-                                <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Επιλογή συμβόλου..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableFilters.symbols.map(s => (
-                                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {hasActiveFilters && (
-                            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-slate-500">
-                                <X className="h-4 w-4 mr-1" />
-                                Καθαρισμός
-                            </Button>
-                        )}
-                    </div>
-
-                    {/* Active filter chips */}
-                    {hasActiveFilters && (
-                        <div className="flex flex-wrap gap-2 mt-3">
-                            {filters.departments.map(d => (
-                                <Badge key={d} variant="secondary" className="cursor-pointer" onClick={() => toggleFilter('departments', d)}>
-                                    {d} <X className="h-3 w-3 ml-1" />
-                                </Badge>
-                            ))}
-                            {filters.years.map(y => (
-                                <Badge key={y} variant="secondary" className="cursor-pointer" onClick={() => toggleFilter('years', y)}>
-                                    {y} <X className="h-3 w-3 ml-1" />
-                                </Badge>
-                            ))}
-                            {filters.symbols.map(s => (
-                                <Badge key={s} variant="secondary" className="cursor-pointer" onClick={() => toggleFilter('symbols', s)}>
-                                    {s} <X className="h-3 w-3 ml-1" />
-                                </Badge>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -417,11 +316,10 @@ export default function Predictions() {
                 </CardContent>
             </Card>
 
-            {/* Vote Flow Chart */}
+            {/* Vote Flow Chart — global, no page filters */}
             <VoteFlowChart
                 sessionToken={sessionToken}
-                availableSymbols={availableFilters.symbols}
-                filters={filters}
+                availableSymbols={availableSymbols}
             />
         </div>
     );
