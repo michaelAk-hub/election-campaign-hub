@@ -848,6 +848,48 @@ export default function ChreosiAccounts() {
         </DialogContent>
       </Dialog>
 
+      {/* Print Dialog */}
+      <Dialog open={printDialog} onOpenChange={setPrintDialog}>
+        <DialogContent className="flex flex-col max-h-[95vh]">
+          <DialogHeader>
+            <DialogTitle>Εκτύπωση Χρεωστικού</DialogTitle>
+            <DialogDescription>
+              Επιλέξτε τις στήλες που θέλετε να συμπεριληφθούν στην εκτύπωση.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2 overflow-y-auto flex-1">
+            {PRINT_COLUMN_OPTIONS.map(col => (
+              <label key={col.key} className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg">
+                <input
+                  type="checkbox"
+                  checked={printColumns.includes(col.key)}
+                  onChange={(e) => {
+                    setPrintColumns(prev =>
+                      e.target.checked ? [...prev, col.key] : prev.filter(c => c !== col.key)
+                    );
+                  }}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium">{col.label}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintDialog(false)}>Ακύρωση</Button>
+            <Button
+              onClick={handlePrint}
+              disabled={isPrinting || printColumns.length === 0}
+            >
+              {isPrinting ? (
+                <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Δημιουργία...</>
+              ) : (
+                <><Printer className="h-4 w-4 mr-2" />Εκτύπωση PDF</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={editDialog.open} onOpenChange={(open) => {
         if (!open) setEditDialog({ open: false, account: null });
