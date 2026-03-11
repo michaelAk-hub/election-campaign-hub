@@ -229,6 +229,32 @@ function ChreosiPortal({ username }) {
         </Select>
       </div>
 
+      {/* Personal Note Section */}
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6">
+        <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2 flex items-center gap-2">
+          <MessageSquare className="h-4 w-4" />
+          Προσωπικές Σημειώσεις
+        </h3>
+        <Textarea
+          value={personalNote}
+          onChange={(e) => setPersonalNote(e.target.value)}
+          placeholder="Γράψτε τις προσωπικές σας σημειώσεις εδώ..."
+          rows={3}
+          className="mb-3 bg-white dark:bg-slate-800"
+        />
+        <div className="flex justify-end">
+          <Button
+            onClick={savePersonalNote}
+            disabled={savingPersonalNote}
+            size="sm"
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            {savingPersonalNote ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            Αποθήκευση
+          </Button>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 mb-4">
         <span>{filteredPeople.length} άτομα</span>
         <span>Σύνολο ανατεθημένων: {assignedPeople.length}</span>
