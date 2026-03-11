@@ -3,153 +3,98 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
+    Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, X } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 
+const sessionToken = localStorage.getItem('app_session_token');
+
+function buildQueryParams(filters) {
+    const params = new URLSearchParams();
+    if (sessionToken) params.set('session_token', sessionToken);
+    if (filters.years.length > 0) params.set('year', filters.years.join(','));
+    if (filters.symbols.length > 0) params.set('symbol', filters.symbols.join(','));
+    if (filters.departments.length > 0) params.set('department', filters.departments.join(','));
+    return params.toString();
+}
+
 export default function Predictions() {
-    const [filters, setFilters] = useState({
-        years: [],
-        symbols: [],
-        departments: []
-    });
+    const [filters, setFilters] = useState({ years: [], symbols: [], departments: [] });
     const [autoRefresh, setAutoRefresh] = useState(false);
-    const [availableFilters, setAvailableFilters] = useState({
-        years: [],
-        symbols: [],
-        departments: []
-    });
+    const [availableFilters, setAvailableFilters] = useState({ years: [], symbols: [], departments: [] });
+    const [filterOptionsLoaded, setFilterOptionsLoaded] = useState(false);
 
-    // Build filter query params
-    const buildFilterParams = () => {
-        const params = new URLSearchParams();
-        
-        // REQUIRED for backend auth
-        const sessionToken = localStorage.getItem('app_session_token');
-        console.log('Session token from localStorage:', sessionToken ? 'exists' : 'missing');
-        if (sessionToken) {
-            params.set('session_token', sessionToken);
-        }
-        
-        // existing filters
-        if (filters.years.length > 0) params.set('year', filters.years.join(','));
-        if (filters.symbols.length > 0) params.set('symbol', filters.symbols.join(','));
-        if (filters.departments.length > 0) params.set('department', filters.departments.join(','));
-        
-        const queryString = params.toString();
-        console.log('Query params:', queryString);
-        return queryString;
-    };
-
-    // Fetch KPIs
-    const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading, error: kpisError } = useQuery({
-        queryKey: ['predictionKPIs', filters],
-        queryFn: async () => {
-            const queryParams = buildFilterParams();
-            console.log('Invoking predictionKPIs with:', queryParams);
-            const response = await base44.functions.invoke('predictionKPIs', {
-                queryParams
-            });
-            console.log('KPIs Response:', response);
-            return response.data;
-        },
-        refetchInterval: autoRefresh ? 8000 : false,
-        retry: false
-    });
-
-    // Fetch by symbol
-    const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading, error: symbolError } = useQuery({
-        queryKey: ['predictionBySymbol', filters],
-        queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionBySymbol', {
-                queryParams: buildFilterParams()
-            });
-            return data;
-        },
-        refetchInterval: autoRefresh ? 8000 : false
-    });
-
-    // Fetch by year-symbol
-    const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading, error: yearSymbolError } = useQuery({
-        queryKey: ['predictionByYearSymbol', filters],
-        queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionByYearSymbol', {
-                queryParams: buildFilterParams()
-            });
-            return data;
-        },
-        refetchInterval: autoRefresh ? 8000 : false
-    });
-
-    // Load available filter options
+    // Load filter options from backend
     useEffect(() => {
-        const loadFilterOptions = async () => {
-            try {
-                const sessionToken = localStorage.getItem('app_session_token');
-                const params = new URLSearchParams();
-                if (sessionToken) params.set('session_token', sessionToken);
-                
-                const { data: persons } = await base44.functions.invoke('predictionByYearSymbol', {
-                    queryParams: params.toString()
-                });
-                
-                const years = [...new Set(persons.rows.map(r => r.admission_year))].sort().reverse();
-                const symbols = [...new Set(persons.rows.map(r => r.symbol))].sort((a, b) => a.localeCompare(b, 'el'));
-                
-                // Get departments from Person records
-                const allPersons = await base44.asServiceRole.entities.Person.filter({});
-                const departments = [...new Set(allPersons.map(p => p.department).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'el'));
+        if (!sessionToken || filterOptionsLoaded) return;
+        base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
+            .then(({ data }) => {
+                if (data) {
+                    setAvailableFilters({
+                        years: data.years || [],
+                        symbols: data.symbols || [],
+                        departments: data.departments || [],
+                    });
+                    setFilterOptionsLoaded(true);
+                }
+            })
+            .catch(err => console.error('Filter options error:', err));
+    }, [filterOptionsLoaded]);
 
-                setAvailableFilters({ years, symbols, departments });
-            } catch (error) {
-                console.error('Error loading filter options:', error);
-            }
-        };
-        loadFilterOptions();
-    }, []);
+    const queryParams = buildQueryParams(filters);
+    const refetchInterval = autoRefresh ? 8000 : false;
 
-    // Group by year for accordion
+    const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
+        queryKey: ['predictionKPIs', queryParams],
+        queryFn: async () => {
+            const { data } = await base44.functions.invoke('predictionKPIs', { queryParams });
+            return data;
+        },
+        refetchInterval,
+    });
+
+    const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
+        queryKey: ['predictionBySymbol', queryParams],
+        queryFn: async () => {
+            const { data } = await base44.functions.invoke('predictionBySymbol', { queryParams });
+            return data;
+        },
+        refetchInterval,
+    });
+
+    const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
+        queryKey: ['predictionByYearSymbol', queryParams],
+        queryFn: async () => {
+            const { data } = await base44.functions.invoke('predictionByYearSymbol', { queryParams });
+            return data;
+        },
+        refetchInterval,
+    });
+
+    const loading = kpisLoading || symbolLoading || yearSymbolLoading;
+
     const groupedByYear = React.useMemo(() => {
         if (!byYearSymbol?.rows) return {};
-        
         const grouped = {};
         byYearSymbol.rows.forEach(row => {
             if (!grouped[row.admission_year]) {
-                grouped[row.admission_year] = {
-                    year: row.admission_year,
-                    total: 0,
-                    voted_yes: 0,
-                    voted_no: 0,
-                    symbols: []
-                };
+                grouped[row.admission_year] = { year: row.admission_year, total: 0, voted_yes: 0, voted_no: 0, symbols: [] };
             }
             grouped[row.admission_year].total += row.total;
             grouped[row.admission_year].voted_yes += row.voted_yes;
             grouped[row.admission_year].voted_no += row.voted_no;
             grouped[row.admission_year].symbols.push(row);
         });
-
         return grouped;
     }, [byYearSymbol]);
 
@@ -161,28 +106,20 @@ export default function Predictions() {
 
     const handleExport = () => {
         if (!bySymbol?.rows || !byYearSymbol?.rows) return;
-
-        // Create CSV content with UTF-8 BOM for Excel Greek support
         const BOM = '\uFEFF';
         let csv = BOM + 'Αναφορά Προβλέψεων\n\n';
-        
-        // By Symbol
         csv += 'Ανά Σύμβολο Πρόβλεψης\n';
         csv += 'Σύμβολο,Σύνολο,Ψήφισαν,Δεν Ψήφισαν,% Ψήφισαν\n';
         bySymbol.rows.forEach(row => {
             const percent = row.total > 0 ? (row.voted_yes / row.total * 100).toFixed(2) : '0.00';
             csv += `${row.symbol},${row.total},${row.voted_yes},${row.voted_no},${percent}%\n`;
         });
-
-        // By Year-Symbol
         csv += '\n\nΑνά Έτος Εισδοχής και Σύμβολο\n';
         csv += 'Έτος,Σύμβολο,Σύνολο,Ψήφισαν,Δεν Ψήφισαν,% Ψήφισαν\n';
         byYearSymbol.rows.forEach(row => {
             const percent = row.total > 0 ? (row.voted_yes / row.total * 100).toFixed(2) : '0.00';
             csv += `${row.admission_year},${row.symbol},${row.total},${row.voted_yes},${row.voted_no},${percent}%\n`;
         });
-
-        // Download with UTF-8 BOM for proper Greek character display in Excel
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -190,7 +127,17 @@ export default function Predictions() {
         link.click();
     };
 
-    const loading = kpisLoading || symbolLoading || yearSymbolLoading;
+    const toggleFilter = (type, value) => {
+        setFilters(prev => {
+            const current = prev[type];
+            const updated = current.includes(value) ? current.filter(v => v !== value) : [...current, value];
+            return { ...prev, [type]: updated };
+        });
+    };
+
+    const clearFilters = () => setFilters({ years: [], symbols: [], departments: [] });
+
+    const hasActiveFilters = filters.years.length > 0 || filters.symbols.length > 0 || filters.departments.length > 0;
 
     return (
         <div className="space-y-6">
@@ -203,7 +150,7 @@ export default function Predictions() {
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     <Button
                         variant="outline"
-                        onClick={() => setAutoRefresh(!autoRefresh)}
+                        onClick={() => setAutoRefresh(r => !r)}
                         className={cn("h-10 flex-1 sm:flex-initial", autoRefresh && "bg-blue-50 border-blue-300")}
                     >
                         <RefreshCw className={cn("h-4 w-4 sm:mr-2", autoRefresh && "animate-spin")} />
@@ -221,84 +168,137 @@ export default function Predictions() {
                 </div>
             </div>
 
-            {/* Debug Info (temporary) */}
-            {(kpis?.debug || kpisError || symbolError || yearSymbolError) && (
-                <Card className="bg-yellow-50 border-yellow-200">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium">Debug Info</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-xs space-y-1">
-                            {kpisError && <div className="text-red-600 font-bold">KPIs Error: {kpisError.message}</div>}
-                            {symbolError && <div className="text-red-600 font-bold">Symbol Error: {symbolError.message}</div>}
-                            {yearSymbolError && <div className="text-red-600 font-bold">YearSymbol Error: {yearSymbolError.message}</div>}
-                            {kpis?.debug && (
-                                <>
-                                    <div>Active Dataset ID: {kpis.debug.activeDatasetId}</div>
-                                    <div>Dataset Status: {kpis.debug.activeDatasetStatus}</div>
-                                    <div>Persons in Dataset: {kpis.debug.personsInDataset}</div>
-                                    <div>After Filters: {kpis.debug.filteredPersons}</div>
-                                </>
-                            )}
+            {/* Filter Bar */}
+            <Card>
+                <CardContent className="pt-4 pb-4">
+                    <div className="flex flex-wrap gap-3 items-end">
+                        {/* Department */}
+                        <div className="min-w-[180px]">
+                            <p className="text-xs font-medium text-slate-500 mb-1">Τμήμα</p>
+                            <Select onValueChange={(v) => toggleFilter('departments', v)}>
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Επιλογή τμήματος..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableFilters.departments.map(d => (
+                                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                    </CardContent>
-                </Card>
-            )}
+
+                        {/* Admission Year */}
+                        <div className="min-w-[150px]">
+                            <p className="text-xs font-medium text-slate-500 mb-1">Έτος Εισδοχής</p>
+                            <Select onValueChange={(v) => toggleFilter('years', v)}>
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Επιλογή έτους..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableFilters.years.map(y => (
+                                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Symbol */}
+                        <div className="min-w-[160px]">
+                            <p className="text-xs font-medium text-slate-500 mb-1">Σύμβολο Πρόβλεψης</p>
+                            <Select onValueChange={(v) => toggleFilter('symbols', v)}>
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Επιλογή συμβόλου..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableFilters.symbols.map(s => (
+                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {hasActiveFilters && (
+                            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-slate-500">
+                                <X className="h-4 w-4 mr-1" />
+                                Καθαρισμός
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Active filter chips */}
+                    {hasActiveFilters && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {filters.departments.map(d => (
+                                <Badge key={d} variant="secondary" className="cursor-pointer" onClick={() => toggleFilter('departments', d)}>
+                                    {d} <X className="h-3 w-3 ml-1" />
+                                </Badge>
+                            ))}
+                            {filters.years.map(y => (
+                                <Badge key={y} variant="secondary" className="cursor-pointer" onClick={() => toggleFilter('years', y)}>
+                                    {y} <X className="h-3 w-3 ml-1" />
+                                </Badge>
+                            ))}
+                            {filters.symbols.map(s => (
+                                <Badge key={s} variant="secondary" className="cursor-pointer" onClick={() => toggleFilter('symbols', s)}>
+                                    {s} <X className="h-3 w-3 ml-1" />
+                                </Badge>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
-                    <CardHeader className="pb-2 sm:pb-3">
-                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1 sm:gap-2">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
                             <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-                            <span className="truncate">Σύνολο</span>
+                            Σύνολο
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-                            {loading ? '...' : kpis?.total?.toLocaleString('el-GR') || 0}
+                            {loading ? '...' : kpis?.total?.toLocaleString('el-GR') ?? 0}
                         </div>
                     </CardContent>
                 </Card>
-
                 <Card>
-                    <CardHeader className="pb-2 sm:pb-3">
-                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1 sm:gap-2">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
                             <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
-                            <span className="truncate">Ψήφισαν</span>
+                            Ψήφισαν
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-xl sm:text-3xl font-bold text-green-600">
-                            {loading ? '...' : kpis?.voted_yes?.toLocaleString('el-GR') || 0}
+                            {loading ? '...' : kpis?.voted_yes?.toLocaleString('el-GR') ?? 0}
                         </div>
                     </CardContent>
                 </Card>
-
                 <Card>
-                    <CardHeader className="pb-2 sm:pb-3">
-                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1 sm:gap-2">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
                             <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
-                            <span className="truncate">Δεν Ψήφισαν</span>
+                            Δεν Ψήφισαν
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-xl sm:text-3xl font-bold text-orange-600">
-                            {loading ? '...' : kpis?.voted_no?.toLocaleString('el-GR') || 0}
+                            {loading ? '...' : kpis?.voted_no?.toLocaleString('el-GR') ?? 0}
                         </div>
                     </CardContent>
                 </Card>
-
                 <Card>
-                    <CardHeader className="pb-2 sm:pb-3">
-                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1 sm:gap-2">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
                             <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
-                            <span className="truncate">% Ψήφισαν</span>
+                            % Ψήφισαν
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-xl sm:text-3xl font-bold text-blue-600">
-                            {loading ? '...' : `${kpis?.voted_yes_percent || 0}%`}
+                            {loading ? '...' : `${kpis?.voted_yes_percent ?? 0}%`}
                         </div>
                     </CardContent>
                 </Card>
@@ -306,7 +306,7 @@ export default function Predictions() {
 
             {/* By Symbol Table */}
             <Card>
-                <CardHeader className="pb-3 sm:pb-6">
+                <CardHeader className="pb-3">
                     <CardTitle className="text-base sm:text-lg">Ανά Σύμβολο Πρόβλεψης</CardTitle>
                 </CardHeader>
                 <CardContent className="overflow-x-auto px-0 sm:px-6">
@@ -322,11 +322,7 @@ export default function Predictions() {
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                                        Φόρτωση...
-                                    </TableCell>
-                                </TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500">Φόρτωση...</TableCell></TableRow>
                             ) : bySymbol?.rows?.length > 0 ? (
                                 <>
                                     {bySymbol.rows.map((row, idx) => (
@@ -342,18 +338,14 @@ export default function Predictions() {
                                     ))}
                                     <TableRow className="bg-slate-50 dark:bg-slate-800 font-bold">
                                         <TableCell>Σύνολο</TableCell>
-                                        <TableCell className="text-right">{kpis?.total?.toLocaleString('el-GR') || 0}</TableCell>
-                                        <TableCell className="text-right text-green-600">{kpis?.voted_yes?.toLocaleString('el-GR') || 0}</TableCell>
-                                        <TableCell className="text-right text-orange-600">{kpis?.voted_no?.toLocaleString('el-GR') || 0}</TableCell>
-                                        <TableCell className="text-right">{kpis?.voted_yes_percent || 0}%</TableCell>
+                                        <TableCell className="text-right">{kpis?.total?.toLocaleString('el-GR') ?? 0}</TableCell>
+                                        <TableCell className="text-right text-green-600">{kpis?.voted_yes?.toLocaleString('el-GR') ?? 0}</TableCell>
+                                        <TableCell className="text-right text-orange-600">{kpis?.voted_no?.toLocaleString('el-GR') ?? 0}</TableCell>
+                                        <TableCell className="text-right">{kpis?.voted_yes_percent ?? 0}%</TableCell>
                                     </TableRow>
                                 </>
                             ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                                        Δεν υπάρχουν δεδομένα
-                                    </TableCell>
-                                </TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500">Δεν υπάρχουν δεδομένα</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -362,12 +354,12 @@ export default function Predictions() {
 
             {/* By Year Accordion */}
             <Card>
-                <CardHeader className="pb-3 sm:pb-6">
+                <CardHeader className="pb-3">
                     <CardTitle className="text-base sm:text-lg">Ανά Έτος Εισδοχής</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                     {loading ? (
-                        <div className="text-center py-8 text-slate-500 dark:text-slate-400">Φόρτωση...</div>
+                        <div className="text-center py-8 text-slate-500">Φόρτωση...</div>
                     ) : Object.values(groupedByYear).length > 0 ? (
                         Object.values(groupedByYear).map((yearData) => (
                             <Collapsible key={yearData.year} className="border rounded-lg">
@@ -430,13 +422,17 @@ export default function Predictions() {
                             </Collapsible>
                         ))
                     ) : (
-                        <div className="text-center py-8 text-slate-500 dark:text-slate-400">Δεν υπάρχουν δεδομένα</div>
+                        <div className="text-center py-8 text-slate-500">Δεν υπάρχουν δεδομένα</div>
                     )}
                 </CardContent>
             </Card>
 
             {/* Vote Flow Chart */}
-            <VoteFlowChart />
+            <VoteFlowChart
+                sessionToken={sessionToken}
+                availableSymbols={availableFilters.symbols}
+                filters={filters}
+            />
         </div>
     );
 }
