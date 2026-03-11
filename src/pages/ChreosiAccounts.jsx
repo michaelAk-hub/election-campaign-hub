@@ -852,15 +852,8 @@ export default function ChreosiAccounts() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPrintDialog(false)}>Ακύρωση</Button>
-            <Button
-              onClick={handlePrint}
-              disabled={isPrinting || printColumns.length === 0}
-            >
-              {isPrinting ? (
-                <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Δημιουργία...</>
-              ) : (
-                <><Printer className="h-4 w-4 mr-2" />Εκτύπωση PDF</>
-              )}
+            <Button onClick={handlePrint} disabled={printColumns.length === 0}>
+              <Printer className="h-4 w-4 mr-2" />Εκτύπωση PDF
             </Button>
           </DialogFooter>
         </DialogContent>
