@@ -92,27 +92,11 @@ export default function ChreosiAccounts() {
     { key: 'notes', label: 'Σημειώσεις' },
   ];
 
-  const handlePrint = async () => {
+  const handlePrint = () => {
     const account = accounts.find(a => a.id === selectedIds[0]);
     if (!account || printColumns.length === 0) return;
-    setIsPrinting(true);
-    try {
-      const resp = await base44.functions.invoke('generateChreosiStatementPDF', {
-        accountId: account.id,
-        selectedColumns: printColumns
-      });
-      const data = resp.data;
-      if (!data?.ok) throw new Error(data?.error || 'Σφάλμα δημιουργίας PDF');
-      const a = document.createElement('a');
-      a.href = data.pdf_base64;
-      a.download = data.filename;
-      a.click();
-      setPrintDialog(false);
-      toast.success('Το PDF δημιουργήθηκε επιτυχώς');
-    } catch (e) {
-      toast.error(e.message || 'Σφάλμα εκτύπωσης');
-    }
-    setIsPrinting(false);
+    printChreosiStatement({ account, people, selectedColumns: printColumns });
+    setPrintDialog(false);
   };
 
   const { data: accounts = [], isLoading } = useQuery({
