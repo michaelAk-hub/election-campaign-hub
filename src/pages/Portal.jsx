@@ -240,7 +240,7 @@ function ChreosiPortal({ username }) {
           onChange={(e) => setPersonalNote(e.target.value)}
           placeholder="Γράψτε τις προσωπικές σας σημειώσεις εδώ..."
           rows={3}
-          className="mb-3 bg-white dark:bg-slate-800"
+          className="mb-3 bg-white dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-400 dark:border-slate-600"
         />
         <div className="flex justify-end">
           <Button
