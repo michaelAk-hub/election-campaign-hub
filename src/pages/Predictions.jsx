@@ -62,7 +62,7 @@ export default function Predictions() {
     });
 
     const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
-        queryKey: ['predictionByYearSymbol', queryParams],
+        queryKey: ['predictionByYearSymbol'],
         queryFn: async () => {
             const { data } = await base44.functions.invoke('predictionByYearSymbol', { queryParams });
             return data;
