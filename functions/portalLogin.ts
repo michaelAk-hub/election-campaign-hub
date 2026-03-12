@@ -11,16 +11,21 @@ function generateToken() {
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function verifyAndMigratePassword(entityClient, entityId, storedHash, plainPassword) {
+async function verifyAndMigratePassword(entityClient, entityId, storedHash, plainPassword, existingPlain) {
     if (!storedHash) return false;
     // Already a bcrypt hash
     if (storedHash.startsWith('$2')) {
-        return await bcrypt.compare(plainPassword, storedHash);
+        const match = await bcrypt.compare(plainPassword, storedHash);
+        // If plain_password not yet saved, save it now
+        if (match && !existingPlain) {
+            await entityClient.update(entityId, { plain_password: plainPassword });
+        }
+        return match;
     }
-    // Plain text (legacy) — allow once, then migrate to hash
+    // Plain text (legacy) — allow once, then migrate to hash and save plain_password
     if (storedHash === plainPassword) {
         const hash = await bcrypt.hash(plainPassword, 10);
-        await entityClient.update(entityId, { password_hash: hash });
+        await entityClient.update(entityId, { password_hash: hash, plain_password: plainPassword });
         return true;
     }
     return false;
