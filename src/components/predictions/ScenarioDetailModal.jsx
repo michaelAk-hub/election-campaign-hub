@@ -67,9 +67,16 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
                         <div className="space-y-4">
                             {groups.map((group, gi) => (
                                 <div key={gi} className="rounded-lg border overflow-hidden">
-                                    <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2 flex items-center justify-between">
-                                        <span className="font-medium text-sm">{group.group_name}</span>
-                                        <span className="text-xs text-slate-500">{group.total_persons} ψήφοι · {group.global_share_percent?.toFixed(1)}% του συνόλου</span>
+                                    <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium text-sm">{group.group_name}</span>
+                                            <span className="text-xs text-slate-500">{group.total_persons} ψήφοι · {group.global_share_percent?.toFixed(1)}% του συνόλου</span>
+                                        </div>
+                                        {group.condition_expression && (
+                                            <div className="mt-1 text-xs text-slate-400 font-mono bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 inline-block">
+                                                {group.condition_expression}
+                                            </div>
+                                        )}
                                     </div>
                                     <Table>
                                         <TableBody>
