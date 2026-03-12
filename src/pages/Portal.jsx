@@ -361,6 +361,7 @@ function ChreosiPortal({ username }) {
 // Kanali Type A Portal Component
 function KanaliTypeAPortal({ username }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [inputId, setInputId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [lastResult, setLastResult] = useState(null);
@@ -383,6 +384,16 @@ function KanaliTypeAPortal({ username }) {
         toast.success('Επιτυχής καταχώρηση!');
       } else {
         toast.error(result.reason);
+      }
+    },
+    onError: (error) => {
+      const msg = error.message || '';
+      if (msg.includes('Invalid or expired session') || msg.includes('Session expired')) {
+        toast.error('Η συνεδρία σας έληξε. Παρακαλώ συνδεθείτε ξανά.');
+        ['portal_session', 'portal_type', 'portal_username', 'kanali_type'].forEach(k => localStorage.removeItem(k));
+        navigate(createPageUrl('PortalLogin'));
+      } else {
+        toast.error('Σφάλμα: ' + (msg || 'Άγνωστο σφάλμα'));
       }
     }
   });
@@ -477,6 +488,8 @@ export default function Portal() {
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
+    let unsubscribePushMessages = null;
+
     const checkSession = async () => {
       const token = localStorage.getItem('portal_session');
       const portalType = localStorage.getItem('portal_type');
@@ -488,15 +501,34 @@ export default function Portal() {
         return;
       }
 
-      setSession({ token, portalType, username, kanaliType });
+      // Server-side session validation — localStorage is only a cache, not proof of auth
+      const validationResponse = await base44.functions.invoke('validatePortalSession', {
+        sessionToken: token,
+        username,
+        portalType
+      });
+
+      if (!validationResponse.data?.valid) {
+        ['portal_session', 'portal_type', 'portal_username', 'kanali_type'].forEach(k => localStorage.removeItem(k));
+        navigate(createPageUrl('PortalLogin'));
+        return;
+      }
+
+      const validated = validationResponse.data;
+      setSession({
+        token,
+        portalType: validated.portalType,
+        username: validated.username,
+        kanaliType: validated.kanaliType || kanaliType
+      });
       setLoading(false);
 
-      // Check for push messages
+      // Check for unacknowledged push messages
       const checkMessages = async () => {
         const targetGroups = portalType === 'chreosi' ? ['chreosi', 'both'] : ['kanali', 'both'];
         const messages = await base44.entities.PushMessage.filter({ is_active: true });
         const relevantMessages = messages.filter(m => targetGroups.includes(m.target_group));
-        
+
         for (const msg of relevantMessages) {
           const acks = await base44.entities.PushMessageAck.filter({
             message_id: msg.id,
@@ -511,29 +543,27 @@ export default function Portal() {
 
       await checkMessages();
 
-      // Subscribe to new push messages in real-time
-      const unsubscribe = base44.entities.PushMessage.subscribe((event) => {
+      unsubscribePushMessages = base44.entities.PushMessage.subscribe((event) => {
         if (event.type === 'create' || event.type === 'update') {
           checkMessages();
         }
       });
-
-      return unsubscribe;
     };
 
-    const cleanup = checkSession();
+    checkSession();
+
     return () => {
-      if (cleanup instanceof Promise) {
-        cleanup.then(fn => fn && fn());
-      }
+      if (unsubscribePushMessages) unsubscribePushMessages();
     };
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('portal_session');
-    localStorage.removeItem('portal_type');
-    localStorage.removeItem('portal_username');
-    localStorage.removeItem('kanali_type');
+  const handleLogout = async () => {
+    const token = localStorage.getItem('portal_session');
+    const username = localStorage.getItem('portal_username');
+    if (token && username) {
+      await base44.functions.invoke('portalLogout', { sessionToken: token, username }).catch(() => {});
+    }
+    ['portal_session', 'portal_type', 'portal_username', 'kanali_type'].forEach(k => localStorage.removeItem(k));
     navigate(createPageUrl('PortalLogin'));
   };
 
@@ -561,15 +591,10 @@ export default function Portal() {
 
   const acknowledgePushMessage = async () => {
     if (!pushMessage || !session) return;
-    await base44.entities.PushMessageAck.create({
-      message_id: pushMessage.id,
-      recipient_type: session.portalType,
+    await base44.functions.invoke('portalAcknowledgePushMessage', {
+      sessionToken: session.token,
       username: session.username,
-      acknowledged_at: new Date().toISOString()
-    });
-    // Update acknowledged count
-    await base44.entities.PushMessage.update(pushMessage.id, {
-      acknowledged_count: (pushMessage.acknowledged_count || 0) + 1
+      messageId: pushMessage.id
     });
     setPushMessage(null);
   };

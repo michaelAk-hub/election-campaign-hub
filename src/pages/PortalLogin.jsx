@@ -10,11 +10,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Vote, User, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// normalize
-function normalizeUsername(str) {
-  return str?.trim().replace(/\s+/g, ' ') || '';
-}
-
 export default function PortalLogin() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
@@ -27,72 +22,22 @@ export default function PortalLogin() {
     setError('');
     setLoading(true);
 
-    const normalizedUsername = normalizeUsername(username);
+    const response = await base44.functions.invoke('portalLogin', { username, password });
+    const result = response.data;
 
-    // Check Chreosi accounts first
-    const chreosiAccounts = await base44.entities.ChreosiAccount.filter({
-      username: normalizedUsername
-    });
-
-    if (chreosiAccounts.length > 0) {
-      const account = chreosiAccounts[0];
-      if (!account.is_active) {
-        setError('Ο λογαριασμός είναι απενεργοποιημένος');
-        setLoading(false);
-        return;
-      }
-      // Simple password check (in production, use proper hashing)
-      if (account.password_hash === password) {
-        // Create session
-        const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        await base44.entities.PortalSession.create({
-          session_token: sessionToken,
-          username: normalizedUsername,
-          portal_type: 'chreosi',
-          is_active: true,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-        });
-        localStorage.setItem('portal_session', sessionToken);
-        localStorage.setItem('portal_type', 'chreosi');
-        localStorage.setItem('portal_username', normalizedUsername);
-        navigate(createPageUrl('Portal'));
-        return;
-      }
+    if (!result.success) {
+      setError(result.error || 'Λάθος στοιχεία σύνδεσης');
+      setLoading(false);
+      return;
     }
 
-    // Check Kanali accounts
-    const kanaliAccounts = await base44.entities.KanaliAccount.filter({
-      username: normalizedUsername
-    });
-
-    if (kanaliAccounts.length > 0) {
-      const account = kanaliAccounts[0];
-      if (!account.is_active) {
-        setError('Ο λογαριασμός είναι απενεργοποιημένος');
-        setLoading(false);
-        return;
-      }
-      if (account.password_hash === password) {
-        const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        await base44.entities.PortalSession.create({
-          session_token: sessionToken,
-          username: normalizedUsername,
-          portal_type: 'kanali',
-          kanali_type: account.user_type,
-          is_active: true,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-        });
-        localStorage.setItem('portal_session', sessionToken);
-        localStorage.setItem('portal_type', 'kanali');
-        localStorage.setItem('portal_username', normalizedUsername);
-        localStorage.setItem('kanali_type', account.user_type);
-        navigate(createPageUrl('Portal'));
-        return;
-      }
+    localStorage.setItem('portal_session', result.token);
+    localStorage.setItem('portal_type', result.portalType);
+    localStorage.setItem('portal_username', result.username);
+    if (result.kanaliType) {
+      localStorage.setItem('kanali_type', result.kanaliType);
     }
-
-    setError('Λάθος όνομα χρήστη ή κωδικός');
-    setLoading(false);
+    navigate(createPageUrl('Portal'));
   };
 
   return (
