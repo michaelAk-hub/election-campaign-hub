@@ -153,7 +153,14 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
             scenario: { name: name.trim(), total_seats: Number(totalSeats), display_order: Number(displayOrder) || 1, config_json },
         });
         setSaving(false);
-        if (data?.error) { setErrors([data.message || data.error]); return; }
+        if (data?.error) {
+            if (data.errors && Array.isArray(data.errors)) {
+                setErrors(data.errors);
+            } else {
+                setErrors([data.message || data.error]);
+            }
+            return;
+        }
         onSaved();
         onClose();
     };
