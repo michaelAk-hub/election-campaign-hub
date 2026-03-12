@@ -16,9 +16,6 @@ export default function ScenarioCard({ scenario, result, loading, onEdit, onDele
                         {scenario.name}
                     </CardTitle>
                     <div className="flex gap-1 shrink-0">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onView(scenario, result)}>
-                            <Eye className="h-3.5 w-3.5" />
-                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(scenario)}>
                             <Pencil className="h-3.5 w-3.5" />
                         </Button>
