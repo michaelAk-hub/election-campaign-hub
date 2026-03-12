@@ -124,7 +124,8 @@ export default function KanaliAccounts() {
       const password = generatePassword();
       await createMutation.mutateAsync({
         username,
-        password_hash: password, // In production, hash this
+        password_hash: password,
+        plain_password: password,
         user_type: accountType,
         is_active: true
       });
@@ -154,25 +155,29 @@ export default function KanaliAccounts() {
 
   const columns = [
     { key: 'username', label: 'Όνομα Χρήστη' },
-    { key: 'password_hash', label: 'Κωδικός', render: (val) => (
-      <div className="flex items-center gap-2">
-        <span className="font-mono text-sm">{val || '-'}</span>
-        {val && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(val);
-              toast.success('Αντιγράφηκε');
-            }}
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
-        )}
-      </div>
-    )},
+    { key: 'plain_password', label: 'Κωδικός', render: (val, row) => {
+      const display = val || (row?.password_hash?.startsWith('$2') ? '(χρειάζεται σύνδεση)' : row?.password_hash) || '-';
+      const copyVal = val || (row?.password_hash?.startsWith('$2') ? null : row?.password_hash);
+      return (
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-sm">{display}</span>
+          {copyVal && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(copyVal);
+                toast.success('Αντιγράφηκε');
+              }}
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      );
+    }},
     { key: 'user_type', label: 'Τύπος', render: (val) => (
       <Badge variant="outline" className={val === 'A' ? 'border-blue-300 text-blue-700' : 'border-purple-300 text-purple-700'}>
         Τύπος {val}
@@ -275,7 +280,7 @@ export default function KanaliAccounts() {
                 const newPassword = generatePassword();
                 await updateMutation.mutateAsync({
                   id: row.id,
-                  data: { ...row, password_hash: newPassword }
+                  data: { ...row, password_hash: newPassword, plain_password: newPassword }
                 });
                 
                 // Send notification
