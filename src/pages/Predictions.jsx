@@ -85,6 +85,7 @@ export default function Predictions() {
         refetchKPIs();
         refetchBySymbol();
         refetchByYearSymbol();
+        setScenarioRefreshSignal(s => s + 1);
     };
 
     const handleExport = () => {
