@@ -135,15 +135,20 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
             parties: parties.map(p => ({
                 name: p.name.trim(),
                 color: p.color,
-                symbols: p.symbols.map(s => ({ symbol: s.symbol, multiplier: parseFloat(s.multiplier) || 1 })),
+                symbols: p.symbols.map(s => ({
+                    symbol: (s.symbol || '').trim(),
+                    multiplier: parseFloat(s.multiplier) || 1,
+                })),
             })),
             year_groups: yearGroups.map(g => ({
                 name: g.name.trim(),
                 conditions: g.conditions.map(c => ({
-                    field: c.field,
-                    operator: c.operator,
-                    value: c.operator === '=' ? c.value : undefined,
-                    values: c.operator === 'IN' ? c.values : undefined,
+                    field: (c.field || '').trim(),
+                    operator: (c.operator || '').trim(),
+                    value: c.operator === '=' ? (c.value || '').trim() : undefined,
+                    values: c.operator === 'IN'
+                        ? (c.values || []).map(v => (v || '').trim()).filter(v => v !== '')
+                        : undefined,
                 })),
             })),
         };
