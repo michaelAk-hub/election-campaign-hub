@@ -73,13 +73,20 @@ Deno.serve(async (req) => {
 
         // Academic group breakdown
         const groupBreakdown = yearGroups.map(group => {
-            // Filter persons for this group
+            // Filter persons: OR within same field, AND between different fields
+            const condsByFieldFilter = {};
+            for (const cond of (group.conditions || [])) {
+                if (!condsByFieldFilter[cond.field]) condsByFieldFilter[cond.field] = [];
+                condsByFieldFilter[cond.field].push(cond);
+            }
             const groupPersons = allVoted.filter(person => {
-                return (group.conditions || []).every(cond => {
-                    const fieldValue = person[cond.field]?.trim() ?? '';
-                    if (cond.operator === '=') return fieldValue === cond.value;
-                    if (cond.operator === 'IN') return (cond.values || []).includes(fieldValue);
-                    return true;
+                return Object.entries(condsByFieldFilter).every(([, conds]) => {
+                    return conds.some(cond => {
+                        const fieldValue = person[cond.field]?.trim() ?? '';
+                        if (cond.operator === '=') return fieldValue === cond.value;
+                        if (cond.operator === 'IN') return (cond.values || []).includes(fieldValue);
+                        return false;
+                    });
                 });
             });
 
