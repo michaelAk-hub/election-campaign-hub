@@ -102,8 +102,14 @@ Deno.serve(async (req) => {
             const groupTotal = groupPartyResults.reduce((s, p) => s + p.predictedVotes, 0);
             const groupSeatsRatio = totalPredictedVotes > 0 ? groupTotal / totalPredictedVotes : 0;
 
+            const conditionExpression = (group.conditions || []).map(cond => {
+                if (cond.operator === 'IN') return `${cond.field} IN [${(cond.values || []).join(', ')}]`;
+                return `${cond.field} = ${cond.value}`;
+            }).join(' AND ');
+
             return {
                 group_name: group.name,
+                condition_expression: conditionExpression || null,
                 total_persons: groupPersons.length,
                 party_results: groupPartyResults.map(p => ({
                     name: p.name,
