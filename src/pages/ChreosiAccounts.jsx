@@ -453,6 +453,7 @@ export default function ChreosiAccounts() {
         selectable={true}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        actions={rowActions}
         bulkActions={
           <>
             {selectedIds.length === 1 && (
