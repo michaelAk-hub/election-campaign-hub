@@ -28,7 +28,7 @@ export default function ScenarioCard({ scenario, result, loading, onEdit, onDele
                     </div>
                 </div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {scenario.total_seats} έδρες · {result ? `${Math.round(totalVotes)} συν. ψήφοι` : ''}
+                    {scenario.total_seats} έδρες · {result ? `${result.actual_voted_count?.toLocaleString('el-GR')} ψήφοι` : ''}
                 </div>
             </CardHeader>
             <CardContent>
