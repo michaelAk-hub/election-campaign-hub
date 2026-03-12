@@ -196,6 +196,9 @@ export default function Predictions() {
                 </Card>
             </div>
 
+            {/* Scenario Predictions */}
+            <ScenarioSection sessionToken={sessionToken} refreshSignal={scenarioRefreshSignal} />
+
             {/* By Symbol Table */}
             <Card>
                 <CardHeader className="pb-3">
