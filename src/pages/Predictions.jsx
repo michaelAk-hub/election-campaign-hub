@@ -12,6 +12,7 @@ import {
 import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
+import ScenarioSection from '../components/predictions/ScenarioSection';
 
 const sessionToken = localStorage.getItem('app_session_token');
 
