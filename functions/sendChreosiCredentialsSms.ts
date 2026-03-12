@@ -308,8 +308,10 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Use existing password — no rotation
-      const passwordToSend = (acc.password_hash || "").toString().trim();
+      // Use plain_password; fall back to password_hash only if it's not a bcrypt hash (legacy plain text)
+      const rawHash = (acc.password_hash || "").toString().trim();
+      const passwordToSend = (acc.plain_password || "").toString().trim() ||
+        (rawHash.startsWith("$2") ? "" : rawHash);
 
       if (!passwordToSend) {
         skipped++;
