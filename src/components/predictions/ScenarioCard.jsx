@@ -2,9 +2,9 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
 
-export default function ScenarioCard({ scenario, result, loading, onEdit, onDelete, onView }) {
+export default function ScenarioCard({ scenario, result, loading, error, onEdit, onDelete, onView }) {
     const parties = result?.parties || [];
     const totalVotes = result?.total_predicted_votes || 0;
 
@@ -33,6 +33,11 @@ export default function ScenarioCard({ scenario, result, loading, onEdit, onDele
                     <div className="flex items-center justify-center py-6">
                         <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                     </div>
+                ) : error ? (
+                    <div className="flex items-center gap-2 py-4 px-1 text-red-600">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <span className="text-xs">{error}</span>
+                    </div>
                 ) : parties.length === 0 ? (
                     <div className="text-xs text-slate-400 text-center py-4">Δεν υπάρχουν δεδομένα</div>
                 ) : (
@@ -59,12 +64,14 @@ export default function ScenarioCard({ scenario, result, loading, onEdit, onDele
                         ))}
                     </div>
                 )}
-                <button
-                    onClick={() => onView(scenario, result)}
-                    className="mt-3 w-full text-xs text-blue-600 hover:underline text-center"
-                >
-                    Αναλυτικά →
-                </button>
+                {!error && result && (
+                    <button
+                        onClick={() => onView(scenario, result)}
+                        className="mt-3 w-full text-xs text-blue-600 hover:underline text-center"
+                    >
+                        Αναλυτικά →
+                    </button>
+                )}
             </CardContent>
         </Card>
     );
