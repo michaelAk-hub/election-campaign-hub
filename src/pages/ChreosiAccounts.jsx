@@ -367,11 +367,49 @@ export default function ChreosiAccounts() {
       </span>
     )},
     { key: 'is_active', label: 'Κατάσταση', render: (val) => (
-      <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'dark:bg-slate-700 dark:text-slate-300'}>
-        {val ? 'Ενεργός' : 'Ανενεργός'}
-      </Badge>
+    <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'dark:bg-slate-700 dark:text-slate-300'}>
+      {val ? 'Ενεργός' : 'Ανενεργός'}
+    </Badge>
     )}
-  ];
+    ];
+
+    const rowActions = (row) => (
+    <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="ghost" size="icon">
+        <MoreHorizontal className="h-4 w-4" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem onClick={async () => {
+        const newPassword = generatePassword();
+        await updateMutation.mutateAsync({
+          id: row.id,
+          data: { ...row, password_hash: newPassword, plain_password: newPassword }
+        });
+        toast.success(`Νέος κωδικός: ${newPassword}`);
+        navigator.clipboard.writeText(newPassword);
+      }}>
+        <Key className="h-4 w-4 mr-2" />
+        Επαναφορά Κωδικού
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => {
+        setFormData({ ...row });
+        setEditDialog({ open: true, account: row });
+      }}>
+        <Pencil className="h-4 w-4 mr-2" />
+        Επεξεργασία
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => setDeleteDialog({ open: true, ids: [row.id], single: true, username: row.username })}
+        className="text-red-600"
+      >
+        <Trash2 className="h-4 w-4 mr-2" />
+        Διαγραφή
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+    </DropdownMenu>
+    );
 
   if (isLoading) {
     return <LoadingSpinner />;
