@@ -102,9 +102,19 @@ Deno.serve(async (req) => {
             const groupTotal = groupPartyResults.reduce((s, p) => s + p.predictedVotes, 0);
             const groupSeatsRatio = totalPredictedVotes > 0 ? groupTotal / totalPredictedVotes : 0;
 
-            const conditionExpression = (group.conditions || []).map(cond => {
-                if (cond.operator === 'IN') return `${cond.field} IN [${(cond.values || []).join(', ')}]`;
-                return `${cond.field} = ${cond.value}`;
+            // Group conditions by field, then build: (field = A OR field = B) AND (field2 = X OR field2 = Y)
+            const condsByField = {};
+            for (const cond of (group.conditions || [])) {
+                if (!condsByField[cond.field]) condsByField[cond.field] = [];
+                if (cond.operator === 'IN') {
+                    (cond.values || []).forEach(v => condsByField[cond.field].push(v));
+                } else {
+                    condsByField[cond.field].push(cond.value);
+                }
+            }
+            const conditionExpression = Object.entries(condsByField).map(([field, values]) => {
+                const inner = values.map(v => `${field} = ${v}`).join(' OR ');
+                return values.length > 1 ? `(${inner})` : inner;
             }).join(' AND ');
 
             return {
