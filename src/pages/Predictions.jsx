@@ -25,6 +25,7 @@ const queryParams = (() => {
 export default function Predictions() {
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [availableSymbols, setAvailableSymbols] = useState([]);
+    const [scenarioRefreshSignal, setScenarioRefreshSignal] = useState(0);
 
     // Load available symbols for VoteFlowChart grouping config
     useEffect(() => {
