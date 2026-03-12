@@ -53,7 +53,8 @@ Deno.serve(async (req) => {
                 base44.asServiceRole.entities.ChreosiAccount,
                 account.id,
                 account.password_hash,
-                password
+                password,
+                account.plain_password
             );
             if (!valid) {
                 return Response.json({ success: false, error: 'Λάθος στοιχεία σύνδεσης' });
@@ -80,7 +81,8 @@ Deno.serve(async (req) => {
                 base44.asServiceRole.entities.KanaliAccount,
                 account.id,
                 account.password_hash,
-                password
+                password,
+                account.plain_password
             );
             if (!valid) {
                 return Response.json({ success: false, error: 'Λάθος στοιχεία σύνδεσης' });
