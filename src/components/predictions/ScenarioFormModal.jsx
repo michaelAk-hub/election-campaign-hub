@@ -70,26 +70,59 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
     const validate = () => {
         const errs = [];
         if (!name.trim()) errs.push('Λείπει το όνομα σεναρίου');
-        if (!totalSeats || isNaN(Number(totalSeats)) || Number(totalSeats) <= 0) errs.push('Ο αριθμός εδρών πρέπει να είναι θετικός αριθμός');
-        const partyNames = parties.map(p => p.name.trim());
-        const dupNames = partyNames.filter((n, i) => n && partyNames.indexOf(n) !== i);
-        if (dupNames.length) errs.push(`Διπλά ονόματα παράταξης: ${dupNames.join(', ')}`);
+        const seats = Number(totalSeats);
+        if (!totalSeats || !isFinite(seats) || seats <= 0) errs.push('Ο αριθμός εδρών πρέπει να είναι θετικός αριθμός');
+
+        const partyNamesSeen = [];
         const usedSymbols = {};
-        parties.forEach(p => {
-            if (!p.name.trim()) { errs.push(`Κάποια παράταξη δεν έχει όνομα`); }
-            if (!p.symbols.length) errs.push(`Η παράταξη "${p.name || '?'}" δεν έχει σύμβολα`);
+
+        parties.forEach((p, pi) => {
+            const pName = p.name.trim();
+            const pLabel = `Παράταξη #${pi + 1}`;
+            if (!pName) {
+                errs.push(`${pLabel}: λείπει το όνομα`);
+            } else {
+                const lower = pName.toLowerCase();
+                if (partyNamesSeen.includes(lower)) {
+                    errs.push(`Διπλό όνομα παράταξης: "${pName}"`);
+                } else {
+                    partyNamesSeen.push(lower);
+                }
+            }
+            if (!p.symbols.length) {
+                errs.push(`${pLabel} "${pName || '?'}": απαιτείται τουλάχιστον ένα σύμβολο`);
+            }
+            const partySeen = new Set();
             p.symbols.forEach(sm => {
-                if (!sm.symbol) { errs.push(`Κενό σύμβολο σε παράταξη "${p.name || '?'}"`); return; }
-                if (usedSymbols[sm.symbol]) errs.push(`Το σύμβολο "${sm.symbol}" ανήκει σε 2 παρατάξεις`);
-                usedSymbols[sm.symbol] = true;
-                if (!sm.multiplier || isNaN(Number(sm.multiplier))) errs.push(`Μη έγκυρος πολλαπλασιαστής για σύμβολο "${sm.symbol}"`);
+                const sym = (sm.symbol || '').trim();
+                if (!sym) { errs.push(`${pLabel} "${pName || '?'}": κενό σύμβολο`); return; }
+                if (partySeen.has(sym)) { errs.push(`${pLabel} "${pName || '?'}": διπλό σύμβολο "${sym}"`); }
+                partySeen.add(sym);
+                if (usedSymbols[sym]) errs.push(`Το σύμβολο "${sym}" ανήκει σε 2 παρατάξεις`);
+                usedSymbols[sym] = true;
+                const mult = Number(sm.multiplier);
+                if (!sm.multiplier || !isFinite(mult) || mult <= 0) errs.push(`${pLabel} "${pName || '?'}", σύμβολο "${sym}": ο πολλαπλασιαστής πρέπει να είναι > 0`);
             });
         });
-        // Warnings
+
+        yearGroups.forEach((g, gi) => {
+            const gName = g.name.trim();
+            if (!gName) errs.push(`Ομάδα #${gi + 1}: λείπει το όνομα`);
+            if (!g.conditions.length) errs.push(`Ομάδα "${gName || '?'}": απαιτείται τουλάχιστον μία συνθήκη`);
+            g.conditions.forEach((cond, ci) => {
+                const cLabel = `Ομάδα "${gName || '?'}", συνθήκη #${ci + 1}`;
+                if (!['academic_level', 'admission_year'].includes(cond.field)) errs.push(`${cLabel}: μη επιτρεπτό πεδίο`);
+                if (!['=', 'IN'].includes(cond.operator)) errs.push(`${cLabel}: μη επιτρεπτός τελεστής`);
+                if (cond.operator === '=' && !(cond.value || '').trim()) errs.push(`${cLabel}: ο τελεστής "=" απαιτεί τιμή`);
+                if (cond.operator === 'IN' && (!cond.values || cond.values.length === 0)) errs.push(`${cLabel}: ο τελεστής "IN" απαιτεί τουλάχιστον μία τιμή`);
+            });
+        });
+
+        // Warnings for unassigned symbols
         const warns = [];
         const allDataSymbols = filterOptions.symbols;
-        const assignedSymbols = new Set(Object.keys(usedSymbols));
-        const unassigned = allDataSymbols.filter(s => !assignedSymbols.has(s));
+        const assignedSymbolsSet = new Set(Object.keys(usedSymbols));
+        const unassigned = allDataSymbols.filter(s => !assignedSymbolsSet.has(s));
         if (unassigned.length) warns.push(`Αναθέστε ή παραλείψτε σύμβολα: ${unassigned.join(', ')}`);
         setErrors(errs); setWarnings(warns);
         return errs.length === 0;

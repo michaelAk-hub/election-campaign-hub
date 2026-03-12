@@ -10,6 +10,7 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
     const [scenarios, setScenarios] = useState([]);
     const [results, setResults] = useState({}); // keyed by scenario.id
     const [loadingResults, setLoadingResults] = useState({});
+    const [resultErrors, setResultErrors] = useState({}); // keyed by scenario.id
     const [showForm, setShowForm] = useState(false);
     const [editScenario, setEditScenario] = useState(null);
     const [detailScenario, setDetailScenario] = useState(null);
