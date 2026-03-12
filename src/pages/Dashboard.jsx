@@ -41,11 +41,6 @@ export default function Dashboard() {
   const [uploadFile, setUploadFile] = useState(null);
   const [importMode, setImportMode] = useState('append');
   const [isUploading, setIsUploading] = useState(false);
-  const [isMarkingVoted, setIsMarkingVoted] = useState(false);
-  const [isMarkingVotedX, setIsMarkingVotedX] = useState(false);
-  const [isMarkingVotedX2, setIsMarkingVotedX2] = useState(false);
-  const [isMarkingVotedX3, setIsMarkingVotedX3] = useState(false);
-
   const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
     queryKey: ['people'],
     queryFn: async () => {
@@ -273,62 +268,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleMarkHalfVotedX = async () => {
-    if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Χ ως ψηφίσαντες. Συνέχεια;')) return;
-    setIsMarkingVotedX(true);
-    try {
-      const response = await base44.functions.invoke('markHalfVotedBySymbol', { symbol: 'Χ' });
-      toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές (Χ) ως ψηφίσαντες`);
-      refetch();
-    } catch (error) {
-      toast.error('Σφάλμα: ' + error.message);
-    } finally {
-      setIsMarkingVotedX(false);
-    }
-  };
-
-  const handleMarkHalfVotedX2 = async () => {
-    if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Χ2 ως ψηφίσαντες. Συνέχεια;')) return;
-    setIsMarkingVotedX2(true);
-    try {
-      const response = await base44.functions.invoke('markHalfVotedBySymbol', { symbol: 'Χ2' });
-      toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές (Χ2) ως ψηφίσαντες`);
-      refetch();
-    } catch (error) {
-      toast.error('Σφάλμα: ' + error.message);
-    } finally {
-      setIsMarkingVotedX2(false);
-    }
-  };
-
-  const handleMarkHalfVotedX3 = async () => {
-    if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Χ3 ως ψηφίσαντες. Συνέχεια;')) return;
-    setIsMarkingVotedX3(true);
-    try {
-      const response = await base44.functions.invoke('markHalfVotedBySymbol', { symbol: 'Χ3' });
-      toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές (Χ3) ως ψηφίσαντες`);
-      refetch();
-    } catch (error) {
-      toast.error('Σφάλμα: ' + error.message);
-    } finally {
-      setIsMarkingVotedX3(false);
-    }
-  };
-
-  const handleMarkHalfVoted = async () => {
-    if (!window.confirm('Θα επισημανθεί το μισό από τα άτομα με σύμβολο Σ, Ο, Π ως ψηφίσαντες. Συνέχεια;')) return;
-    setIsMarkingVoted(true);
-    try {
-      const response = await base44.functions.invoke('markHalfVoted', {});
-      toast.success(`Επισημάνθηκαν ${response.data.updated} εγγραφές ως ψηφίσαντες`);
-      refetch();
-    } catch (error) {
-      toast.error('Σφάλμα: ' + error.message);
-    } finally {
-      setIsMarkingVoted(false);
-    }
-  };
-
   if (loadingPeople) {
     return <LoadingSpinner />;
   }
@@ -352,22 +291,6 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => refetch()} className="h-10">
               <RefreshCw className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Ανανέωση</span>
-            </Button>
-            <Button variant="outline" onClick={handleMarkHalfVoted} disabled={isMarkingVoted} className="h-10 border-amber-300 text-amber-700 hover:bg-amber-50">
-              <Vote className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{isMarkingVoted ? 'Επεξεργασία...' : 'Σήμανση 50% (Σ/Ο/Π)'}</span>
-            </Button>
-            <Button variant="outline" onClick={handleMarkHalfVotedX} disabled={isMarkingVotedX} className="h-10 border-purple-300 text-purple-700 hover:bg-purple-50">
-              <Vote className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{isMarkingVotedX ? 'Επεξεργασία...' : 'Σήμανση 50% (Χ)'}</span>
-            </Button>
-            <Button variant="outline" onClick={handleMarkHalfVotedX2} disabled={isMarkingVotedX2} className="h-10 border-indigo-300 text-indigo-700 hover:bg-indigo-50">
-              <Vote className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{isMarkingVotedX2 ? 'Επεξεργασία...' : 'Σήμανση 50% (Χ2)'}</span>
-            </Button>
-            <Button variant="outline" onClick={handleMarkHalfVotedX3} disabled={isMarkingVotedX3} className="h-10 border-teal-300 text-teal-700 hover:bg-teal-50">
-              <Vote className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{isMarkingVotedX3 ? 'Επεξεργασία...' : 'Σήμανση 50% (Χ3)'}</span>
             </Button>
           </div>
         }
