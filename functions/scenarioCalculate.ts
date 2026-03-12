@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
             scenario_id,
             scenario_name: scenario.name,
             total_seats: totalSeats,
+            actual_voted_count: allVoted.length,
             total_predicted_votes: totalPredictedVotes,
             quota,
             parties: partyResultsFinal,
