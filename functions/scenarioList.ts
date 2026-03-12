@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
         const user = users[0];
         if (!['ADMIN', 'ORGANOTIKI'].includes(user.role)) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-        const scenarios = await base44.asServiceRole.entities.PredictionScenario.list('display_order', 10);
+        const scenarios = await base44.asServiceRole.entities.PredictionScenario.list('display_order', 4);
         return Response.json({ scenarios });
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
