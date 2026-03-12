@@ -14,7 +14,7 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
                 <DialogHeader>
                     <DialogTitle className="text-lg font-bold">{scenario.name}</DialogTitle>
                     <div className="text-sm text-slate-500">
-                        {scenario.total_seats} έδρες · Σύνολο Ψήφων: {Math.round(result.total_predicted_votes)} · Μέτρο: {result.quota?.toFixed(2)}
+                        {scenario.total_seats} έδρες · Πραγματικοί Ψήφοι: {result.actual_voted_count?.toLocaleString('el-GR')} · Σταθμισμένοι: {Math.round(result.total_predicted_votes)} · Μέτρο: {result.quota?.toFixed(2)}
                     </div>
                 </DialogHeader>
 
