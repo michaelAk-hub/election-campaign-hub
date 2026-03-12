@@ -29,11 +29,21 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
         const loadingMap = {};
         ids.forEach(id => loadingMap[id] = true);
         setLoadingResults(loadingMap);
+        setResultErrors({});
 
         await Promise.all(ids.map(async (id) => {
-            const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
-            setResults(prev => ({ ...prev, [id]: data }));
-            setLoadingResults(prev => ({ ...prev, [id]: false }));
+            try {
+                const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
+                if (data?.error) {
+                    setResultErrors(prev => ({ ...prev, [id]: data.message || data.error }));
+                } else {
+                    setResults(prev => ({ ...prev, [id]: data }));
+                }
+            } catch (e) {
+                setResultErrors(prev => ({ ...prev, [id]: e.message || 'Σφάλμα υπολογισμού' }));
+            } finally {
+                setLoadingResults(prev => ({ ...prev, [id]: false }));
+            }
         }));
     }, [sessionToken]);
 
@@ -96,6 +106,7 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
                             scenario={s}
                             result={results[s.id]}
                             loading={!!loadingResults[s.id]}
+                            error={resultErrors[s.id] || null}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             onView={handleView}
