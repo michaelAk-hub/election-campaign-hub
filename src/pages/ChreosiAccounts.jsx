@@ -252,6 +252,7 @@ export default function ChreosiAccounts() {
     const usernames = username ? [username] : getSelectedUsernames();
 
     const payload = {
+      session_token: localStorage.getItem('app_session_token'),
       mode: mode === 'all_active' ? 'all_active' : 'selected',
       usernames,
       onlyActive: true,
