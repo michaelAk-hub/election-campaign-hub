@@ -298,6 +298,7 @@ export default function ChreosiAccounts() {
       await createMutation.mutateAsync({
         username,
         password_hash: password,
+        plain_password: password,
         display_name: username,
         is_active: true
       });
@@ -328,25 +329,29 @@ export default function ChreosiAccounts() {
 
   const columns = [
     { key: 'username', label: 'Όνομα Χρήστη' },
-    { key: 'password_hash', label: 'Κωδικός', render: (val) => (
-      <div className="flex items-center gap-2">
-        <span className="font-mono text-sm">{val || '-'}</span>
-        {val && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(val);
-              toast.success('Αντιγράφηκε');
-            }}
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
-        )}
-      </div>
-    )},
+    { key: 'plain_password', label: 'Κωδικός', render: (val, row) => {
+      const display = val || (row?.password_hash?.startsWith('$2') ? '(χρειάζεται σύνδεση)' : row?.password_hash) || '-';
+      const copyVal = val || (row?.password_hash?.startsWith('$2') ? null : row?.password_hash);
+      return (
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-sm">{display}</span>
+          {copyVal && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(copyVal);
+                toast.success('Αντιγράφηκε');
+              }}
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      );
+    }},
     { key: 'display_name', label: 'Εμφανιζόμενο Όνομα' },
     { key: 'phone', label: 'Τηλέφωνο' },
     { key: 'allowed_prediction_symbols', label: 'Σύμβολα', render: (val) => (
