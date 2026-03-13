@@ -98,19 +98,15 @@ export default function SentMessagesTable() {
 
   const disableMutation = useMutation({
     mutationFn: async (row) => {
-      const payload = {
-        session_token: sessionToken,
-        source_type: row.source_type,
-      };
-      if (row.source_type === 'push') {
-        payload.id = row.record_id;
+      const payload = { session_token: sessionToken };
+      // Always prefer batch disable when send_batch_id is available —
+      // this covers notification-only, push-only, and mixed rows in one call.
+      if (row.send_batch_id) {
+        payload.send_batch_id = row.send_batch_id;
       } else {
-        // notification: prefer batch disable
-        if (row.send_batch_id) {
-          payload.send_batch_id = row.send_batch_id;
-        } else {
-          payload.id = row.record_id;
-        }
+        // Legacy row without batch id: fall back to single-record disable
+        payload.source_type = row.source_type;
+        payload.id = row.record_id;
       }
       const { data } = await base44.functions.invoke('notificationsAdminDisable', payload);
       if (data.error) throw new Error(data.error);
