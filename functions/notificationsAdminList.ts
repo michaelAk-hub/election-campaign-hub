@@ -17,6 +17,7 @@ async function validateAppSession(base44, session_token) {
     return { session, appUser };
 }
 
+// Canonical status: disabled > expired > active
 function deriveStatus(record) {
     const now = new Date();
     if (record.disabled_at != null || record.is_active === false) return 'disabled';
@@ -24,31 +25,46 @@ function deriveStatus(record) {
     return 'active';
 }
 
-function buildNotificationRecipientSummary(batch) {
-    // batch is array of Notification rows with same send_batch_id
+// Most restrictive status wins: disabled > expired > active
+function mergeStatus(s1, s2) {
+    if (s1 === 'disabled' || s2 === 'disabled') return 'disabled';
+    if (s1 === 'expired' || s2 === 'expired') return 'expired';
+    return 'active';
+}
+
+function buildNotifSummary(batch) {
     const adminCount = batch.filter(r => r.recipient_type === 'admin').length;
     const orgCount = batch.filter(r => r.recipient_type === 'organotikos').length;
     const parts = [];
     if (adminCount > 0) parts.push(`${adminCount} διαχειριστ${adminCount === 1 ? 'ής' : 'ές'}`);
     if (orgCount > 0) parts.push(`${orgCount} οργανωτικ${orgCount === 1 ? 'ός' : 'οί'}`);
-    return parts.length > 0 ? parts.join(', ') : 'Άγνωστο';
+    return parts.join(', ');
 }
 
-function buildPushRecipientSummary(msg) {
+function buildPushSummary(msg) {
     if (msg.delivery_mode === 'group' || !msg.delivery_mode) {
-        if (msg.target_group === 'both') return 'Όλα τα χρεωστικά και όλα τα κανάλι';
-        if (msg.target_group === 'chreosi') return 'Όλα τα χρεωστικά';
-        if (msg.target_group === 'kanali') return 'Όλα τα κανάλι';
-        return 'Όλοι οι χρήστες portal';
+        if (msg.target_group === 'both') return 'όλα τα χρεωστικά και όλα τα κανάλι';
+        if (msg.target_group === 'chreosi') return 'όλα τα χρεωστικά';
+        if (msg.target_group === 'kanali') return 'όλα τα κανάλι';
+        return 'όλοι οι χρήστες portal';
     }
-    // specific
     const keys = Array.isArray(msg.target_user_keys) ? msg.target_user_keys : [];
     const chreosiCount = keys.filter(k => k.startsWith('chreosi:')).length;
     const kanaliCount = keys.filter(k => k.startsWith('kanali:')).length;
     const parts = [];
     if (chreosiCount > 0) parts.push(`${chreosiCount} χρεωστικ${chreosiCount === 1 ? 'ό' : 'ά'}`);
     if (kanaliCount > 0) parts.push(`${kanaliCount} κανάλ${kanaliCount === 1 ? 'ι' : 'ια'}`);
-    return parts.length > 0 ? `Specific portal recipients (${keys.length}): ${parts.join(', ')}` : `Specific (${keys.length})`;
+    return parts.length > 0 ? `specific portal recipients (${keys.length}): ${parts.join(', ')}` : `specific (${keys.length})`;
+}
+
+function buildMixedSummary(notifSummary, pushSummary) {
+    const parts = [];
+    if (notifSummary) parts.push(notifSummary);
+    if (pushSummary) parts.push(pushSummary);
+    if (parts.length === 0) return 'Άγνωστο';
+    // Capitalize first letter of whole summary
+    const joined = parts.join(', ');
+    return joined.charAt(0).toUpperCase() + joined.slice(1);
 }
 
 Deno.serve(async (req) => {
@@ -67,56 +83,88 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Ο λογαριασμός σας είναι ανενεργός' }, { status: 403 });
         }
 
-        // Fetch all notifications and push messages
         const [allNotifications, allPushMessages] = await Promise.all([
             base44.asServiceRole.entities.Notification.list('-created_date', 500),
             base44.asServiceRole.entities.PushMessage.list('-created_date', 200),
         ]);
 
         const rows = [];
-        const now = new Date();
 
-        // ── Process Notifications — group by send_batch_id ────────────────────
-        // Separate: those with send_batch_id (new) and those without (legacy)
-        const batchMap = new Map();
-        const legacyNotifs = [];
+        // ── Build a unified map keyed by send_batch_id ────────────────────────
+        // Each entry: { notifBatch: [], pushMsg: null }
+        const batchMap = new Map(); // send_batch_id -> { notifBatch, pushMsg }
 
         for (const n of allNotifications) {
-            if (n.send_batch_id) {
-                if (!batchMap.has(n.send_batch_id)) batchMap.set(n.send_batch_id, []);
-                batchMap.get(n.send_batch_id).push(n);
-            } else {
-                legacyNotifs.push(n);
-            }
+            if (!n.send_batch_id) continue; // handled separately as legacy
+            if (!batchMap.has(n.send_batch_id)) batchMap.set(n.send_batch_id, { notifBatch: [], pushMsg: null });
+            batchMap.get(n.send_batch_id).notifBatch.push(n);
         }
 
-        // One row per batch
-        for (const [batchId, batch] of batchMap) {
-            const first = batch[0];
-            // Use the representative row for status (all in batch share same expiry/disable)
-            const status = deriveStatus(first);
+        for (const msg of allPushMessages) {
+            if (!msg.send_batch_id) continue; // handled separately as legacy
+            if (!batchMap.has(msg.send_batch_id)) batchMap.set(msg.send_batch_id, { notifBatch: [], pushMsg: null });
+            batchMap.get(msg.send_batch_id).pushMsg = msg;
+        }
+
+        // ── Emit one row per batch ────────────────────────────────────────────
+        for (const [batchId, { notifBatch, pushMsg }] of batchMap) {
+            const hasNotif = notifBatch.length > 0;
+            const hasPush = pushMsg != null;
+
+            let source_type;
+            if (hasNotif && hasPush) source_type = 'mixed';
+            else if (hasNotif) source_type = 'notification';
+            else source_type = 'push';
+
+            // Use first notif (or pushMsg) as canonical representative for metadata
+            const rep = hasNotif ? notifBatch[0] : pushMsg;
+
+            // Status: derive from each side, take most restrictive
+            const notifStatus = hasNotif ? deriveStatus(notifBatch[0]) : 'active';
+            const pushStatus = hasPush ? deriveStatus(pushMsg) : 'active';
+            const status = hasNotif && hasPush
+                ? mergeStatus(notifStatus, pushStatus)
+                : (hasNotif ? notifStatus : pushStatus);
+
+            // Recipient summaries
+            const notifSummary = hasNotif ? buildNotifSummary(notifBatch) : '';
+            const pushSummary = hasPush ? buildPushSummary(pushMsg) : '';
+            const recipient_summary = source_type === 'mixed'
+                ? buildMixedSummary(notifSummary, pushSummary)
+                : source_type === 'notification'
+                    ? (notifSummary || 'Άγνωστο')
+                    : (pushSummary ? (pushSummary.charAt(0).toUpperCase() + pushSummary.slice(1)) : 'Άγνωστο');
+
+            const notifCount = hasNotif ? notifBatch.length : 0;
+            const pushCount = hasPush ? (pushMsg.total_recipients || 0) : 0;
+            const recipient_count = notifCount + pushCount;
+
+            // disabled_at / disabled_by: prefer the one that is set
+            const disabled_at = rep.disabled_at || (hasPush && pushMsg.disabled_at) || (hasNotif && notifBatch[0].disabled_at) || null;
+            const disabled_by = rep.disabled_by || (hasPush && pushMsg.disabled_by) || (hasNotif && notifBatch[0].disabled_by) || null;
+
             rows.push({
                 id: batchId,
-                record_id: first.id, // representative record id for disable action
-                source_type: 'notification',
+                record_id: hasPush ? pushMsg.id : rep.id,
+                source_type,
                 send_batch_id: batchId,
-                title: first.title,
-                message: first.message,
-                sender_email: first.sender_email || null,
-                created_date: first.created_date,
-                expires_at: first.expires_at || null,
-                disabled_at: first.disabled_at || null,
-                disabled_by: first.disabled_by || null,
-                is_active: first.is_active !== false,
+                title: rep.title,
+                message: rep.message || rep.body || '',
+                sender_email: rep.sender_email || null,
+                created_date: rep.created_date,
+                expires_at: rep.expires_at || null,
+                disabled_at,
+                disabled_by,
+                is_active: rep.is_active !== false,
                 status,
-                recipient_summary: buildNotificationRecipientSummary(batch),
-                recipient_count: batch.length,
+                recipient_summary,
+                recipient_count,
             });
         }
 
-        // Legacy notifications without send_batch_id — show individually (backward compat)
-        for (const n of legacyNotifs) {
-            const status = deriveStatus(n);
+        // ── Legacy: Notification rows without send_batch_id ───────────────────
+        for (const n of allNotifications) {
+            if (n.send_batch_id) continue;
             rows.push({
                 id: n.id,
                 record_id: n.id,
@@ -130,20 +178,21 @@ Deno.serve(async (req) => {
                 disabled_at: n.disabled_at || null,
                 disabled_by: n.disabled_by || null,
                 is_active: n.is_active !== false,
-                status,
+                status: deriveStatus(n),
                 recipient_summary: n.recipient_type || 'legacy',
                 recipient_count: 1,
             });
         }
 
-        // ── Process PushMessages ──────────────────────────────────────────────
+        // ── Legacy: PushMessage rows without send_batch_id ────────────────────
         for (const msg of allPushMessages) {
-            const status = deriveStatus(msg);
+            if (msg.send_batch_id) continue;
+            const pushSummary = buildPushSummary(msg);
             rows.push({
                 id: msg.id,
                 record_id: msg.id,
                 source_type: 'push',
-                send_batch_id: msg.send_batch_id || null,
+                send_batch_id: null,
                 title: msg.title,
                 message: msg.body,
                 sender_email: msg.sender_email || null,
@@ -152,13 +201,12 @@ Deno.serve(async (req) => {
                 disabled_at: msg.disabled_at || null,
                 disabled_by: msg.disabled_by || null,
                 is_active: msg.is_active !== false,
-                status,
-                recipient_summary: buildPushRecipientSummary(msg),
+                status: deriveStatus(msg),
+                recipient_summary: pushSummary.charAt(0).toUpperCase() + pushSummary.slice(1),
                 recipient_count: msg.total_recipients || 0,
             });
         }
 
-        // Sort by created_date desc
         rows.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
         return Response.json({ rows });

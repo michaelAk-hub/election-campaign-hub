@@ -33,10 +33,6 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Ο λογαριασμός σας είναι ανενεργός' }, { status: 403 });
         }
 
-        if (!source_type || !['notification', 'push'].includes(source_type)) {
-            return Response.json({ error: 'Μη έγκυρος τύπος πηγής' }, { status: 400 });
-        }
-
         const now = new Date();
         const disablePayload = {
             is_active: false,
@@ -44,62 +40,73 @@ Deno.serve(async (req) => {
             disabled_by: appUser.email,
         };
 
+        // ── Case 1: Disable by send_batch_id (affects BOTH Notifications and PushMessage) ──
+        if (send_batch_id) {
+            const [notifBatch, pushBatch] = await Promise.all([
+                base44.asServiceRole.entities.Notification.filter({ send_batch_id }),
+                base44.asServiceRole.entities.PushMessage.filter({ send_batch_id }),
+            ]);
+
+            if (!notifBatch.length && !pushBatch.length) {
+                return Response.json({ error: 'Δεν βρέθηκαν εγγραφές για αυτό το batch' }, { status: 404 });
+            }
+
+            // Check expiry on a representative record
+            const rep = notifBatch[0] || pushBatch[0];
+            if (rep.expires_at != null && new Date(rep.expires_at) <= now) {
+                return Response.json({ error: 'Οι εγγραφές έχουν ήδη λήξει και δεν μπορούν να τροποποιηθούν' }, { status: 409 });
+            }
+
+            // Check if already disabled (idempotent)
+            const alreadyDisabled = (notifBatch[0]?.disabled_at != null || notifBatch[0]?.is_active === false)
+                || (pushBatch[0]?.disabled_at != null || pushBatch[0]?.is_active === false);
+            if (alreadyDisabled && !notifBatch.some(n => n.is_active !== false) && !pushBatch.some(p => p.is_active !== false)) {
+                return Response.json({ ok: true, noop: true, message: 'Ήδη απενεργοποιημένο' });
+            }
+
+            // Disable all Notification rows in batch + PushMessage in batch
+            await Promise.all([
+                ...notifBatch.map(n => base44.asServiceRole.entities.Notification.update(n.id, disablePayload)),
+                ...pushBatch.map(p => base44.asServiceRole.entities.PushMessage.update(p.id, disablePayload)),
+            ]);
+
+            return Response.json({ ok: true, disabled_notifications: notifBatch.length, disabled_push: pushBatch.length });
+        }
+
+        // ── Case 2: Disable single record by source_type + id (legacy / no batch_id) ──
+        if (!source_type || !['notification', 'push', 'mixed'].includes(source_type)) {
+            return Response.json({ error: 'Απαιτείται send_batch_id ή (source_type + id)' }, { status: 400 });
+        }
+        if (!id) {
+            return Response.json({ error: 'Απαιτείται id' }, { status: 400 });
+        }
+
         if (source_type === 'push') {
-            // Disable single PushMessage by id
-            if (!id) return Response.json({ error: 'Απαιτείται id' }, { status: 400 });
             const records = await base44.asServiceRole.entities.PushMessage.filter({ id });
             if (!records.length) return Response.json({ error: 'Δεν βρέθηκε το μήνυμα' }, { status: 404 });
             const record = records[0];
-
             if (record.disabled_at != null || record.is_active === false) {
-                return Response.json({ ok: true, noop: true, message: 'Το μήνυμα είναι ήδη απενεργοποιημένο' });
+                return Response.json({ ok: true, noop: true, message: 'Ήδη απενεργοποιημένο' });
             }
             if (record.expires_at != null && new Date(record.expires_at) <= now) {
-                return Response.json({ error: 'Το μήνυμα έχει ήδη λήξει και δεν μπορεί να τροποποιηθεί' }, { status: 409 });
+                return Response.json({ error: 'Το μήνυμα έχει ήδη λήξει' }, { status: 409 });
             }
-
             await base44.asServiceRole.entities.PushMessage.update(record.id, disablePayload);
             return Response.json({ ok: true, disabled: 1 });
 
         } else {
-            // source_type === 'notification'
-            // If send_batch_id provided: disable all in batch
-            // Otherwise fall back to single record id
-            if (send_batch_id) {
-                const batch = await base44.asServiceRole.entities.Notification.filter({ send_batch_id });
-                if (!batch.length) return Response.json({ error: 'Δεν βρέθηκε η παρτίδα ειδοποιήσεων' }, { status: 404 });
-
-                const first = batch[0];
-                if (first.disabled_at != null || first.is_active === false) {
-                    return Response.json({ ok: true, noop: true, message: 'Οι ειδοποιήσεις είναι ήδη απενεργοποιημένες' });
-                }
-                if (first.expires_at != null && new Date(first.expires_at) <= now) {
-                    return Response.json({ error: 'Οι ειδοποιήσεις έχουν ήδη λήξει και δεν μπορούν να τροποποιηθούν' }, { status: 409 });
-                }
-
-                // Bulk disable all in batch
-                await Promise.all(batch.map(n =>
-                    base44.asServiceRole.entities.Notification.update(n.id, disablePayload)
-                ));
-                return Response.json({ ok: true, disabled: batch.length });
-
-            } else if (id) {
-                const records = await base44.asServiceRole.entities.Notification.filter({ id });
-                if (!records.length) return Response.json({ error: 'Δεν βρέθηκε η ειδοποίηση' }, { status: 404 });
-                const record = records[0];
-
-                if (record.disabled_at != null || record.is_active === false) {
-                    return Response.json({ ok: true, noop: true, message: 'Η ειδοποίηση είναι ήδη απενεργοποιημένη' });
-                }
-                if (record.expires_at != null && new Date(record.expires_at) <= now) {
-                    return Response.json({ error: 'Η ειδοποίηση έχει ήδη λήξει και δεν μπορεί να τροποποιηθεί' }, { status: 409 });
-                }
-
-                await base44.asServiceRole.entities.Notification.update(record.id, disablePayload);
-                return Response.json({ ok: true, disabled: 1 });
-            } else {
-                return Response.json({ error: 'Απαιτείται id ή send_batch_id' }, { status: 400 });
+            // notification (legacy single row)
+            const records = await base44.asServiceRole.entities.Notification.filter({ id });
+            if (!records.length) return Response.json({ error: 'Δεν βρέθηκε η ειδοποίηση' }, { status: 404 });
+            const record = records[0];
+            if (record.disabled_at != null || record.is_active === false) {
+                return Response.json({ ok: true, noop: true, message: 'Ήδη απενεργοποιημένο' });
             }
+            if (record.expires_at != null && new Date(record.expires_at) <= now) {
+                return Response.json({ error: 'Η ειδοποίηση έχει ήδη λήξει' }, { status: 409 });
+            }
+            await base44.asServiceRole.entities.Notification.update(record.id, disablePayload);
+            return Response.json({ ok: true, disabled: 1 });
         }
 
     } catch (error) {
