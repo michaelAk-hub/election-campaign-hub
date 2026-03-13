@@ -150,15 +150,17 @@ Deno.serve(async (req) => {
                 else if (groupTargetsChreosi) target_group = 'chreosi';
                 else target_group = 'kanali';
 
-                let total = 0;
+                let chreosiTotal = 0;
+                let kanaliTotal = 0;
                 if (groupTargetsChreosi) {
                     const list = await base44.asServiceRole.entities.ChreosiAccount.filter({ is_active: true });
-                    total += list.length;
+                    chreosiTotal = list.length;
                 }
                 if (groupTargetsKanali) {
                     const list = await base44.asServiceRole.entities.KanaliAccount.filter({ is_active: true });
-                    total += list.length;
+                    kanaliTotal = list.length;
                 }
+                const total = chreosiTotal + kanaliTotal;
 
                 await base44.asServiceRole.entities.PushMessage.create({
                     title: trimmedTitle,
@@ -172,6 +174,8 @@ Deno.serve(async (req) => {
                     acknowledged_count: 0,
                 });
                 portalRecipientCount = total;
+                portalChreosiCount = chreosiTotal;
+                portalKanaliCount = kanaliTotal;
                 portalDeliveryMode = 'group';
                 pushCreated = 1;
 
