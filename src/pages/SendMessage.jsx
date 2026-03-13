@@ -137,7 +137,7 @@ export default function SendMessage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <PageHeader
-        title="Στείλε Μήνυμα"
+        title="Στείλε Notification"
         subtitle="Αποστολή ειδοποιήσεων σε χρήστες"
         icon={Send}
       />
