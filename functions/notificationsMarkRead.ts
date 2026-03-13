@@ -9,35 +9,35 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Απαιτείται session token' }, { status: 401 });
         }
 
-        // Validate session
         const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
-        if (!sessions.length) {
-            return Response.json({ error: 'Μη έγκυρη συνεδρία' }, { status: 401 });
-        }
+        if (!sessions.length) return Response.json({ error: 'Μη έγκυρη συνεδρία' }, { status: 401 });
 
         const session = sessions[0];
-        const appUsers = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
-        if (!appUsers.length) {
-            return Response.json({ error: 'Χρήστης δεν βρέθηκε' }, { status: 401 });
+        if (session.expires_at && new Date(session.expires_at) < new Date()) {
+            return Response.json({ error: 'Η συνεδρία έχει λήξει' }, { status: 401 });
         }
 
+        const appUsers = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+        if (!appUsers.length) return Response.json({ error: 'Χρήστης δεν βρέθηκε' }, { status: 401 });
+
         const appUser = appUsers[0];
+        if (session.session_version_at_login !== appUser.session_version) {
+            return Response.json({ error: 'Η συνεδρία έχει ακυρωθεί' }, { status: 401 });
+        }
+
         const now = new Date().toISOString();
 
         if (mark_all && notification_ids?.length) {
-            // Fetch all user notifications once and build a set of owned IDs
             const userNotifs = await base44.asServiceRole.entities.Notification.filter({
                 recipient_username: appUser.email,
             });
             const ownedIds = new Set(userNotifs.map(n => n.id));
-
             for (const id of notification_ids) {
                 if (ownedIds.has(id)) {
                     await base44.asServiceRole.entities.Notification.update(id, { read: true, read_at: now });
                 }
             }
         } else if (notification_id) {
-            // Ownership check
             const userNotifs = await base44.asServiceRole.entities.Notification.filter({
                 recipient_username: appUser.email,
             });
