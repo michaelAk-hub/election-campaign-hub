@@ -53,14 +53,25 @@ Deno.serve(async (req) => {
         if (!trimmedMessage) return Response.json({ error: 'Απαιτείται μήνυμα' }, { status: 400 });
         if (trimmedMessage.length > 500) return Response.json({ error: 'Το μήνυμα δεν μπορεί να υπερβαίνει τους 500 χαρακτήρες' }, { status: 400 });
 
-        // Validate and sanitize groups
-        const validGroups = (Array.isArray(selectedGroups) ? selectedGroups : [])
-            .filter(g => VALID_GROUPS.includes(g));
+        // Validate groups — reject unknown values (Bug 5)
+        if (!Array.isArray(selectedGroups)) {
+            return Response.json({ error: 'selectedGroups πρέπει να είναι array' }, { status: 400 });
+        }
+        const invalidGroups = selectedGroups.filter(g => !VALID_GROUPS.includes(g));
+        if (invalidGroups.length > 0) {
+            return Response.json({ error: `Μη έγκυρες ομάδες: ${invalidGroups.join(', ')}. Επιτρεπόμενες: ${VALID_GROUPS.join(', ')}` }, { status: 400 });
+        }
+        const validGroups = selectedGroups;
 
-        // Validate and sanitize specific users
-        const validUsers = (Array.isArray(selectedUsers) ? selectedUsers : [])
-            .filter(u => u && typeof u.username === 'string' && u.username.trim() && VALID_USER_TYPES.includes(u.type))
-            .map(u => ({ username: u.username.trim(), type: u.type }));
+        // Validate specific users — reject malformed entries (Bug 5)
+        if (!Array.isArray(selectedUsers)) {
+            return Response.json({ error: 'selectedUsers πρέπει να είναι array' }, { status: 400 });
+        }
+        const invalidUsers = selectedUsers.filter(u => !u || typeof u.username !== 'string' || !u.username.trim() || !VALID_USER_TYPES.includes(u.type));
+        if (invalidUsers.length > 0) {
+            return Response.json({ error: `Μη έγκυρες εγγραφές selectedUsers. Κάθε entry πρέπει να έχει username (string) και type (${VALID_USER_TYPES.join('|')})` }, { status: 400 });
+        }
+        const validUsers = selectedUsers.map(u => ({ username: u.username.trim(), type: u.type }));
 
         if (validGroups.length === 0 && validUsers.length === 0) {
             return Response.json({ error: 'Απαιτείται τουλάχιστον ένας παραλήπτης' }, { status: 400 });
