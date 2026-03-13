@@ -169,7 +169,7 @@ export default function ChreosiSmsCredentials() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="SMS Credentials (Χρεωστικοί)"
+        title="Στείλε SMS"
         subtitle="Αποστολή στοιχείων σύνδεσης μέσω SMS"
         icon={MessageSquare}
       />
