@@ -28,10 +28,13 @@ export default function SendMessage() {
   const [selectedUsers, setSelectedUsers] = useState([]);
 
   // Fetch all users
-  const { data: appUsers = [], isLoading: loadingAppUsers } = useQuery({
+  const { data: allAppUsers = [], isLoading: loadingAppUsers } = useQuery({
     queryKey: ['appUsers'],
     queryFn: () => base44.entities.AppUser.list()
   });
+
+  // Admins: all; Organotikos: active only
+  const appUsers = allAppUsers.filter(u => u.role === 'ADMIN' || (u.role === 'ORGANOTIKI' && u.is_active));
 
   const { data: chreosiAccounts = [], isLoading: loadingChreosi } = useQuery({
     queryKey: ['chreosiAccounts'],
