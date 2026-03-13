@@ -9,21 +9,22 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Απαιτείται session token' }, { status: 401 });
         }
 
-        // Validate session
         const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
-        if (!sessions.length) {
-            return Response.json({ error: 'Μη έγκυρη συνεδρία' }, { status: 401 });
-        }
+        if (!sessions.length) return Response.json({ error: 'Μη έγκυρη συνεδρία' }, { status: 401 });
 
         const session = sessions[0];
-        const appUsers = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
-        if (!appUsers.length) {
-            return Response.json({ error: 'Χρήστης δεν βρέθηκε' }, { status: 401 });
+        if (session.expires_at && new Date(session.expires_at) < new Date()) {
+            return Response.json({ error: 'Η συνεδρία έχει λήξει' }, { status: 401 });
         }
 
-        const appUser = appUsers[0];
+        const appUsers = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+        if (!appUsers.length) return Response.json({ error: 'Χρήστης δεν βρέθηκε' }, { status: 401 });
 
-        // Ownership check - only delete if this notification belongs to the current user
+        const appUser = appUsers[0];
+        if (session.session_version_at_login !== appUser.session_version) {
+            return Response.json({ error: 'Η συνεδρία έχει ακυρωθεί' }, { status: 401 });
+        }
+
         const userNotifs = await base44.asServiceRole.entities.Notification.filter({
             recipient_username: appUser.email,
         });
