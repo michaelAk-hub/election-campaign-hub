@@ -54,6 +54,13 @@ function SourceBadge({ source_type }) {
       </span>
     );
   }
+  if (source_type === 'mixed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-2 py-0.5">
+        <Bell className="h-3 w-3" /><MessageSquare className="h-3 w-3" /> Μικτό
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
       <MessageSquare className="h-3 w-3" /> PushMessage
