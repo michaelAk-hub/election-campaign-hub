@@ -23,16 +23,27 @@ async function validateAppSession(base44, session_token) {
     return { session, appUser };
 }
 
+function generateBatchId() {
+    const arr = new Uint8Array(12);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 const VALID_GROUPS = ['admin', 'organotikos', 'chreosi', 'kanali', 'all'];
 const VALID_USER_TYPES = ['admin', 'organotikos', 'chreosi', 'kanali'];
+const VALID_EXPIRY_UNITS = ['minutes', 'hours', 'days'];
 
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         const body = await req.json();
-        const { session_token, title, message, selectedGroups = [], selectedUsers = [] } = body;
+        const {
+            session_token, title, message,
+            selectedGroups = [], selectedUsers = [],
+            expiry_enabled = false, expiry_value = null, expiry_unit = null
+        } = body;
 
-        // --- Input validation ---
+        // --- Session validation ---
         const validation = await validateAppSession(base44, session_token);
         if (validation.error) return Response.json({ error: validation.error }, { status: validation.status });
 
@@ -45,6 +56,7 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Ο λογαριασμός σας είναι ανενεργός' }, { status: 403 });
         }
 
+        // --- Message validation ---
         const trimmedTitle = (title || '').trim();
         const trimmedMessage = (message || '').trim();
 
@@ -53,7 +65,27 @@ Deno.serve(async (req) => {
         if (!trimmedMessage) return Response.json({ error: 'Απαιτείται μήνυμα' }, { status: 400 });
         if (trimmedMessage.length > 500) return Response.json({ error: 'Το μήνυμα δεν μπορεί να υπερβαίνει τους 500 χαρακτήρες' }, { status: 400 });
 
-        // Validate groups — reject unknown values (Bug 5)
+        // --- Expiry validation ---
+        let expiresAt = null;
+        if (expiry_enabled === true || expiry_enabled === 'true') {
+            if (expiry_value == null || expiry_value === '') {
+                return Response.json({ error: 'Απαιτείται η τιμή λήξης όταν είναι ενεργοποιημένη η λήξη' }, { status: 400 });
+            }
+            const val = parseInt(expiry_value, 10);
+            if (!Number.isInteger(val) || val <= 0) {
+                return Response.json({ error: 'Η τιμή λήξης πρέπει να είναι θετικός ακέραιος αριθμός' }, { status: 400 });
+            }
+            if (!expiry_unit || !VALID_EXPIRY_UNITS.includes(expiry_unit)) {
+                return Response.json({ error: `Η μονάδα λήξης πρέπει να είναι μία από: ${VALID_EXPIRY_UNITS.join(', ')}` }, { status: 400 });
+            }
+            const now = new Date();
+            if (expiry_unit === 'minutes') expiresAt = new Date(now.getTime() + val * 60 * 1000);
+            else if (expiry_unit === 'hours') expiresAt = new Date(now.getTime() + val * 60 * 60 * 1000);
+            else if (expiry_unit === 'days') expiresAt = new Date(now.getTime() + val * 24 * 60 * 60 * 1000);
+            expiresAt = expiresAt.toISOString();
+        }
+
+        // --- Recipient validation ---
         if (!Array.isArray(selectedGroups)) {
             return Response.json({ error: 'selectedGroups πρέπει να είναι array' }, { status: 400 });
         }
@@ -63,7 +95,6 @@ Deno.serve(async (req) => {
         }
         const validGroups = selectedGroups;
 
-        // Validate specific users — reject malformed entries (Bug 5)
         if (!Array.isArray(selectedUsers)) {
             return Response.json({ error: 'selectedUsers πρέπει να είναι array' }, { status: 400 });
         }
@@ -76,6 +107,9 @@ Deno.serve(async (req) => {
         if (validGroups.length === 0 && validUsers.length === 0) {
             return Response.json({ error: 'Απαιτείται τουλάχιστον ένας παραλήπτης' }, { status: 400 });
         }
+
+        // Generate one batch id for this entire send action
+        const sendBatchId = generateBatchId();
 
         // ── Resolve App Users (Admin/Organotikos) → Notification rows ─────────────
 
@@ -100,21 +134,18 @@ Deno.serve(async (req) => {
             allAppUsers = await base44.asServiceRole.entities.AppUser.list();
         }
 
-        // Group: admin
         if (validGroups.includes('admin') || validGroups.includes('all')) {
             allAppUsers.filter(u => u.role === 'ADMIN').forEach(addAppUser);
         }
-        // Group: organotikos (active only)
         if (validGroups.includes('organotikos') || validGroups.includes('all')) {
             allAppUsers.filter(u => u.role === 'ORGANOTIKI' && u.is_active).forEach(addAppUser);
         }
 
-        // Specific app users
         for (const su of validUsers) {
             if (su.type === 'admin' || su.type === 'organotikos') {
                 const found = allAppUsers.find(u => u.email === su.username);
                 if (found) {
-                    if (su.type === 'organotikos' && !found.is_active) continue; // skip inactive
+                    if (su.type === 'organotikos' && !found.is_active) continue;
                     addAppUser(found);
                 }
             }
@@ -122,11 +153,9 @@ Deno.serve(async (req) => {
 
         // ── Resolve Portal Users (Chreosi/Kanali) → PushMessage ──────────────────
 
-        // Collect group-level portal targets
         const groupTargetsChreosi = validGroups.includes('chreosi') || validGroups.includes('all');
         const groupTargetsKanali = validGroups.includes('kanali') || validGroups.includes('all');
 
-        // Collect specific portal user keys
         const specificPortalKeys = new Set();
         for (const su of validUsers) {
             if (su.type === 'chreosi') specificPortalKeys.add(`chreosi:${su.username}`);
@@ -172,6 +201,10 @@ Deno.serve(async (req) => {
                     is_active: true,
                     total_recipients: total,
                     acknowledged_count: 0,
+                    expires_at: expiresAt,
+                    disabled_at: null,
+                    disabled_by: null,
+                    send_batch_id: sendBatchId,
                 });
                 portalRecipientCount = total;
                 portalChreosiCount = chreosiTotal;
@@ -182,7 +215,6 @@ Deno.serve(async (req) => {
             } else if (!hasGroupPortal && hasSpecificPortal) {
                 // Pure specific portal send
                 const keys = [...specificPortalKeys];
-                // Only include keys for active accounts
                 const verifiedKeys = [];
                 for (const key of keys) {
                     const [type, ...rest] = key.split(':');
@@ -207,6 +239,10 @@ Deno.serve(async (req) => {
                         is_active: true,
                         total_recipients: verifiedKeys.length,
                         acknowledged_count: 0,
+                        expires_at: expiresAt,
+                        disabled_at: null,
+                        disabled_by: null,
+                        send_batch_id: sendBatchId,
                     });
                     portalRecipientCount = verifiedKeys.length;
                     portalChreosiCount = verifiedKeys.filter(k => k.startsWith('chreosi:')).length;
@@ -217,11 +253,9 @@ Deno.serve(async (req) => {
 
             } else {
                 // Mixed: group + specific portal
-                // Step 1: Fetch ALL active accounts for targeted group types
                 const activeChreosiKeys = new Set();
                 const activeKanaliKeys = new Set();
 
-                // Always fetch active totals for groups that are targeted
                 if (groupTargetsChreosi) {
                     const list = await base44.asServiceRole.entities.ChreosiAccount.filter({ is_active: true });
                     list.forEach(a => activeChreosiKeys.add(`chreosi:${a.username}`));
@@ -231,11 +265,9 @@ Deno.serve(async (req) => {
                     list.forEach(a => activeKanaliKeys.add(`kanali:${a.username}`));
                 }
 
-                // Step 2: Build final merged sets starting from group expansions
                 const finalChreosiKeys = new Set(activeChreosiKeys);
                 const finalKanaliKeys = new Set(activeKanaliKeys);
 
-                // Add specific portal keys (only if active and not already included)
                 for (const key of specificPortalKeys) {
                     const [type, ...rest] = key.split(':');
                     const uname = rest.join(':');
@@ -250,20 +282,10 @@ Deno.serve(async (req) => {
 
                 const mergedKeys = [...finalChreosiKeys, ...finalKanaliKeys];
 
-                // Step 3: Collapse to group ONLY if the final set equals exactly the full active set
-                // for a canonical group. This requires:
-                //   - No extra chreosi keys beyond the active chreosi set (finalChreosi == activeChreosiKeys)
-                //   - No extra kanali keys beyond the active kanali set (finalKanali == activeKanaliKeys)
-                //   - And crucially: no cross-group additions (e.g. group chreosi + specific kanali CANNOT collapse)
-                const chreosiIsExactlyAllActive = groupTargetsChreosi &&
-                    finalChreosiKeys.size === activeChreosiKeys.size; // no extras added
-                const kanaliIsExactlyAllActive = groupTargetsKanali &&
-                    finalKanaliKeys.size === activeKanaliKeys.size;  // no extras added
-
-                // A non-targeted side must have ZERO keys for collapse to be valid
+                const chreosiIsExactlyAllActive = groupTargetsChreosi && finalChreosiKeys.size === activeChreosiKeys.size;
+                const kanaliIsExactlyAllActive = groupTargetsKanali && finalKanaliKeys.size === activeKanaliKeys.size;
                 const chreosiSideClean = groupTargetsChreosi ? chreosiIsExactlyAllActive : finalChreosiKeys.size === 0;
                 const kanaliSideClean = groupTargetsKanali ? kanaliIsExactlyAllActive : finalKanaliKeys.size === 0;
-
                 const canCollapseToGroup = chreosiSideClean && kanaliSideClean;
 
                 if (canCollapseToGroup) {
@@ -282,10 +304,13 @@ Deno.serve(async (req) => {
                         is_active: true,
                         total_recipients: mergedKeys.length,
                         acknowledged_count: 0,
+                        expires_at: expiresAt,
+                        disabled_at: null,
+                        disabled_by: null,
+                        send_batch_id: sendBatchId,
                     });
                     portalDeliveryMode = 'group';
                 } else {
-                    // Mixed/partial — must use specific with full key list
                     await base44.asServiceRole.entities.PushMessage.create({
                         title: trimmedTitle,
                         body: trimmedMessage,
@@ -296,10 +321,13 @@ Deno.serve(async (req) => {
                         is_active: true,
                         total_recipients: mergedKeys.length,
                         acknowledged_count: 0,
+                        expires_at: expiresAt,
+                        disabled_at: null,
+                        disabled_by: null,
+                        send_batch_id: sendBatchId,
                     });
                     portalDeliveryMode = 'specific';
                 }
-                // Store for accurate summary counts (Bug 2)
                 portalRecipientCount = mergedKeys.length;
                 portalChreosiCount = finalChreosiKeys.size;
                 portalKanaliCount = finalKanaliKeys.size;
@@ -317,16 +345,20 @@ Deno.serve(async (req) => {
                 message: trimmedMessage,
                 type: 'info',
                 read: false,
+                sender_email: sender.email,
+                is_active: true,
+                expires_at: expiresAt,
+                disabled_at: null,
+                disabled_by: null,
+                send_batch_id: sendBatchId,
             }));
             await base44.asServiceRole.entities.Notification.bulkCreate(rows);
             notifCount = rows.length;
         }
 
-        // ── Build summary counts — use exact resolved values (Bug 2) ─────────────
+        // ── Summary ───────────────────────────────────────────────────────────────
         const adminCount = notifRecipients.filter(r => r.recipient_type === 'admin').length;
         const orgCount = notifRecipients.filter(r => r.recipient_type === 'organotikos').length;
-        const chreosiCount = portalChreosiCount;
-        const kanaliCount = portalKanaliCount;
 
         return Response.json({
             ok: true,
@@ -335,11 +367,14 @@ Deno.serve(async (req) => {
             admin_org_recipient_count: notifCount,
             portal_recipient_count: portalRecipientCount,
             portal_delivery_mode: portalDeliveryMode,
+            send_batch_id: sendBatchId,
+            expiry_enabled: expiry_enabled === true || expiry_enabled === 'true',
+            expires_at: expiresAt,
             summary: {
                 admins: adminCount,
                 organotikoi: orgCount,
-                chreosi: chreosiCount,
-                kanali: kanaliCount,
+                chreosi: portalChreosiCount,
+                kanali: portalKanaliCount,
             }
         });
 

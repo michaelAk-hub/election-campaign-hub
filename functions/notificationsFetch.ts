@@ -25,8 +25,18 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Η συνεδρία έχει ακυρωθεί' }, { status: 401 });
         }
 
-        const notifications = await base44.asServiceRole.entities.Notification.filter({
+        const allNotifications = await base44.asServiceRole.entities.Notification.filter({
             recipient_username: appUser.email,
+        });
+
+        const now = new Date();
+
+        // Filter: active, not disabled, not expired
+        const notifications = allNotifications.filter(n => {
+            if (n.is_active === false) return false;
+            if (n.disabled_at != null) return false;
+            if (n.expires_at != null && new Date(n.expires_at) <= now) return false;
+            return true;
         });
 
         notifications.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
