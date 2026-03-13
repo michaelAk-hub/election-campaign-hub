@@ -56,15 +56,18 @@ export default function SendMessage() {
         selectedGroups: recipientMode === 'groups' ? selectedGroups : [],
         selectedUsers: recipientMode === 'specific' ? selectedUsers : [],
       });
+      if (data.error) throw new Error(data.error);
       return data;
     },
     onSuccess: (data) => {
-      const notifCount = data.notifications_created || 0;
-      const pushCount = data.push_messages_created || 0;
+      const summary = data.summary || {};
       const parts = [];
-      if (notifCount > 0) parts.push(`${notifCount} admin/οργανωτικοί`);
-      if (pushCount > 0) parts.push(`portal χρήστες`);
-      toast.success(`Το μήνυμα στάλθηκε επιτυχώς${parts.length ? ` σε: ${parts.join(', ')}` : ''}!`);
+      if ((summary.admins || 0) > 0) parts.push(`${summary.admins} διαχειριστές`);
+      if ((summary.organotikoi || 0) > 0) parts.push(`${summary.organotikoi} οργανωτικοί`);
+      if ((summary.chreosi || 0) > 0) parts.push(`${summary.chreosi} χρεωστικά`);
+      if ((summary.kanali || 0) > 0) parts.push(`${summary.kanali} κανάλι`);
+      const total = (data.admin_org_recipient_count || 0) + (data.portal_recipient_count || 0);
+      toast.success(`Το μήνυμα στάλθηκε σε ${total} παραλήπτες${parts.length ? `: ${parts.join(', ')}` : ''}`);
       setTitle('');
       setMessage('');
       setSelectedGroups([]);
@@ -72,7 +75,8 @@ export default function SendMessage() {
       queryClient.invalidateQueries(['notifications']);
     },
     onError: (error) => {
-      toast.error('Σφάλμα κατά την αποστολή του μηνύματος');
+      const msg = error?.message || 'Σφάλμα κατά την αποστολή του μηνύματος';
+      toast.error(msg);
       console.error(error);
     }
   });
