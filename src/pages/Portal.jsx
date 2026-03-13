@@ -488,6 +488,23 @@ export default function Portal() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const pushExpireTimerRef = React.useRef(null);
 
+  // Immediate disappear when shown push message reaches expiry
+  useEffect(() => {
+    if (pushExpireTimerRef.current) clearTimeout(pushExpireTimerRef.current);
+    if (!pushMessage || !pushMessage.expires_at) return;
+    const msUntilExpiry = new Date(pushMessage.expires_at).getTime() - Date.now();
+    if (msUntilExpiry <= 0) {
+      setPushMessage(null);
+      return;
+    }
+    pushExpireTimerRef.current = setTimeout(() => {
+      setPushMessage(null);
+    }, msUntilExpiry);
+    return () => {
+      if (pushExpireTimerRef.current) clearTimeout(pushExpireTimerRef.current);
+    };
+  }, [pushMessage?.id, pushMessage?.expires_at]);
+
   useEffect(() => {
     let unsubscribePushMessages = null;
 
