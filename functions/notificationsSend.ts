@@ -209,6 +209,8 @@ Deno.serve(async (req) => {
                         acknowledged_count: 0,
                     });
                     portalRecipientCount = verifiedKeys.length;
+                    portalChreosiCount = verifiedKeys.filter(k => k.startsWith('chreosi:')).length;
+                    portalKanaliCount = verifiedKeys.filter(k => k.startsWith('kanali:')).length;
                     portalDeliveryMode = 'specific';
                     pushCreated = 1;
                 }
