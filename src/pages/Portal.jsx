@@ -525,9 +525,22 @@ export default function Portal() {
 
       // Check for unacknowledged push messages
       const checkMessages = async () => {
+        const myKey = `${portalType}:${username}`;
         const targetGroups = portalType === 'chreosi' ? ['chreosi', 'both'] : ['kanali', 'both'];
         const messages = await base44.entities.PushMessage.filter({ is_active: true });
-        const relevantMessages = messages.filter(m => targetGroups.includes(m.target_group));
+
+        // Filter: legacy (no delivery_mode) or group mode -> match by target_group
+        //         specific mode -> match by target_user_keys containing myKey
+        const relevantMessages = messages.filter(m => {
+          const mode = m.delivery_mode || 'group';
+          if (mode === 'group') {
+            return targetGroups.includes(m.target_group);
+          } else {
+            // specific delivery
+            const keys = Array.isArray(m.target_user_keys) ? m.target_user_keys : [];
+            return keys.includes(myKey);
+          }
+        });
 
         for (const msg of relevantMessages) {
           const acks = await base44.entities.PushMessageAck.filter({
