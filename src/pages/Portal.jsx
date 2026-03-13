@@ -486,6 +486,7 @@ export default function Portal() {
   const [pushMessage, setPushMessage] = useState(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const pushExpireTimerRef = React.useRef(null);
 
   useEffect(() => {
     let unsubscribePushMessages = null;
