@@ -136,6 +136,8 @@ Deno.serve(async (req) => {
         let portalRecipientCount = 0;
         let portalDeliveryMode = null;
         let pushCreated = 0;
+        let portalChreosiCount = 0;
+        let portalKanaliCount = 0;
 
         const hasGroupPortal = groupTargetsChreosi || groupTargetsKanali;
         const hasSpecificPortal = specificPortalKeys.size > 0;
