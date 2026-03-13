@@ -64,6 +64,23 @@ export default function NotificationCenter({ userType, username }) {
     prevCountRef.current = unreadCount;
   }, [unreadCount]);
 
+  // ── Immediate disable: subscribe to Notification entity changes ──────────
+  useEffect(() => {
+    if (!sessionToken) return;
+    const unsubscribe = base44.entities.Notification.subscribe((event) => {
+      if (event.type === 'update' && event.data) {
+        const d = event.data;
+        // If the updated notification is now inactive/disabled, remove it immediately
+        if (d.is_active === false || d.disabled_at != null) {
+          queryClient.setQueryData(['notifications'], (old = []) =>
+            old.filter(n => n.id !== d.id)
+          );
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [sessionToken, queryClient]);
+
   // ── Immediate disappearance: set per-notification expiry timers ──────────
   const scheduleExpiryTimers = useCallback((notifs) => {
     // Clear existing timers
