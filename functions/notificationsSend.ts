@@ -209,47 +209,59 @@ Deno.serve(async (req) => {
 
             } else {
                 // Mixed: group + specific portal
-                // Build a complete deduped key set: expand group recipients + add specific ones
-                const allChreosiKeys = new Set();
-                const allKanaliKeys = new Set();
+                // Step 1: Fetch ALL active accounts for targeted group types
+                const activeChreosiKeys = new Set();
+                const activeKanaliKeys = new Set();
 
+                // Always fetch active totals for groups that are targeted
                 if (groupTargetsChreosi) {
                     const list = await base44.asServiceRole.entities.ChreosiAccount.filter({ is_active: true });
-                    list.forEach(a => allChreosiKeys.add(`chreosi:${a.username}`));
+                    list.forEach(a => activeChreosiKeys.add(`chreosi:${a.username}`));
                 }
                 if (groupTargetsKanali) {
                     const list = await base44.asServiceRole.entities.KanaliAccount.filter({ is_active: true });
-                    list.forEach(a => allKanaliKeys.add(`kanali:${a.username}`));
+                    list.forEach(a => activeKanaliKeys.add(`kanali:${a.username}`));
                 }
 
-                // Add specific keys (only active)
+                // Step 2: Build final merged sets starting from group expansions
+                const finalChreosiKeys = new Set(activeChreosiKeys);
+                const finalKanaliKeys = new Set(activeKanaliKeys);
+
+                // Add specific portal keys (only if active and not already included)
                 for (const key of specificPortalKeys) {
                     const [type, ...rest] = key.split(':');
                     const uname = rest.join(':');
-                    if (type === 'chreosi' && !allChreosiKeys.has(key)) {
+                    if (type === 'chreosi' && !finalChreosiKeys.has(key)) {
                         const accs = await base44.asServiceRole.entities.ChreosiAccount.filter({ username: uname, is_active: true });
-                        if (accs.length) allChreosiKeys.add(key);
-                    } else if (type === 'kanali' && !allKanaliKeys.has(key)) {
+                        if (accs.length) finalChreosiKeys.add(key);
+                    } else if (type === 'kanali' && !finalKanaliKeys.has(key)) {
                         const accs = await base44.asServiceRole.entities.KanaliAccount.filter({ username: uname, is_active: true });
-                        if (accs.length) allKanaliKeys.add(key);
+                        if (accs.length) finalKanaliKeys.add(key);
                     }
                 }
 
-                const mergedKeys = [...allChreosiKeys, ...allKanaliKeys];
+                const mergedKeys = [...finalChreosiKeys, ...finalKanaliKeys];
 
-                // Determine if this simplifies to a group send
-                let chreosiActiveTotal = groupTargetsChreosi ? allChreosiKeys.size : null;
-                let kanaliActiveTotal = groupTargetsKanali ? allKanaliKeys.size : null;
+                // Step 3: Collapse to group ONLY if the final set equals exactly the full active set
+                // for a canonical group. This requires:
+                //   - No extra chreosi keys beyond the active chreosi set (finalChreosi == activeChreosiKeys)
+                //   - No extra kanali keys beyond the active kanali set (finalKanali == activeKanaliKeys)
+                //   - And crucially: no cross-group additions (e.g. group chreosi + specific kanali CANNOT collapse)
+                const chreosiIsExactlyAllActive = groupTargetsChreosi &&
+                    finalChreosiKeys.size === activeChreosiKeys.size; // no extras added
+                const kanaliIsExactlyAllActive = groupTargetsKanali &&
+                    finalKanaliKeys.size === activeKanaliKeys.size;  // no extras added
 
-                const isWholeChreosi = groupTargetsChreosi && !groupTargetsKanali && allChreosiKeys.size === chreosiActiveTotal;
-                const isWholeKanali = !groupTargetsChreosi && groupTargetsKanali && allKanaliKeys.size === kanaliActiveTotal;
-                const isWholeBoth = groupTargetsChreosi && groupTargetsKanali;
+                // A non-targeted side must have ZERO keys for collapse to be valid
+                const chreosiSideClean = groupTargetsChreosi ? chreosiIsExactlyAllActive : finalChreosiKeys.size === 0;
+                const kanaliSideClean = groupTargetsKanali ? kanaliIsExactlyAllActive : finalKanaliKeys.size === 0;
 
-                if (isWholeBoth || isWholeChreosi || isWholeKanali) {
-                    // Can express as a group message
+                const canCollapseToGroup = chreosiSideClean && kanaliSideClean;
+
+                if (canCollapseToGroup) {
                     let target_group;
-                    if (isWholeBoth) target_group = 'both';
-                    else if (isWholeChreosi) target_group = 'chreosi';
+                    if (groupTargetsChreosi && groupTargetsKanali) target_group = 'both';
+                    else if (groupTargetsChreosi) target_group = 'chreosi';
                     else target_group = 'kanali';
 
                     await base44.asServiceRole.entities.PushMessage.create({
@@ -265,7 +277,7 @@ Deno.serve(async (req) => {
                     });
                     portalDeliveryMode = 'group';
                 } else {
-                    // Mixed/partial — use specific with full key list
+                    // Mixed/partial — must use specific with full key list
                     await base44.asServiceRole.entities.PushMessage.create({
                         title: trimmedTitle,
                         body: trimmedMessage,
@@ -279,7 +291,10 @@ Deno.serve(async (req) => {
                     });
                     portalDeliveryMode = 'specific';
                 }
+                // Store for accurate summary counts (Bug 2)
                 portalRecipientCount = mergedKeys.length;
+                portalChreosiCount = finalChreosiKeys.size;
+                portalKanaliCount = finalKanaliKeys.size;
                 pushCreated = 1;
             }
         }
