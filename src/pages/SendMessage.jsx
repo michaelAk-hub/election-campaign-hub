@@ -7,25 +7,33 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Send, AlertCircle, CheckCircle2, Users, User } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Send, AlertCircle, Users, User, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import PageHeader from '@/components/common/PageHeader';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import SentMessagesTable from '@/components/messages/SentMessagesTable';
 
 export default function SendMessage() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [recipientMode, setRecipientMode] = useState('groups'); // 'groups' or 'specific'
-  
+
   // Group recipients
   const [selectedGroups, setSelectedGroups] = useState([]);
-  
+
   // Specific recipients
   const [selectedUsers, setSelectedUsers] = useState([]);
+
+  // Expiry
+  const [expiryEnabled, setExpiryEnabled] = useState(false);
+  const [expiryValue, setExpiryValue] = useState('');
+  const [expiryUnit, setExpiryUnit] = useState('hours');
 
   // Fetch all users
   const { data: allAppUsers = [], isLoading: loadingAppUsers } = useQuery({
@@ -33,7 +41,6 @@ export default function SendMessage() {
     queryFn: () => base44.entities.AppUser.list()
   });
 
-  // Admins: all; Organotikos: active only
   const appUsers = allAppUsers.filter(u => u.role === 'ADMIN' || (u.role === 'ORGANOTIKI' && u.is_active));
 
   const { data: chreosiAccounts = [], isLoading: loadingChreosi } = useQuery({
@@ -46,6 +53,12 @@ export default function SendMessage() {
     queryFn: () => base44.entities.KanaliAccount.filter({ is_active: true })
   });
 
+  // Expiry validation
+  const expiryValueNum = parseInt(expiryValue, 10);
+  const expiryValid = !expiryEnabled || (
+    !isNaN(expiryValueNum) && expiryValueNum > 0 && Number.isInteger(expiryValueNum)
+  );
+
   const sendNotificationMutation = useMutation({
     mutationFn: async () => {
       const sessionToken = localStorage.getItem('app_session_token');
@@ -55,6 +68,9 @@ export default function SendMessage() {
         message,
         selectedGroups: recipientMode === 'groups' ? selectedGroups : [],
         selectedUsers: recipientMode === 'specific' ? selectedUsers : [],
+        expiry_enabled: expiryEnabled,
+        expiry_value: expiryEnabled ? expiryValueNum : null,
+        expiry_unit: expiryEnabled ? expiryUnit : null,
       });
       if (data.error) throw new Error(data.error);
       return data;
@@ -67,43 +83,44 @@ export default function SendMessage() {
       if ((summary.chreosi || 0) > 0) parts.push(`${summary.chreosi} χρεωστικά`);
       if ((summary.kanali || 0) > 0) parts.push(`${summary.kanali} κανάλι`);
       const total = (data.admin_org_recipient_count || 0) + (data.portal_recipient_count || 0);
-      toast.success(`Το μήνυμα στάλθηκε σε ${total} παραλήπτες${parts.length ? `: ${parts.join(', ')}` : ''}`);
+      const expiryMsg = data.expiry_enabled && data.expires_at
+        ? ` (λήξη: ${new Date(data.expires_at).toLocaleString('el-GR')})`
+        : '';
+      toast.success(`Το μήνυμα στάλθηκε σε ${total} παραλήπτες${parts.length ? `: ${parts.join(', ')}` : ''}${expiryMsg}`);
       setTitle('');
       setMessage('');
       setSelectedGroups([]);
       setSelectedUsers([]);
+      setExpiryEnabled(false);
+      setExpiryValue('');
+      setExpiryUnit('hours');
       queryClient.invalidateQueries(['notifications']);
+      queryClient.invalidateQueries(['adminMessagesList']);
     },
     onError: (error) => {
-      const msg = error?.message || 'Σφάλμα κατά την αποστολή του μηνύματος';
-      toast.error(msg);
-      console.error(error);
+      toast.error(error?.message || 'Σφάλμα κατά την αποστολή του μηνύματος');
     }
   });
 
   const handleGroupToggle = (group) => {
-    setSelectedGroups(prev => 
-      prev.includes(group) 
-        ? prev.filter(g => g !== group)
-        : [...prev, group]
+    setSelectedGroups(prev =>
+      prev.includes(group) ? prev.filter(g => g !== group) : [...prev, group]
     );
   };
 
   const handleUserToggle = (user) => {
     setSelectedUsers(prev => {
       const exists = prev.find(u => u.username === user.username && u.type === user.type);
-      if (exists) {
-        return prev.filter(u => !(u.username === user.username && u.type === user.type));
-      } else {
-        return [...prev, user];
-      }
+      if (exists) return prev.filter(u => !(u.username === user.username && u.type === user.type));
+      return [...prev, user];
     });
   };
 
-  const isFormValid = title.trim() && message.trim() && (
+  const hasRecipients =
     (recipientMode === 'groups' && selectedGroups.length > 0) ||
-    (recipientMode === 'specific' && selectedUsers.length > 0)
-  );
+    (recipientMode === 'specific' && selectedUsers.length > 0);
+
+  const isFormValid = title.trim() && message.trim() && hasRecipients && expiryValid;
 
   const recipientGroups = [
     { value: 'admin', label: 'Διαχειριστές', icon: Users },
@@ -113,14 +130,12 @@ export default function SendMessage() {
     { value: 'all', label: 'Όλοι οι χρήστες', icon: Users }
   ];
 
-
-
   if (loadingAppUsers || loadingChreosi || loadingKanali) {
     return <LoadingSpinner text="Φόρτωση χρηστών..." />;
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-8">
       <PageHeader
         title="Στείλε Μήνυμα"
         subtitle="Αποστολή ειδοποιήσεων σε χρήστες"
@@ -154,13 +169,73 @@ export default function SendMessage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Εισάγετε το περιεχόμενο του μηνύματος..."
-                  rows={6}
+                  rows={5}
                   maxLength={500}
                 />
                 <p className="text-xs text-slate-500 mt-1">{message.length}/500</p>
               </div>
 
+              {/* Expiry section */}
+              <div className="border rounded-lg p-4 space-y-3 bg-slate-50 dark:bg-slate-800/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-slate-500" />
+                    <Label htmlFor="expiry-switch" className="cursor-pointer font-medium">
+                      Το μήνυμα λήγει
+                    </Label>
+                  </div>
+                  <Switch
+                    id="expiry-switch"
+                    checked={expiryEnabled}
+                    onCheckedChange={setExpiryEnabled}
+                  />
+                </div>
 
+                {expiryEnabled && (
+                  <div className="space-y-2 pt-1">
+                    <Label className="text-sm text-slate-600">Λήξη μετά από</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="π.χ. 2"
+                        value={expiryValue}
+                        onChange={(e) => setExpiryValue(e.target.value)}
+                        className="w-28"
+                      />
+                      <Select value={expiryUnit} onValueChange={setExpiryUnit}>
+                        <SelectTrigger className="w-36">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="minutes">λεπτά</SelectItem>
+                          <SelectItem value="hours">ώρες</SelectItem>
+                          <SelectItem value="days">ημέρες</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {expiryEnabled && expiryValue && !expiryValid && (
+                      <p className="text-xs text-red-500">
+                        Η τιμή λήξης πρέπει να είναι θετικός ακέραιος αριθμός
+                      </p>
+                    )}
+                    {expiryEnabled && !expiryValue && (
+                      <p className="text-xs text-amber-600">
+                        Εισάγετε τιμή λήξης για να στείλετε
+                      </p>
+                    )}
+                    {expiryValid && expiryValue && (
+                      <p className="text-xs text-green-600">
+                        Το μήνυμα θα λήξει μετά από {expiryValue} {
+                          expiryUnit === 'minutes' ? 'λεπτά' :
+                          expiryUnit === 'hours' ? 'ώρες' : 'ημέρες'
+                        }
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -192,10 +267,7 @@ export default function SendMessage() {
                         checked={selectedGroups.includes(group.value)}
                         onCheckedChange={() => handleGroupToggle(group.value)}
                       />
-                      <Label
-                        htmlFor={group.value}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
+                      <Label htmlFor={group.value} className="flex items-center gap-2 cursor-pointer">
                         <group.icon className="h-4 w-4" />
                         {group.label}
                       </Label>
@@ -203,9 +275,7 @@ export default function SendMessage() {
                   ))}
                   {selectedGroups.length > 0 && (
                     <div className="pt-2 border-t">
-                      <p className="text-sm text-slate-600">
-                        Επιλεγμένες: {selectedGroups.length} ομάδες
-                      </p>
+                      <p className="text-sm text-slate-600">Επιλεγμένες: {selectedGroups.length} ομάδες</p>
                     </div>
                   )}
                 </TabsContent>
@@ -213,7 +283,6 @@ export default function SendMessage() {
                 <TabsContent value="specific" className="mt-4">
                   <ScrollArea className="h-80">
                     <div className="space-y-4 pr-4">
-                      {/* App Users (Admin & Organotiki) */}
                       <div>
                         <h4 className="text-sm font-semibold mb-2">Διαχειριστές & Οργανωτικοί</h4>
                         <div className="space-y-2">
@@ -239,7 +308,6 @@ export default function SendMessage() {
                         </div>
                       </div>
 
-                      {/* Chreosi Accounts */}
                       <div>
                         <h4 className="text-sm font-semibold mb-2">Χρεωστικά</h4>
                         <div className="space-y-2">
@@ -262,7 +330,6 @@ export default function SendMessage() {
                         </div>
                       </div>
 
-                      {/* Kanali Accounts */}
                       <div>
                         <h4 className="text-sm font-semibold mb-2">Κανάλι</h4>
                         <div className="space-y-2">
@@ -279,9 +346,7 @@ export default function SendMessage() {
                               />
                               <Label htmlFor={`kanali-${user.id}`} className="cursor-pointer text-sm">
                                 {user.username}
-                                <Badge variant="secondary" className="ml-2 text-xs">
-                                  {user.user_type}
-                                </Badge>
+                                <Badge variant="secondary" className="ml-2 text-xs">{user.user_type}</Badge>
                               </Label>
                             </div>
                           ))}
@@ -291,9 +356,7 @@ export default function SendMessage() {
                   </ScrollArea>
                   {selectedUsers.length > 0 && (
                     <div className="pt-2 border-t mt-2">
-                      <p className="text-sm text-slate-600">
-                        Επιλεγμένοι: {selectedUsers.length} χρήστες
-                      </p>
+                      <p className="text-sm text-slate-600">Επιλεγμένοι: {selectedUsers.length} χρήστες</p>
                     </div>
                   )}
                 </TabsContent>
@@ -304,7 +367,7 @@ export default function SendMessage() {
       </div>
 
       {/* Send Button */}
-      <div className="mt-6 flex justify-end">
+      <div className="flex justify-end">
         <Button
           size="lg"
           disabled={!isFormValid || sendNotificationMutation.isPending}
@@ -324,14 +387,14 @@ export default function SendMessage() {
 
       {/* Preview */}
       {(title || message) && (
-        <Card className="mt-6">
+        <Card>
           <CardHeader>
             <CardTitle className="text-sm">Προεπισκόπηση</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
               <div className="flex gap-3">
-                <AlertCircle className="h-5 w-5 text-blue-600" />
+                <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
                 <div className="flex-1">
                   <h4 className="font-semibold text-sm text-slate-900">
                     {title || 'Τίτλος μηνύματος'}
@@ -339,12 +402,24 @@ export default function SendMessage() {
                   <p className="text-sm text-slate-600 mt-1">
                     {message || 'Περιεχόμενο μηνύματος'}
                   </p>
+                  {expiryEnabled && expiryValid && expiryValue && (
+                    <div className="flex items-center gap-1 mt-2 text-xs text-amber-600">
+                      <Clock className="h-3 w-3" />
+                      Λήξη μετά από {expiryValue} {
+                        expiryUnit === 'minutes' ? 'λεπτά' :
+                        expiryUnit === 'hours' ? 'ώρες' : 'ημέρες'
+                      }
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Management table */}
+      <SentMessagesTable />
     </div>
   );
 }
