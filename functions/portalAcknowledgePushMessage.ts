@@ -25,9 +25,10 @@ Deno.serve(async (req) => {
             return Response.json({ success: false, error: 'Session expired' }, { status: 401 });
         }
 
-        // Idempotency check: has this user already acknowledged this message?
+        // Idempotency check: include recipient_type so chreosi:john and kanali:john are independent (Bug 3)
         const existingAcks = await base44.asServiceRole.entities.PushMessageAck.filter({
             message_id: messageId,
+            recipient_type: session.portal_type,
             username
         });
 
