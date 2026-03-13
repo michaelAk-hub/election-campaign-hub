@@ -531,11 +531,15 @@ export default function Portal() {
 
       // Check for unacknowledged push messages
       const checkMessages = async () => {
+        const now = new Date();
         const messages = await base44.entities.PushMessage.filter({ is_active: true });
 
-        // Filter: legacy (no delivery_mode) or group mode -> match by target_group
-        //         specific mode -> match by target_user_keys containing myKey
+        // Filter: active, not disabled, not expired, targeting this user
         const relevantMessages = messages.filter(m => {
+          // Expiry / disabled checks
+          if (m.disabled_at != null) return false;
+          if (m.expires_at != null && new Date(m.expires_at) <= now) return false;
+
           const mode = m.delivery_mode || 'group';
           if (mode === 'group') {
             return targetGroups.includes(m.target_group);
