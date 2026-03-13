@@ -570,6 +570,13 @@ export default function Portal() {
         if (event.type === 'create' || event.type === 'update') {
           checkMessages();
         }
+        // If a visible push message was disabled/deactivated, clear it immediately
+        if (event.type === 'update' && event.data) {
+          const d = event.data;
+          if (d.is_active === false || d.disabled_at != null) {
+            setPushMessage(prev => prev && prev.id === d.id ? null : prev);
+          }
+        }
       });
     };
 
