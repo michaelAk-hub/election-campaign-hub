@@ -322,19 +322,11 @@ Deno.serve(async (req) => {
             notifCount = rows.length;
         }
 
-        // ── Build summary counts ──────────────────────────────────────────────────
+        // ── Build summary counts — use exact resolved values (Bug 2) ─────────────
         const adminCount = notifRecipients.filter(r => r.recipient_type === 'admin').length;
         const orgCount = notifRecipients.filter(r => r.recipient_type === 'organotikos').length;
-        const chreosiCount = portalDeliveryMode
-            ? (portalDeliveryMode === 'group'
-                ? (await base44.asServiceRole.entities.ChreosiAccount.filter({ is_active: true })).length
-                : [...specificPortalKeys].filter(k => k.startsWith('chreosi:')).length)
-            : 0;
-        const kanaliCount = portalDeliveryMode
-            ? (portalDeliveryMode === 'group'
-                ? (await base44.asServiceRole.entities.KanaliAccount.filter({ is_active: true })).length
-                : [...specificPortalKeys].filter(k => k.startsWith('kanali:')).length)
-            : 0;
+        const chreosiCount = portalChreosiCount;
+        const kanaliCount = portalKanaliCount;
 
         return Response.json({
             ok: true,
