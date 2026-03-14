@@ -20,7 +20,6 @@ import {
     UserCog,
     Search as SearchIcon,
     AlertTriangle,
-    Bell,
     ChevronLeft,
     Trash2
 } from 'lucide-react';
@@ -45,14 +44,11 @@ const adminNavItems = [
 ];
 
 const portalPages = ['Portal', 'PortalLogin', 'AdminLogin', 'MfaVerify'];
-
-// Tab root pages for bottom nav
 const TAB_ROOT_PAGES = ['Dashboard', 'Records', 'NotificationPreferences'];
 
-// Inactivity timeout constants (in milliseconds)
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
-const WARNING_AT_MS = 13 * 60 * 1000; // 13 minutes
-const HEARTBEAT_THROTTLE_MS = 45 * 1000; // 45 seconds
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const WARNING_AT_MS = 13 * 60 * 1000;
+const HEARTBEAT_THROTTLE_MS = 45 * 1000;
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -81,10 +77,9 @@ export default function Layout({ children, currentPageName }) {
           const { data } = await base44.functions.invoke('validateAppSession', {
             session_token: sessionToken
           });
-
           if (data.valid) {
-            setUser({ 
-              ...data.user, 
+            setUser({
+              ...data.user,
               full_name: `${data.user.name} ${data.user.surname}`,
               email: data.user.email,
               role: data.user.role === 'ADMIN' ? 'admin' : 'user',
@@ -111,7 +106,6 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
-  // Follow system dark mode preference
   useEffect(() => {
     const applyTheme = () => {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -123,7 +117,6 @@ export default function Layout({ children, currentPageName }) {
     return () => mq.removeEventListener('change', applyTheme);
   }, []);
 
-  // Track navigation history for back-button detection
   useEffect(() => {
     historyStackRef.current = [...historyStackRef.current, location.pathname];
     if (historyStackRef.current.length > 20) {
@@ -145,15 +138,11 @@ export default function Layout({ children, currentPageName }) {
   const handleActivity = useCallback(() => {
     const now = Date.now();
     lastActivityRef.current = now;
-
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     setShowTimeoutWarning(false);
-
-    if (now - lastHeartbeatRef.current >= HEARTBEAT_THROTTLE_MS) {
-      sendHeartbeat();
-    }
+    if (now - lastHeartbeatRef.current >= HEARTBEAT_THROTTLE_MS) sendHeartbeat();
 
     warningTimerRef.current = setTimeout(() => {
       setShowTimeoutWarning(true);
@@ -166,16 +155,12 @@ export default function Layout({ children, currentPageName }) {
       }, 1000);
     }, WARNING_AT_MS);
 
-    idleTimerRef.current = setTimeout(() => {
-      handleIdleLogout();
-    }, IDLE_TIMEOUT_MS);
+    idleTimerRef.current = setTimeout(() => { handleIdleLogout(); }, IDLE_TIMEOUT_MS);
   }, [sendHeartbeat]);
 
   const handleIdleLogout = async () => {
     const sessionToken = localStorage.getItem('app_session_token');
-    if (sessionToken) {
-      await base44.functions.invoke('appLogout', { session_token: sessionToken });
-    }
+    if (sessionToken) await base44.functions.invoke('appLogout', { session_token: sessionToken });
     localStorage.removeItem('app_session_token');
     localStorage.removeItem('app_user');
     window.location.href = createPageUrl('AdminLogin');
@@ -194,16 +179,13 @@ export default function Layout({ children, currentPageName }) {
     let activityTimeout = null;
     const throttledActivity = () => {
       if (!activityTimeout) {
-        activityTimeout = setTimeout(() => {
-          handleActivity();
-          activityTimeout = null;
-        }, 1000);
+        activityTimeout = setTimeout(() => { handleActivity(); activityTimeout = null; }, 1000);
       }
     };
-    events.forEach(event => document.addEventListener(event, throttledActivity, { passive: true }));
+    events.forEach(e => document.addEventListener(e, throttledActivity, { passive: true }));
     handleActivity();
     return () => {
-      events.forEach(event => document.removeEventListener(event, throttledActivity));
+      events.forEach(e => document.removeEventListener(e, throttledActivity));
       if (activityTimeout) clearTimeout(activityTimeout);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
@@ -220,12 +202,17 @@ export default function Layout({ children, currentPageName }) {
     window.location.href = createPageUrl('AdminLogin');
   };
 
+  const handleLogout = async () => {
+    const sessionToken = localStorage.getItem('app_session_token');
+    if (sessionToken) await base44.functions.invoke('appLogout', { session_token: sessionToken });
+    localStorage.removeItem('app_session_token');
+    localStorage.removeItem('app_user');
+    window.location.href = createPageUrl('AdminLogin');
+  };
+
   const isDeepPage = !TAB_ROOT_PAGES.includes(currentPageName) && historyStackRef.current.length > 1;
 
-  // Portal pages have their own layout
-  if (portalPages.includes(currentPageName)) {
-    return <>{children}</>;
-  }
+  if (portalPages.includes(currentPageName)) return <>{children}</>;
 
   if (currentPageName === 'UserManagement') {
     const portalToken = localStorage.getItem('portal_session_token');
@@ -260,16 +247,6 @@ export default function Layout({ children, currentPageName }) {
     return <>{children}</>;
   }
 
-  const handleLogout = async () => {
-    const sessionToken = localStorage.getItem('app_session_token');
-    if (sessionToken) {
-      await base44.functions.invoke('appLogout', { session_token: sessionToken });
-    }
-    localStorage.removeItem('app_session_token');
-    localStorage.removeItem('app_user');
-    window.location.href = createPageUrl('AdminLogin');
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <style>{`
@@ -277,28 +254,53 @@ export default function Layout({ children, currentPageName }) {
         button, [role="button"], svg { user-select: none; -webkit-user-select: none; }
       `}</style>
 
-      {/* ─── DESKTOP: Fixed horizontal top navbar (lg+) ─── */}
-      <header className="hidden lg:flex fixed top-0 left-0 right-0 z-40 h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 items-center px-4 gap-4">
-        {/* Branding */}
-        <Link to={createPageUrl('Dashboard')} className="flex items-center gap-2 shrink-0 mr-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-            <Vote className="h-4 w-4 text-white" />
-          </div>
-          <div className="leading-tight">
-            <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Εκλογές</span>
-            <p className="text-[9px] text-slate-400 uppercase tracking-wider">2026</p>
-          </div>
-        </Link>
+      {/* ── DESKTOP: 2-row fixed top navbar (lg+) ── */}
+      <header className="hidden lg:block fixed top-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+        {/* Row 1: Branding + User actions */}
+        <div className="flex items-center justify-between px-6 h-12 border-b border-slate-100 dark:border-slate-800">
+          {/* Branding */}
+          <Link to={createPageUrl('Dashboard')} className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-md flex items-center justify-center">
+              <Vote className="h-4 w-4 text-white" />
+            </div>
+            <div className="leading-tight">
+              <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Εκλογές</span>
+              <span className="text-[9px] text-slate-400 uppercase tracking-wider ml-1.5">2026</span>
+            </div>
+          </Link>
 
-        {/* Nav links — scrollable */}
-        <nav className="flex-1 overflow-x-auto scrollbar-hide">
-          <div className="flex items-center gap-0.5 min-w-max">
-            {adminNavItems.map((item, idx) => {
+          {/* User info + actions */}
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-xs font-medium text-slate-900 dark:text-slate-100 leading-tight max-w-[160px] truncate">
+                {user.full_name || user.email}
+              </p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                {isAdmin ? 'Διαχειριστής' : 'Οργανωτικός'}
+              </p>
+            </div>
+            <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="text-slate-400 hover:text-slate-600 h-7 w-7"
+              title="Αποσύνδεση"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Row 2: Nav links — flex-wrap, no scrolling */}
+        <div className="px-4 py-1.5">
+          <nav className="flex flex-wrap gap-x-0.5 gap-y-0.5">
+            {adminNavItems.map((item) => {
               const isActive = currentPageName === item.page;
               return (
                 <React.Fragment key={item.page}>
                   {item.divider && (
-                    <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0" />
+                    <div className="w-px self-stretch bg-slate-200 dark:bg-slate-700 mx-1 my-0.5" />
                   )}
                   <Link
                     to={createPageUrl(item.page)}
@@ -315,34 +317,13 @@ export default function Layout({ children, currentPageName }) {
                 </React.Fragment>
               );
             })}
-          </div>
-        </nav>
-
-        {/* Right: user info + bell + logout */}
-        <div className="flex items-center gap-2 shrink-0 ml-2 pl-2 border-l border-slate-200 dark:border-slate-700">
-          <div className="text-right hidden xl:block">
-            <p className="text-xs font-medium text-slate-900 dark:text-slate-100 leading-tight max-w-[120px] truncate">
-              {user.full_name || user.email}
-            </p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">
-              {isAdmin ? 'Διαχειριστής' : 'Οργανωτικός'}
-            </p>
-          </div>
-          <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-slate-400 hover:text-slate-600 h-8 w-8"
-            title="Αποσύνδεση"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+          </nav>
         </div>
       </header>
 
-      {/* ─── MOBILE: Top header ─── */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 z-40 flex items-center justify-between px-4"
+      {/* ── MOBILE: Top header ── */}
+      <div
+        className="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 z-40 flex items-center justify-between px-4"
         style={{ paddingTop: 'env(safe-area-inset-top)', minHeight: 'calc(env(safe-area-inset-top) + 64px)' }}
       >
         {isDeepPage ? (
@@ -357,23 +338,18 @@ export default function Layout({ children, currentPageName }) {
         <div className="flex items-center gap-2">
           <Vote className="h-5 w-5 text-blue-500" />
           <span className="font-semibold text-sm truncate max-w-[140px] text-slate-900 dark:text-slate-100">
-            {isDeepPage
-              ? (adminNavItems.find(i => i.page === currentPageName)?.name || 'Εκλογές')
-              : 'Εκλογές'}
+            {isDeepPage ? (adminNavItems.find(i => i.page === currentPageName)?.name || 'Εκλογές') : 'Εκλογές'}
           </span>
         </div>
         {user && <NotificationCenter userType={user.role === 'admin' ? 'admin' : 'organotikos'} />}
       </div>
 
-      {/* ─── MOBILE: Sidebar Overlay ─── */}
+      {/* ── MOBILE: Sidebar overlay ── */}
       {sidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* ─── MOBILE: Drawer Sidebar ─── */}
+      {/* ── MOBILE: Drawer sidebar ── */}
       <aside className={cn(
         "lg:hidden fixed top-0 left-0 h-full w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 z-50 transition-transform duration-300",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -426,12 +402,7 @@ export default function Layout({ children, currentPageName }) {
             </div>
             <div className="flex items-center gap-1">
               <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLogout}
-                className="text-slate-400 hover:text-slate-600"
-              >
+              <Button variant="ghost" size="icon" onClick={handleLogout} className="text-slate-400 hover:text-slate-600">
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -439,8 +410,9 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </aside>
 
-      {/* ─── Main Content ─── */}
-      <main className="lg:pt-14 pt-16 min-h-screen pb-16 lg:pb-0 w-full max-w-full"
+      {/* ── Main Content ── */}
+      {/* Desktop: pt accounts for row1 (48px) + row2 (approx 44px) = ~92px. Use pt-24 (96px) for safety */}
+      <main className="lg:pt-24 pt-16 min-h-screen w-full max-w-full"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 4rem)' }}
       >
         <AnimatePresence mode="wait" initial={false}>
@@ -457,8 +429,9 @@ export default function Layout({ children, currentPageName }) {
         </AnimatePresence>
       </main>
 
-      {/* ─── MOBILE: Bottom Navigation Bar ─── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 z-40 flex"
+      {/* ── MOBILE: Bottom navigation bar ── */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 z-40 flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {[
@@ -472,10 +445,7 @@ export default function Layout({ children, currentPageName }) {
               <button
                 key="menu"
                 onClick={() => setSidebarOpen(true)}
-                className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
-                  "text-slate-500 dark:text-slate-400"
-                )}
+                className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium text-slate-500 dark:text-slate-400"
               >
                 <item.icon className="h-5 w-5" />
                 <span>{item.label}</span>
@@ -507,7 +477,7 @@ export default function Layout({ children, currentPageName }) {
         })}
       </nav>
 
-      {/* ─── Delete Account Dialog ─── */}
+      {/* ── Delete Account Dialog ── */}
       <Dialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -532,7 +502,7 @@ export default function Layout({ children, currentPageName }) {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Timeout Warning Modal ─── */}
+      {/* ── Timeout Warning Modal ── */}
       <Dialog open={showTimeoutWarning} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md" hideClose>
           <DialogHeader>
