@@ -60,10 +60,32 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
         return () => clearInterval(interval);
     }, [refresh]);
 
+    const removeScenarioFromState = (id) => {
+        setScenarios(prev => prev.filter(s => s.id !== id));
+        setResults(prev => { const n = { ...prev }; delete n[id]; return n; });
+        setLoadingResults(prev => { const n = { ...prev }; delete n[id]; return n; });
+        setResultErrors(prev => { const n = { ...prev }; delete n[id]; return n; });
+    };
+
     const handleDelete = async (scenario) => {
         if (!confirm(`Διαγραφή "${scenario.name}";`)) return;
-        await base44.functions.invoke('scenarioDelete', { session_token: sessionToken, scenario_id: scenario.id });
-        refresh();
+        try {
+            await base44.functions.invoke('scenarioDelete', { session_token: sessionToken, scenario_id: scenario.id });
+            removeScenarioFromState(scenario.id);
+        } catch (err) {
+            const status = err?.response?.status;
+            const msg = err?.response?.data?.message;
+            if (status === 401) {
+                alert('Η συνεδρία σας έχει λήξει. Παρακαλώ συνδεθείτε ξανά.');
+            } else if (status === 404) {
+                // Already gone — clean up stale row
+                removeScenarioFromState(scenario.id);
+            } else if (status === 500) {
+                alert('Σφάλμα διακομιστή κατά τη διαγραφή. Παρακαλώ δοκιμάστε ξανά.');
+            } else {
+                alert(msg || 'Αποτυχία διαγραφής. Παρακαλώ δοκιμάστε ξανά.');
+            }
+        }
     };
 
     const handleEdit = (scenario) => { setEditScenario(scenario); setShowForm(true); };
