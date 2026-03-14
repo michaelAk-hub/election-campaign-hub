@@ -65,7 +65,7 @@ export default function Layout({ children, currentPageName }) {
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const historyStackRef = useRef([]);
-  const tabScrollRef = useRef({}); // stores scrollY per tab page
+  const tabScrollRef = useRef({});
 
   const lastActivityRef = useRef(Date.now());
   const lastHeartbeatRef = useRef(Date.now());
@@ -111,8 +111,6 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
-
-
   // Follow system dark mode preference
   useEffect(() => {
     const applyTheme = () => {
@@ -128,67 +126,51 @@ export default function Layout({ children, currentPageName }) {
   // Track navigation history for back-button detection
   useEffect(() => {
     historyStackRef.current = [...historyStackRef.current, location.pathname];
-    // Keep last 20 entries
     if (historyStackRef.current.length > 20) {
       historyStackRef.current = historyStackRef.current.slice(-20);
     }
   }, [location.pathname]);
 
-  // Activity-based heartbeat - only send when user is active
   const sendHeartbeat = useCallback(async () => {
     const sessionToken = localStorage.getItem('app_session_token');
     if (!sessionToken) return;
-
     try {
-      await base44.functions.invoke('sessionHeartbeat', {
-        session_token: sessionToken
-      });
+      await base44.functions.invoke('sessionHeartbeat', { session_token: sessionToken });
       lastHeartbeatRef.current = Date.now();
     } catch (e) {
       console.error('Heartbeat failed:', e);
     }
   }, []);
 
-  // Handle user activity - reset idle timer and send heartbeat if needed
   const handleActivity = useCallback(() => {
     const now = Date.now();
     lastActivityRef.current = now;
 
-    // Reset idle and warning timers
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     setShowTimeoutWarning(false);
 
-    // Send heartbeat if enough time has passed (throttle)
     if (now - lastHeartbeatRef.current >= HEARTBEAT_THROTTLE_MS) {
       sendHeartbeat();
     }
 
-    // Set warning timer (13 minutes)
     warningTimerRef.current = setTimeout(() => {
       setShowTimeoutWarning(true);
       setTimeoutCountdown(120);
-      
-      // Start countdown
       countdownIntervalRef.current = setInterval(() => {
         setTimeoutCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownIntervalRef.current);
-            return 0;
-          }
+          if (prev <= 1) { clearInterval(countdownIntervalRef.current); return 0; }
           return prev - 1;
         });
       }, 1000);
     }, WARNING_AT_MS);
 
-    // Set idle timeout (15 minutes)
     idleTimerRef.current = setTimeout(() => {
       handleIdleLogout();
     }, IDLE_TIMEOUT_MS);
   }, [sendHeartbeat]);
 
-  // Handle logout due to inactivity
   const handleIdleLogout = async () => {
     const sessionToken = localStorage.getItem('app_session_token');
     if (sessionToken) {
@@ -199,21 +181,16 @@ export default function Layout({ children, currentPageName }) {
     window.location.href = createPageUrl('AdminLogin');
   };
 
-  // Handle "Stay logged in" button
   const handleStayLoggedIn = () => {
     setShowTimeoutWarning(false);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    sendHeartbeat(); // Send immediate heartbeat
-    handleActivity(); // Reset timers
+    sendHeartbeat();
+    handleActivity();
   };
 
-  // Set up activity listeners
   useEffect(() => {
     if (!user) return;
-
     const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
-    
-    // Throttle activity handler to avoid excessive calls
     let activityTimeout = null;
     const throttledActivity = () => {
       if (!activityTimeout) {
@@ -223,18 +200,10 @@ export default function Layout({ children, currentPageName }) {
         }, 1000);
       }
     };
-
-    events.forEach(event => {
-      document.addEventListener(event, throttledActivity, { passive: true });
-    });
-
-    // Initial activity setup
+    events.forEach(event => document.addEventListener(event, throttledActivity, { passive: true }));
     handleActivity();
-
     return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, throttledActivity);
-      });
+      events.forEach(event => document.removeEventListener(event, throttledActivity));
       if (activityTimeout) clearTimeout(activityTimeout);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
@@ -251,34 +220,28 @@ export default function Layout({ children, currentPageName }) {
     window.location.href = createPageUrl('AdminLogin');
   };
 
-  // Determine if we're deep in the nav stack (back button should show)
   const isDeepPage = !TAB_ROOT_PAGES.includes(currentPageName) && historyStackRef.current.length > 1;
 
   // Portal pages have their own layout
   if (portalPages.includes(currentPageName)) {
-      return <>{children}</>;
+    return <>{children}</>;
   }
 
-  // Block KANALI and CHREOSI from accessing UserManagement
   if (currentPageName === 'UserManagement') {
-      // Check if the user is trying to access from a portal session (not admin session)
-      const portalToken = localStorage.getItem('portal_session_token');
-      if (portalToken && !user) {
-          return (
-              <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
-                  <div className="text-center">
-                      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">Δεν επιτρέπεται η πρόσβαση</h1>
-                      <p className="text-slate-600 dark:text-slate-400 mb-4">Μόνο διαχειριστές και οργανωτικοί έχουν πρόσβαση σε αυτή τη σελίδα.</p>
-                      <Button onClick={() => window.location.href = createPageUrl('Portal')}>
-                          Επιστροφή
-                      </Button>
-                  </div>
-              </div>
-          );
-      }
+    const portalToken = localStorage.getItem('portal_session_token');
+    if (portalToken && !user) {
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">Δεν επιτρέπεται η πρόσβαση</h1>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">Μόνο διαχειριστές και οργανωτικοί έχουν πρόσβαση σε αυτή τη σελίδα.</p>
+            <Button onClick={() => window.location.href = createPageUrl('Portal')}>Επιστροφή</Button>
+          </div>
+        </div>
+      );
+    }
   }
 
-  // Admin/Organotikos layout
   const isAdmin = user?.role === 'admin';
 
   if (loading) {
@@ -290,7 +253,6 @@ export default function Layout({ children, currentPageName }) {
   }
 
   if (!user) {
-    // Redirect to AdminLogin for unauthenticated users
     if (currentPageName !== 'AdminLogin') {
       window.location.href = createPageUrl('AdminLogin');
       return null;
@@ -298,13 +260,88 @@ export default function Layout({ children, currentPageName }) {
     return <>{children}</>;
   }
 
+  const handleLogout = async () => {
+    const sessionToken = localStorage.getItem('app_session_token');
+    if (sessionToken) {
+      await base44.functions.invoke('appLogout', { session_token: sessionToken });
+    }
+    localStorage.removeItem('app_session_token');
+    localStorage.removeItem('app_user');
+    window.location.href = createPageUrl('AdminLogin');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <style>{`
         body { overscroll-behavior: none; }
         button, [role="button"], svg { user-select: none; -webkit-user-select: none; }
       `}</style>
-      {/* Mobile Header */}
+
+      {/* ─── DESKTOP: Fixed horizontal top navbar (lg+) ─── */}
+      <header className="hidden lg:flex fixed top-0 left-0 right-0 z-40 h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 items-center px-4 gap-4">
+        {/* Branding */}
+        <Link to={createPageUrl('Dashboard')} className="flex items-center gap-2 shrink-0 mr-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+            <Vote className="h-4 w-4 text-white" />
+          </div>
+          <div className="leading-tight">
+            <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Εκλογές</span>
+            <p className="text-[9px] text-slate-400 uppercase tracking-wider">2026</p>
+          </div>
+        </Link>
+
+        {/* Nav links — scrollable */}
+        <nav className="flex-1 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-0.5 min-w-max">
+            {adminNavItems.map((item, idx) => {
+              const isActive = currentPageName === item.page;
+              return (
+                <React.Fragment key={item.page}>
+                  {item.divider && (
+                    <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0" />
+                  )}
+                  <Link
+                    to={createPageUrl(item.page)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all",
+                      isActive
+                        ? "bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400"
+                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    <item.icon className="h-3.5 w-3.5 shrink-0" />
+                    <span>{item.name}</span>
+                  </Link>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Right: user info + bell + logout */}
+        <div className="flex items-center gap-2 shrink-0 ml-2 pl-2 border-l border-slate-200 dark:border-slate-700">
+          <div className="text-right hidden xl:block">
+            <p className="text-xs font-medium text-slate-900 dark:text-slate-100 leading-tight max-w-[120px] truncate">
+              {user.full_name || user.email}
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              {isAdmin ? 'Διαχειριστής' : 'Οργανωτικός'}
+            </p>
+          </div>
+          <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="text-slate-400 hover:text-slate-600 h-8 w-8"
+            title="Αποσύνδεση"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+
+      {/* ─── MOBILE: Top header ─── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 z-40 flex items-center justify-between px-4"
         style={{ paddingTop: 'env(safe-area-inset-top)', minHeight: 'calc(env(safe-area-inset-top) + 64px)' }}
       >
@@ -328,21 +365,19 @@ export default function Layout({ children, currentPageName }) {
         {user && <NotificationCenter userType={user.role === 'admin' ? 'admin' : 'organotikos'} />}
       </div>
 
-      {/* Sidebar Overlay */}
+      {/* ─── MOBILE: Sidebar Overlay ─── */}
       {sidebarOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* ─── MOBILE: Drawer Sidebar ─── */}
       <aside className={cn(
-        "fixed top-0 left-0 h-full w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 z-50 transition-transform duration-300",
-        "lg:translate-x-0",
+        "lg:hidden fixed top-0 left-0 h-full w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 z-50 transition-transform duration-300",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
@@ -353,17 +388,11 @@ export default function Layout({ children, currentPageName }) {
               <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">2026</p>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          >
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Navigation */}
         <nav className="p-3 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
           {adminNavItems.map(item => (
             <React.Fragment key={item.page}>
@@ -385,10 +414,8 @@ export default function Layout({ children, currentPageName }) {
           ))}
         </nav>
 
-        {/* User */}
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900">
           <div className="flex items-center gap-3 px-3 py-2">
-
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                 {user.full_name || user.email}
@@ -399,19 +426,10 @@ export default function Layout({ children, currentPageName }) {
             </div>
             <div className="flex items-center gap-1">
               <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
-
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={async () => {
-                  const sessionToken = localStorage.getItem('app_session_token');
-                  if (sessionToken) {
-                    await base44.functions.invoke('appLogout', { session_token: sessionToken });
-                  }
-                  localStorage.removeItem('app_session_token');
-                  localStorage.removeItem('app_user');
-                  window.location.href = createPageUrl('AdminLogin');
-                }}
+                onClick={handleLogout}
                 className="text-slate-400 hover:text-slate-600"
               >
                 <LogOut className="h-4 w-4" />
@@ -421,8 +439,8 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen pb-16 lg:pb-0 w-full max-w-full"
+      {/* ─── Main Content ─── */}
+      <main className="lg:pt-14 pt-16 min-h-screen pb-16 lg:pb-0 w-full max-w-full"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 4rem)' }}
       >
         <AnimatePresence mode="wait" initial={false}>
@@ -439,7 +457,7 @@ export default function Layout({ children, currentPageName }) {
         </AnimatePresence>
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
+      {/* ─── MOBILE: Bottom Navigation Bar ─── */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 z-40 flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
@@ -469,13 +487,10 @@ export default function Layout({ children, currentPageName }) {
               key={item.page}
               onClick={() => {
                 if (isActive) {
-                  // Already on this tab — scroll to top
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                  // Save current scroll before leaving
                   tabScrollRef.current[currentPageName] = window.scrollY;
                   navigate(createPageUrl(item.page));
-                  // Restore saved scroll for destination tab (after render)
                   const saved = tabScrollRef.current[item.page] || 0;
                   requestAnimationFrame(() => window.scrollTo({ top: saved, behavior: 'instant' }));
                 }
@@ -492,7 +507,7 @@ export default function Layout({ children, currentPageName }) {
         })}
       </nav>
 
-      {/* Delete Account Dialog */}
+      {/* ─── Delete Account Dialog ─── */}
       <Dialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -507,27 +522,17 @@ export default function Layout({ children, currentPageName }) {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteAccountDialog(false)}
-              disabled={deletingAccount}
-              className="w-full sm:w-auto"
-            >
+            <Button variant="outline" onClick={() => setShowDeleteAccountDialog(false)} disabled={deletingAccount} className="w-full sm:w-auto">
               Ακύρωση
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteAccount}
-              disabled={deletingAccount}
-              className="w-full sm:w-auto"
-            >
+            <Button variant="destructive" onClick={handleDeleteAccount} disabled={deletingAccount} className="w-full sm:w-auto">
               {deletingAccount ? 'Διαγραφή...' : 'Διαγραφή Λογαριασμού'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Timeout Warning Modal */}
+      {/* ─── Timeout Warning Modal ─── */}
       <Dialog open={showTimeoutWarning} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md" hideClose>
           <DialogHeader>
@@ -550,17 +555,10 @@ export default function Layout({ children, currentPageName }) {
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={handleIdleLogout}
-              className="w-full sm:w-auto"
-            >
+            <Button variant="outline" onClick={handleIdleLogout} className="w-full sm:w-auto">
               Αποσύνδεση Τώρα
             </Button>
-            <Button
-              onClick={handleStayLoggedIn}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
-            >
+            <Button onClick={handleStayLoggedIn} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700">
               Συνέχεια Σύνδεσης
             </Button>
           </DialogFooter>
