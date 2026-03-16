@@ -7,19 +7,8 @@ const COLUMN_LABELS = {
   notes: 'Σημειώσεις',
 };
 
-// Column width strategy — percentage-based so widths scale with page width
-// (Landscape gives notes more space automatically).
-//
-// Compact  (tight, just enough for typical values):
-//   admission_year : "202409"       → 6%
-//   department     : short codes    → 9%
-//   mobile_phone   : "99 123 4567"  → 8%
-//
-// Flexible (Greek names, ellipsis when needed):
-//   last_name  → 13%
-//   first_name → 10%
-//
-// notes has NO entry → absorbs all remaining width (≥54%)
+// Column width strategy — percentage-based so widths scale with page width.
+// notes has NO entry → absorbs all remaining width (32%).
 const COLUMN_WIDTHS = {
   admission_year: '10%',
   department:     '8%',
@@ -89,41 +78,34 @@ function sortPeople(people, orderedSortFields) {
   });
 }
 
-// ── Main print function ───────────────────────────────────
+// ── Batch print function (supports one or many accounts) ──
+// Returns false if no printable records exist (all accounts filtered to empty).
+// Returns true after opening the print window.
 
-export function printChreosiStatement({ account, people, orderedColumns, orderedSortFields, orientation, rowsPerPage }) {
-  const filtered = filterPeople(account, people);
-  const sorted = sortPeople(filtered, orderedSortFields);
-
-  // Validated rows-per-page
-  const safeRPP = Math.max(1, Math.round(Number(rowsPerPage) || 25));
-
-  // ── Page layout constants (mm) ──
+export function printChreosiStatements({ accounts, people, orderedColumns, orderedSortFields, orientation, rowsPerPage }) {
   const isPortrait = orientation === 'portrait';
   const PAGE_W = isPortrait ? 210 : 297;
   const PAGE_H = isPortrait ? 297 : 210;
-  const PAD = 12;                          // padding on all sides
-  const USABLE_H = PAGE_H - PAD * 2;       // height available inside page
-  const HEADER_H = 20;                     // account info + column header row
-  const FOOTER_H = 7;                      // page number area
-  const BODY_H = USABLE_H - HEADER_H - FOOTER_H;  // data rows area
-  const ROW_H = (BODY_H / safeRPP).toFixed(3);    // per-row height in mm
+  const PAD = 12;
+  const USABLE_H = PAGE_H - PAD * 2;
+  const HEADER_H = 20;
+  const FOOTER_H = 7;
+  const BODY_H = USABLE_H - HEADER_H - FOOTER_H;
+  const safeRPP = Math.max(1, Math.round(Number(rowsPerPage) || 25));
+  const ROW_H = (BODY_H / safeRPP).toFixed(3);
 
-  // ── Chunk data into pages ──
-  const chunks = [];
-  for (let i = 0; i < sorted.length; i += safeRPP) {
-    chunks.push(sorted.slice(i, i + safeRPP));
-  }
-  if (chunks.length === 0) chunks.push([]); // always at least one page
-  const totalPages = chunks.length;
-  const colCount = orderedColumns.length;
+  // Filter + sort per account; skip empty accounts
+  const accountBlocks = accounts
+    .map(account => {
+      const filtered = filterPeople(account, people);
+      if (filtered.length === 0) return null;
+      return { account, rows: sortPeople(filtered, orderedSortFields) };
+    })
+    .filter(Boolean);
 
-  // ── Escaped header values ──
-  const displayName = escHtml(account.display_name || account.username || '');
-  const usernameEsc = escHtml(account.username || '');
+  if (accountBlocks.length === 0) return false;
 
-  // ── Column definitions shared by header table and data table ──
-  // notes col has no entry in COLUMN_WIDTHS → no width attribute → gets all leftover space
+  // Shared colgroup + header row (same for all accounts)
   const colgroup = orderedColumns
     .map(col => {
       const w = COLUMN_WIDTHS[col];
@@ -134,25 +116,38 @@ export function printChreosiStatement({ account, people, orderedColumns, ordered
     .map(col => `<th>${escHtml(COLUMN_LABELS[col] || col)}</th>`)
     .join('');
 
-  // ── Generate one page container per chunk ──
-  const pagesHtml = chunks.map((chunk, idx) => {
-    const pageNum = idx + 1;
-    const isLast = idx === chunks.length - 1;
+  // Generate all page divs for all accounts
+  const allPagesHtml = accountBlocks
+    .map(({ account, rows }, accountIdx) => {
+      const isLastAccount = accountIdx === accountBlocks.length - 1;
+      const displayName = escHtml(account.display_name || account.username || '');
+      const usernameEsc = escHtml(account.username || '');
 
-    const dataRows = chunk.length > 0
-      ? chunk.map(p => {
-          const cells = orderedColumns.map(col => {
-            const val = p[col];
-            const display = (val === null || val === undefined || val === '')
-              ? '-'
-              : escHtml(String(val));
-            return `<td class="cell${col === 'notes' ? ' nc' : ''}">${display}</td>`;
-          }).join('');
-          return `<tr style="height:${ROW_H}mm">${cells}</tr>`;
-        }).join('')
-      : `<tr><td colspan="${colCount}" class="empty-cell">Δεν βρέθηκαν εγγραφές</td></tr>`;
+      const chunks = [];
+      for (let i = 0; i < rows.length; i += safeRPP) {
+        chunks.push(rows.slice(i, i + safeRPP));
+      }
+      const totalPages = chunks.length;
+      const colCount = orderedColumns.length;
 
-    return `<div class="page${isLast ? ' last' : ''}">
+      return chunks.map((chunk, pageIdx) => {
+        // Only the very last page of the entire batch gets .last (suppresses trailing blank page)
+        const isAbsoluteLast = isLastAccount && pageIdx === chunks.length - 1;
+
+        const dataRows = chunk.length > 0
+          ? chunk.map(p => {
+              const cells = orderedColumns.map(col => {
+                const val = p[col];
+                const display = (val === null || val === undefined || val === '')
+                  ? '-'
+                  : escHtml(String(val));
+                return `<td class="cell${col === 'notes' ? ' nc' : ''}">${display}</td>`;
+              }).join('');
+              return `<tr style="height:${ROW_H}mm">${cells}</tr>`;
+            }).join('')
+          : `<tr><td colspan="${colCount}" class="empty-cell">Δεν βρέθηκαν εγγραφές</td></tr>`;
+
+        return `<div class="page${isAbsoluteLast ? ' last' : ''}">
   <div class="ph" style="height:${HEADER_H}mm">
     <div class="ph-top">
       <div class="adn">${displayName}</div>
@@ -165,16 +160,21 @@ export function printChreosiStatement({ account, people, orderedColumns, ordered
   <div class="pb" style="height:${BODY_H}mm">
     <table class="dt"><colgroup>${colgroup}</colgroup><tbody>${dataRows}</tbody></table>
   </div>
-  <div class="pf" style="height:${FOOTER_H}mm">Σελίδα ${pageNum} / ${totalPages}</div>
+  <div class="pf" style="height:${FOOTER_H}mm">Σελίδα ${pageIdx + 1} / ${totalPages}</div>
 </div>`;
-  }).join('\n');
+      }).join('\n');
+    })
+    .join('\n');
 
-  // ── Full document ──
+  const title = accountBlocks.length === 1
+    ? `Χρεωστικός: ${escHtml(accountBlocks[0].account.username || '')}`
+    : `Χρεωστικοί: ${accountBlocks.length} λογαριασμοί`;
+
   const html = `<!DOCTYPE html>
 <html lang="el">
 <head>
 <meta charset="UTF-8">
-<title>Χρεωστικός: ${usernameEsc}</title>
+<title>${title}</title>
 <style>
 @page { size: ${PAGE_W}mm ${PAGE_H}mm; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -226,17 +226,24 @@ tr:nth-child(even) .cell { background: #f9f9f9; }
 </style>
 </head>
 <body>
-${pagesHtml}
+${allPagesHtml}
 </body>
 </html>`;
 
   const win = window.open('', '_blank');
   if (!win) {
     alert('Παρακαλώ επιτρέψτε τα pop-ups για εκτύπωση.');
-    return;
+    return true;
   }
   win.document.write(html);
   win.document.close();
   win.focus();
   setTimeout(() => { win.print(); }, 600);
+  return true;
+}
+
+// ── Single-account backward-compat wrapper ────────────────
+
+export function printChreosiStatement({ account, people, orderedColumns, orderedSortFields, orientation, rowsPerPage }) {
+  return printChreosiStatements({ accounts: [account], people, orderedColumns, orderedSortFields, orientation, rowsPerPage });
 }
