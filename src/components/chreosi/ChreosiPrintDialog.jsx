@@ -194,7 +194,9 @@ export default function ChreosiPrintDialog({ open, onClose, accounts, people }) 
         <DialogHeader>
           <DialogTitle>Ρυθμίσεις Εκτύπωσης</DialogTitle>
           <DialogDescription>
-            {account?.display_name || account?.username || ''}
+            {accounts?.length > 1
+              ? `${accounts.length} επιλεγμένοι χρεωστικοί`
+              : (account?.display_name || account?.username || '')}
           </DialogDescription>
         </DialogHeader>
 
