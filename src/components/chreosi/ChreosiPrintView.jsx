@@ -185,6 +185,7 @@ body { font-family: Arial, sans-serif; font-size: 7.5pt; color: #000; }
 .aun { font-size: 8pt; color: #555; margin: 2px 0 3px; }
 
 /* ── Header table + data table share identical colgroup ── */
+/* table-layout:fixed with explicit col widths: unspecified cols (notes) absorb the remainder */
 .ht, .dt { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .ht th {
   background: #efefef;
