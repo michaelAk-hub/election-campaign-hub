@@ -170,8 +170,9 @@ export default function ChreosiPrintDialog({ open, onClose, account, people }) {
 
   const handlePrint = () => {
     if (!account) return;
-    const n = parseInt(rppStr, 10);
-    if (isNaN(n) || n < 1) {
+    const trimmed = rppStr.trim();
+    const n = parseInt(trimmed, 10);
+    if (!/^\d+$/.test(trimmed) || n < 1) {
       setRppError('Εισάγετε θετικό ακέραιο αριθμό');
       return;
     }
