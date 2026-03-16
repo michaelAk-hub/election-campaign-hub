@@ -112,8 +112,12 @@ export function printChreosiStatement({ account, people, orderedColumns, ordered
   const usernameEsc = escHtml(account.username || '');
 
   // ── Column definitions shared by header table and data table ──
+  // notes col has no entry in COLUMN_WIDTHS → no width attribute → gets all leftover space
   const colgroup = orderedColumns
-    .map(col => `<col style="width:${COLUMN_WIDTHS[col] || 'auto'}">`)
+    .map(col => {
+      const w = COLUMN_WIDTHS[col];
+      return w ? `<col style="width:${w}">` : `<col>`;
+    })
     .join('');
   const theadRow = orderedColumns
     .map(col => `<th>${escHtml(COLUMN_LABELS[col] || col)}</th>`)
