@@ -80,24 +80,6 @@ export default function ChreosiAccounts() {
   const [smsResult, setSmsResult] = useState(null);
   const [smsSearch, setSmsSearch] = useState("");
   const [printDialog, setPrintDialog] = useState(false);
-  const [printColumns, setPrintColumns] = useState(['department','admission_year','last_name','first_name','mobile_phone','notes']);
-  const [isPrinting, setIsPrinting] = useState(false);
-
-  const PRINT_COLUMN_OPTIONS = [
-    { key: 'department', label: 'Τμήμα' },
-    { key: 'admission_year', label: 'Έτος Εισδοχής' },
-    { key: 'last_name', label: 'Επίθετο' },
-    { key: 'first_name', label: 'Όνομα' },
-    { key: 'mobile_phone', label: 'Κινητό' },
-    { key: 'notes', label: 'Σημειώσεις' },
-  ];
-
-  const handlePrint = () => {
-    const account = accounts.find(a => a.id === selectedIds[0]);
-    if (!account || printColumns.length === 0) return;
-    printChreosiStatement({ account, people, selectedColumns: printColumns });
-    setPrintDialog(false);
-  };
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['chreosi-accounts'],
