@@ -202,7 +202,6 @@ body { font-family: Arial, sans-serif; font-size: 7.5pt; color: #000; }
   padding: 0 4px; vertical-align: middle;
   font-size: 7.5pt; line-height: 1;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 0;
 }
 .nc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 tr:nth-child(even) .cell { background: #f9f9f9; }
