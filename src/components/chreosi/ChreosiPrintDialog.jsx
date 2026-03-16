@@ -182,7 +182,7 @@ export default function ChreosiPrintDialog({ open, onClose, accounts, people }) 
     saveSettings(finalSettings);
     const hasOutput = printChreosiStatements({ accounts, people, ...finalSettings });
     if (!hasOutput) {
-      alert('Δεν υπάρχουν εκτυπώσιμες εγγραφές για τους επιλεγμένους χρεωστικούς.');
+      alert('Δεν υπάρχουν εκτυπώσιμοι ενεργοί χρεωστικοί με matching εγγραφές.\n(Ανενεργοί λογαριασμοί παραλείπονται, ενεργοί χωρίς αψήφιστες εγγραφές παραλείπονται επίσης.)');
       return;
     }
     onClose();

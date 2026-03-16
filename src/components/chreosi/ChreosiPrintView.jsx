@@ -94,8 +94,9 @@ export function printChreosiStatements({ accounts, people, orderedColumns, order
   const safeRPP = Math.max(1, Math.round(Number(rowsPerPage) || 25));
   const ROW_H = (BODY_H / safeRPP).toFixed(3);
 
-  // Filter + sort per account; skip empty accounts
+  // Skip inactive accounts, then filter + sort per account; skip empty accounts
   const accountBlocks = accounts
+    .filter(account => account.is_active === true)
     .map(account => {
       const filtered = filterPeople(account, people);
       if (filtered.length === 0) return null;

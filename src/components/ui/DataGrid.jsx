@@ -341,9 +341,16 @@ export default function DataGrid({
                         <TableHead className="w-12">
                           <input
                             type="checkbox"
-                            checked={visibleData.length > 0 && visibleData.every(row => selectedIds.includes(row.id))}
+                            checked={displayData.length > 0 && displayData.every(row => selectedIds.includes(row.id))}
+                            ref={el => {
+                              if (el) {
+                                const someSelected = displayData.some(row => selectedIds.includes(row.id));
+                                const allSelected = displayData.length > 0 && displayData.every(row => selectedIds.includes(row.id));
+                                el.indeterminate = someSelected && !allSelected;
+                              }
+                            }}
                             onChange={e => {
-                              if (e.target.checked) onSelectionChange?.(visibleData.map(r => r.id));
+                              if (e.target.checked) onSelectionChange?.(displayData.map(r => r.id));
                               else onSelectionChange?.([]);
                             }}
                             className="rounded"
