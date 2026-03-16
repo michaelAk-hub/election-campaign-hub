@@ -171,7 +171,7 @@ export default function ChreosiPrintDialog({ open, onClose, accounts, people }) 
   };
 
   const handlePrint = () => {
-    if (!account) return;
+    if (!accounts || accounts.length === 0) return;
     const trimmed = rppStr.trim();
     const n = parseInt(trimmed, 10);
     if (!/^\d+$/.test(trimmed) || n < 1) {
@@ -180,7 +180,11 @@ export default function ChreosiPrintDialog({ open, onClose, accounts, people }) 
     }
     const finalSettings = { ...settings, rowsPerPage: n };
     saveSettings(finalSettings);
-    printChreosiStatement({ account, people, ...finalSettings });
+    const hasOutput = printChreosiStatements({ accounts, people, ...finalSettings });
+    if (!hasOutput) {
+      alert('Δεν υπάρχουν εκτυπώσιμες εγγραφές για τους επιλεγμένους χρεωστικούς.');
+      return;
+    }
     onClose();
   };
 
