@@ -7,14 +7,25 @@ const COLUMN_LABELS = {
   notes: 'Σημειώσεις',
 };
 
-// Absolute widths for compact/flexible columns.
-// notes is intentionally absent → gets all remaining width (table-layout: fixed remainder rule).
+// Column width strategy — percentage-based so widths scale with page width
+// (Landscape gives notes more space automatically).
+//
+// Compact  (tight, just enough for typical values):
+//   admission_year : "202409"       → 6%
+//   department     : short codes    → 9%
+//   mobile_phone   : "99 123 4567"  → 8%
+//
+// Flexible (Greek names, ellipsis when needed):
+//   last_name  → 13%
+//   first_name → 10%
+//
+// notes has NO entry → absorbs all remaining width (≥54%)
 const COLUMN_WIDTHS = {
-  admission_year: '20mm',
-  department: '30mm',
-  last_name:  '32mm',
-  first_name: '28mm',
-  mobile_phone: '28mm',
+  admission_year: '6%',
+  department:     '9%',
+  mobile_phone:   '8%',
+  last_name:      '13%',
+  first_name:     '10%',
 };
 
 // ── Helpers ──────────────────────────────────────────────
