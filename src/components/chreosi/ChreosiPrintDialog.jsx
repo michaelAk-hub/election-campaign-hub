@@ -115,7 +115,9 @@ function DragList({ items, droppableId, labels, onDragEnd, showArrow }) {
   );
 }
 
-export default function ChreosiPrintDialog({ open, onClose, account, people }) {
+// accounts: array of ChreosiAccount objects (one or many)
+export default function ChreosiPrintDialog({ open, onClose, accounts, people }) {
+  const account = accounts?.[0] ?? null; // for display name in header
   const [settings, setSettings] = useState(() => loadSettings());
   const [rppStr, setRppStr] = useState(() => String(loadSettings().rowsPerPage));
   const [rppError, setRppError] = useState('');
