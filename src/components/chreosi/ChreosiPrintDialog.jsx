@@ -5,6 +5,7 @@ import {
   DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Printer, GripVertical, RotateCcw } from 'lucide-react';
 import { printChreosiStatement } from './ChreosiPrintView';
@@ -13,6 +14,7 @@ const STORAGE_KEY = 'chreosi_print_settings';
 
 const DEFAULT_SETTINGS = {
   orientation: 'landscape',
+  rowsPerPage: 25,
   orderedColumns: ['admission_year', 'department', 'last_name', 'first_name', 'mobile_phone', 'notes'],
   orderedSortFields: ['admission_year', 'department', 'last_name', 'first_name'],
 };
@@ -45,21 +47,24 @@ function loadSettings() {
     const orientation = ['portrait', 'landscape'].includes(p.orientation)
       ? p.orientation : DEFAULT_SETTINGS.orientation;
 
+    const rowsPerPage = (Number.isInteger(p.rowsPerPage) && p.rowsPerPage >= 1)
+      ? p.rowsPerPage : DEFAULT_SETTINGS.rowsPerPage;
+
     const orderedColumns =
       Array.isArray(p.orderedColumns) &&
       p.orderedColumns.length === DEFAULT_SETTINGS.orderedColumns.length &&
-      p.orderedColumns.every((c) => validCols.has(c)) &&
+      p.orderedColumns.every(c => validCols.has(c)) &&
       new Set(p.orderedColumns).size === DEFAULT_SETTINGS.orderedColumns.length
         ? p.orderedColumns : [...DEFAULT_SETTINGS.orderedColumns];
 
     const orderedSortFields =
       Array.isArray(p.orderedSortFields) &&
       p.orderedSortFields.length === DEFAULT_SETTINGS.orderedSortFields.length &&
-      p.orderedSortFields.every((f) => validSorts.has(f)) &&
+      p.orderedSortFields.every(f => validSorts.has(f)) &&
       new Set(p.orderedSortFields).size === DEFAULT_SETTINGS.orderedSortFields.length
         ? p.orderedSortFields : [...DEFAULT_SETTINGS.orderedSortFields];
 
-    return { orientation, orderedColumns, orderedSortFields };
+    return { orientation, rowsPerPage, orderedColumns, orderedSortFields };
   } catch {
     return { ...DEFAULT_SETTINGS, orderedColumns: [...DEFAULT_SETTINGS.orderedColumns], orderedSortFields: [...DEFAULT_SETTINGS.orderedSortFields] };
   }
@@ -112,9 +117,16 @@ function DragList({ items, droppableId, labels, onDragEnd, showArrow }) {
 
 export default function ChreosiPrintDialog({ open, onClose, account, people }) {
   const [settings, setSettings] = useState(() => loadSettings());
+  const [rppStr, setRppStr] = useState(() => String(loadSettings().rowsPerPage));
+  const [rppError, setRppError] = useState('');
 
   useEffect(() => {
-    if (open) setSettings(loadSettings());
+    if (open) {
+      const s = loadSettings();
+      setSettings(s);
+      setRppStr(String(s.rowsPerPage));
+      setRppError('');
+    }
   }, [open]);
 
   const update = (patch) => {
@@ -125,6 +137,16 @@ export default function ChreosiPrintDialog({ open, onClose, account, people }) {
     });
   };
 
+  const handleRppChange = (e) => {
+    const str = e.target.value;
+    setRppStr(str);
+    setRppError('');
+    const n = parseInt(str, 10);
+    if (!isNaN(n) && n >= 1) {
+      update({ rowsPerPage: n });
+    }
+  };
+
   const handleReset = () => {
     const defaults = {
       ...DEFAULT_SETTINGS,
@@ -132,6 +154,8 @@ export default function ChreosiPrintDialog({ open, onClose, account, people }) {
       orderedSortFields: [...DEFAULT_SETTINGS.orderedSortFields],
     };
     setSettings(defaults);
+    setRppStr(String(defaults.rowsPerPage));
+    setRppError('');
     saveSettings(defaults);
   };
 
@@ -147,8 +171,14 @@ export default function ChreosiPrintDialog({ open, onClose, account, people }) {
 
   const handlePrint = () => {
     if (!account) return;
-    saveSettings(settings);
-    printChreosiStatement({ account, people, ...settings });
+    const n = parseInt(rppStr, 10);
+    if (isNaN(n) || n < 1) {
+      setRppError('Εισάγετε θετικό ακέραιο αριθμό');
+      return;
+    }
+    const finalSettings = { ...settings, rowsPerPage: n };
+    saveSettings(finalSettings);
+    printChreosiStatement({ account, people, ...finalSettings });
     onClose();
   };
 
@@ -184,6 +214,25 @@ export default function ChreosiPrintDialog({ open, onClose, account, people }) {
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* Rows per page */}
+          <div>
+            <Label className="text-sm font-semibold mb-1 block">Γραμμές ανά σελίδα</Label>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+              Καθορίζει το ύψος κάθε γραμμής. Το ύψος υπολογίζεται αυτόματα από τον διαθέσιμο χώρο.
+            </p>
+            <Input
+              type="number"
+              min="1"
+              value={rppStr}
+              onChange={handleRppChange}
+              className="w-32"
+              placeholder="π.χ. 25"
+            />
+            {rppError && (
+              <p className="text-xs text-red-500 mt-1">{rppError}</p>
+            )}
           </div>
 
           {/* Column order */}
