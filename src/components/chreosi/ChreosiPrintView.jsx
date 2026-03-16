@@ -7,13 +7,14 @@ const COLUMN_LABELS = {
   notes: 'Σημειώσεις',
 };
 
+// Absolute widths for compact/flexible columns.
+// notes is intentionally absent → gets all remaining width (table-layout: fixed remainder rule).
 const COLUMN_WIDTHS = {
-  admission_year: '10%',
-  department: '15%',
-  last_name: '15%',
-  first_name: '13%',
-  mobile_phone: '12%',
-  notes: '35%',
+  admission_year: '20mm',
+  department: '30mm',
+  last_name:  '32mm',
+  first_name: '28mm',
+  mobile_phone: '28mm',
 };
 
 // ── Helpers ──────────────────────────────────────────────
