@@ -282,7 +282,7 @@ export default function ChreosiPrintDialog({ open, onClose, accounts, people }) 
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>Ακύρωση</Button>
-            <Button onClick={handlePrint} disabled={!account}>
+            <Button onClick={handlePrint} disabled={!accounts || accounts.length === 0}>
               <Printer className="h-4 w-4 mr-1.5" />
               Εκτύπωση
             </Button>
