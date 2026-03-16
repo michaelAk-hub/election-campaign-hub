@@ -141,9 +141,8 @@ export default function ChreosiPrintDialog({ open, onClose, account, people }) {
     const str = e.target.value;
     setRppStr(str);
     setRppError('');
-    const n = parseInt(str, 10);
-    if (!isNaN(n) && n >= 1) {
-      update({ rowsPerPage: n });
+    if (/^\d+$/.test(str.trim()) && parseInt(str, 10) >= 1) {
+      update({ rowsPerPage: parseInt(str, 10) });
     }
   };
 
