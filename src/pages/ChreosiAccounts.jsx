@@ -853,7 +853,7 @@ export default function ChreosiAccounts() {
       <ChreosiPrintDialog
         open={printDialog}
         onClose={() => setPrintDialog(false)}
-        accounts={accounts.filter(a => selectedIds.includes(a.id))}
+        accounts={selectedIds.map(id => accounts.find(a => a.id === id)).filter(Boolean)}
         people={people}
       />
 
