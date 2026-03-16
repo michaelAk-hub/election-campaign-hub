@@ -21,11 +21,11 @@ const COLUMN_LABELS = {
 //
 // notes has NO entry → absorbs all remaining width (≥54%)
 const COLUMN_WIDTHS = {
-  admission_year: '6%',
-  department:     '9%',
-  mobile_phone:   '8%',
-  last_name:      '13%',
-  first_name:     '10%',
+  admission_year: '10%',
+  department:     '8%',
+  mobile_phone:   '10%',
+  last_name:      '20%',
+  first_name:     '20%',
 };
 
 // ── Helpers ──────────────────────────────────────────────
