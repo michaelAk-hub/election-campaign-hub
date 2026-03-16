@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Printer, GripVertical, RotateCcw } from 'lucide-react';
-import { printChreosiStatement } from './ChreosiPrintView';
+import { printChreosiStatements } from './ChreosiPrintView';
 
 const STORAGE_KEY = 'chreosi_print_settings';
 
