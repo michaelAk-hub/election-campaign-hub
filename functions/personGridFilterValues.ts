@@ -1,13 +1,14 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.20";
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.6";
 
 const POSTGRAD = ["Δ", "Μ", "Μεταπτυχιακός Εράσμους"];
 const UNDERGRAD = ["Π", "Προπτυχιακός Εράσμους"];
+const IDLE_TIMEOUT_SECONDS = 15 * 60;
 
 function buildPartitionCondition(partition) {
   if (partition === "postgrad") return { academic_level: { $in: POSTGRAD } };
   if (partition === "undergrad") return { academic_level: { $in: UNDERGRAD } };
   if (partition === "unknown") return { $or: [{ academic_level: null }, { academic_level: "" }, { academic_level: { $exists: false } }] };
-  return null; // "all" = no condition
+  return null;
 }
 
 function isBlank(v) {
@@ -19,22 +20,65 @@ function isHighCardinality(columnKey) {
   return ["person_id", "ucid", "mobile_phone", "first_name", "last_name", "monadikos_kanali"].includes(columnKey);
 }
 
+async function validateSession(base44, session_token) {
+  if (!session_token) {
+    return { error: "Απαιτείται session token", status: 401 };
+  }
+
+  const sessions = await base44.asServiceRole.entities.AppSession.filter({
+    session_token,
+    is_active: true
+  });
+
+  if (sessions.length === 0) {
+    return { error: "Μη έγκυρη συνεδρία", status: 401 };
+  }
+
+  const session = sessions[0];
+
+  if (new Date(session.expires_at) < new Date()) {
+    await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+    return { error: "Η συνεδρία έληξε", status: 401 };
+  }
+
+  const user = await base44.asServiceRole.entities.AppUser.get(session.app_user_id);
+  if (!user) {
+    return { error: "Χρήστης δεν βρέθηκε", status: 401 };
+  }
+
+  if (session.session_version_at_login !== user.session_version) {
+    await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+    return { error: "Η συνεδρία σας έληξε. Παρακαλώ συνδεθείτε ξανά.", status: 401, force_logout: true };
+  }
+
+  if (user.role === "ORGANOTIKI" && !user.is_active) {
+    return { error: "Ο λογαριασμός σας έχει απενεργοποιηθεί", status: 403 };
+  }
+
+  if (session.last_seen_at) {
+    const idleSeconds = (new Date() - new Date(session.last_seen_at)) / 1000;
+    if (idleSeconds > IDLE_TIMEOUT_SECONDS) {
+      await base44.asServiceRole.entities.AppSession.update(session.id, { is_active: false });
+      return { error: "Η συνεδρία σας έληξε λόγω αδράνειας", status: 401, reason: "idle_timeout" };
+    }
+  }
+
+  await base44.asServiceRole.entities.AppSession.update(session.id, { last_seen_at: new Date().toISOString() });
+
+  return { user, session };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
     const body = await req.json();
-    const sessionToken = String(body?.session_token ?? "").trim();
-
-    if (!sessionToken) return Response.json({ error: "Απαιτείται session token" }, { status: 401 });
-    const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token: sessionToken, is_active: true });
-    if (sessions.length === 0) return Response.json({ error: "Μη έγκυρη συνεδρία" }, { status: 401 });
-    const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
-    if (users.length === 0 || !["ADMIN", "ORGANOTIKI"].includes(users[0].role)) {
-      return Response.json({ error: "Δεν επιτρέπεται η πρόσβαση" }, { status: 403 });
-    }
-    if (users[0].role === "ORGANOTIKI" && !users[0].is_active) {
-      return Response.json({ error: "Ο λογαριασμός σας έχει απενεργοποιηθεί" }, { status: 403 });
+    const auth = await validateSession(base44, body?.session_token);
+    if (auth.error) {
+      return Response.json(
+        { error: auth.error, ...(auth.force_logout ? { force_logout: true } : {}), ...(auth.reason ? { reason: auth.reason } : {}) },
+        { status: auth.status }
+      );
     }
 
     const { columnKey, searchText = "", partition = "postgrad" } = body;
@@ -53,10 +97,8 @@ Deno.serve(async (req) => {
     const datasetId = active[0].id;
     const high = isHighCardinality(String(columnKey));
     const MIN_SEARCH = 2;
-
     const st = String(searchText).trim();
 
-    // High-cardinality: require min search chars
     if (high && st.length < MIN_SEARCH) {
       return Response.json({
         values: [],
@@ -68,7 +110,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Boolean columns
     if (columnKey === "voted") {
       return Response.json({ values: [false, true], hasBlanks: false, totalCount: 2, requiresSearch: false });
     }
@@ -82,13 +123,11 @@ Deno.serve(async (req) => {
       ...(partitionCond ? [partitionCond] : []),
     ];
 
-    // For non-custom fields with search: push regex to reduce scan
     if (!isCustom && st) {
       and.push({ [columnKey]: { $regex: st, $options: "i" } });
     }
 
     const query = { $and: and };
-
     const batchSize = 1000;
     const maxUnique = high ? 200 : 500;
     const maxScanRows = high ? 2000 : 8000;
@@ -105,14 +144,12 @@ Deno.serve(async (req) => {
 
       for (const p of batch) {
         scanned++;
-
         let v;
         if (isCustom) v = p.custom_data?.[customKey];
         else v = p[columnKey];
 
         if (isBlank(v)) { hasBlanks = true; continue; }
 
-        // Custom fields: client-side text filter
         if (isCustom && st) {
           if (!String(v).toLowerCase().includes(st.toLowerCase())) continue;
         }
