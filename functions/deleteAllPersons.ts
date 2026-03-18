@@ -45,6 +45,10 @@ Deno.serve(async (req) => {
       const jobs = await base44.asServiceRole.entities.DeleteJob.filter({ id: jobId });
       if (jobs.length === 0) return Response.json({ success: false, error: 'Job not found' }, { status: 404 });
       job = jobs[0];
+      // Safety: refuse to resume the wrong job type
+      if (job.job_type !== 'delete_all_persons') {
+        return Response.json({ success: false, error: 'Job type mismatch' }, { status: 400 });
+      }
       if (job.status !== 'running') return Response.json({ success: true, job_id: job.id, status: job.status });
     } else {
       // New job: count total persons

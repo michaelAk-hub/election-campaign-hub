@@ -18,9 +18,16 @@ export default function DeleteProgressModal({ jobId, onClose }) {
 
     const sessionToken = localStorage.getItem('app_session_token');
 
-    const kickResume = async (jId) => {
+    const kickResume = async (jId, jobType) => {
       try {
-        await base44.functions.invoke('deleteAllPersons', { job_id: jId, session_token: sessionToken, resume_key: 'internal_resume' });
+        const fnName = jobType === 'delete_dataset' ? 'deleteDataset'
+                     : jobType === 'delete_all_persons' ? 'deleteAllPersons'
+                     : null;
+        if (!fnName) {
+          console.error('[DeleteProgressModal] Unknown job type, cannot resume:', jobType);
+          return;
+        }
+        await base44.functions.invoke(fnName, { job_id: jId, resume_key: 'internal_resume' });
       } catch (e) {
         console.error('Resume invoke failed:', e);
       }
