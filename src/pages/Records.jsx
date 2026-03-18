@@ -584,8 +584,10 @@ export default function Records() {
     }
   };
 
+  const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
+
   const handleDeleteAllPersons = async () => {
-    if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε ΟΛΕΣ τις εγγραφές Person ΚΑΙ ΟΛΕΣ τις εγγραφές Dataset; Αυτή η ενέργεια δεν αναιρείται.')) return;
+    setDeleteAllConfirmOpen(false);
     setDeleteLoading(true);
     try {
       const sessionToken = localStorage.getItem('app_session_token');
