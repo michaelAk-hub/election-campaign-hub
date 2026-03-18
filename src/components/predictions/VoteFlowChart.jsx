@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Play, XCircle, Plus, Trash2, Loader2, TrendingUp } from 'lucide-react';
+import { Play, XCircle, Plus, Trash2, Loader2, TrendingUp, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 
