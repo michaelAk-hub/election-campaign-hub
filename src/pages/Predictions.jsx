@@ -14,15 +14,14 @@ import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
 
-const sessionToken = localStorage.getItem('app_session_token');
-
-const queryParams = (() => {
-    const params = new URLSearchParams();
-    if (sessionToken) params.set('session_token', sessionToken);
-    return params.toString();
-})();
-
 export default function Predictions() {
+    const sessionToken = localStorage.getItem('app_session_token');
+
+    const queryParams = (() => {
+        const params = new URLSearchParams();
+        if (sessionToken) params.set('session_token', sessionToken);
+        return params.toString();
+    })();
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [availableSymbols, setAvailableSymbols] = useState([]);
     const [scenarioRefreshSignal, setScenarioRefreshSignal] = useState(0);
