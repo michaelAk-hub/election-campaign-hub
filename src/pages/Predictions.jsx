@@ -51,30 +51,36 @@ export default function Predictions() {
     const refetchInterval = autoRefresh ? 8000 : false;
 
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
-        queryKey: ['predictionKPIs'],
+        queryKey: ['predictionKPIs', sessionToken],
         queryFn: async () => {
+            if (!sessionToken) return null;
             const { data } = await base44.functions.invoke('predictionKPIs', { queryParams });
             return data;
         },
-        refetchInterval,
+        enabled: !!sessionToken,
+        refetchInterval: sessionToken ? refetchInterval : false,
     });
 
     const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
-        queryKey: ['predictionBySymbol'],
+        queryKey: ['predictionBySymbol', sessionToken],
         queryFn: async () => {
+            if (!sessionToken) return null;
             const { data } = await base44.functions.invoke('predictionBySymbol', { queryParams });
             return data;
         },
-        refetchInterval,
+        enabled: !!sessionToken,
+        refetchInterval: sessionToken ? refetchInterval : false,
     });
 
     const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
-        queryKey: ['predictionByYearSymbol'],
+        queryKey: ['predictionByYearSymbol', sessionToken],
         queryFn: async () => {
+            if (!sessionToken) return null;
             const { data } = await base44.functions.invoke('predictionByYearSymbol', { queryParams });
             return data;
         },
-        refetchInterval,
+        enabled: !!sessionToken,
+        refetchInterval: sessionToken ? refetchInterval : false,
     });
 
     const loading = kpisLoading || symbolLoading || yearSymbolLoading;
