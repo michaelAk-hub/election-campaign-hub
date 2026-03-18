@@ -845,6 +845,10 @@ export default function Records() {
               <Label>Σημειώσεις</Label>
               <Textarea value={formData.notes || ''} onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))} rows={3} />
             </div>
+            <div className="col-span-2 space-y-2">
+              <Label>ΠΑΡΑΤΗΡΗΣΕΙΣ</Label>
+              <Textarea value={formData.details || ''} onChange={e => setFormData(f => ({ ...f, details: e.target.value }))} rows={2} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setAddDialog(false); setEditDialog({ open: false, person: null }); setFormData({}); }}>
