@@ -72,8 +72,8 @@ export function newCond(availableColumns) {
   const firstField = availableColumns?.[0]?.key ?? 'person_id';
   return { type: 'cond', field: firstField, operator: '=', value: '' };
 }
-export function newGroup() {
-  return { type: 'group', op: 'AND', children: [newCond()] };
+export function newGroup(availableColumns) {
+  return { type: 'group', op: 'AND', children: [newCond(availableColumns)] };
 }
 
 // ─── Group colors by depth ─────────────────────────────────────────────────────
