@@ -72,7 +72,7 @@ export default function DeleteProgressModal({ jobId, onClose }) {
             stuckSeconds++;
             if (stuckSeconds >= 15) {
               stuckSeconds = 0;
-              kickResume(jobId);
+              kickResume(jobId, current.job_type);
             }
           } else {
             lastDeletedSnapshot = current.deleted;
