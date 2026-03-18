@@ -138,11 +138,11 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
 
             <div className="flex items-center gap-1 flex-wrap">
               <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
-                onClick={() => setTree(prev => addChildAtPath(prev, path, newCond()))}>
+                onClick={() => setTree(prev => addChildAtPath(prev, path, newCond(availableColumns)))}>
                 + Συνθήκη
               </Button>
               <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
-                onClick={() => setTree(prev => addChildAtPath(prev, path, newGroup()))}>
+                onClick={() => setTree(prev => addChildAtPath(prev, path, newGroup(availableColumns)))}>
                 + Υποομάδα
               </Button>
               {!isRoot && (
