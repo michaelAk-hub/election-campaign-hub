@@ -362,10 +362,8 @@ export default function Records() {
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Person.delete(id),
     onSuccess: () => {
-      // Use the full query key to precisely target the current cache entry
       const qk = ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)];
-      const qk2 = ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)];
-      queryClient.removeQueries({ queryKey: qk2 });
+      queryClient.removeQueries({ queryKey: qk });
       queryClient.invalidateQueries({ queryKey: ['people'] });
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
       toast.success('Η εγγραφή διαγράφηκε');
