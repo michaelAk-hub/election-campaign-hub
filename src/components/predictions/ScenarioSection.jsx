@@ -136,6 +136,15 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
 
     const atMax = scenarios.length >= 4;
 
+    if (sessionExpired || !sessionToken) {
+        return (
+            <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                Η συνεδρία έχει λήξει. Παρακαλώ ανανεώστε τη σελίδα για να συνδεθείτε ξανά.
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
