@@ -310,6 +310,7 @@ export default function Records() {
           field,
           value,
           expected_row_version: row_version || 1,
+          session_token: localStorage.getItem('app_session_token'),
         });
         if (data?.error) throw new Error(data.error);
         return data;
@@ -602,7 +603,10 @@ export default function Records() {
   };
 
   const fetchLatestRow = useCallback(async (rowId) => {
-    return await base44.entities.Person.get(rowId);
+    const sessionToken = localStorage.getItem('app_session_token');
+    const { data } = await base44.functions.invoke('personGridGetRow', { row_id: rowId, session_token: sessionToken });
+    if (data?.error) throw new Error(data.error);
+    return data?.data ?? null;
   }, []);
 
   const handleRowRefreshed = useCallback((id, newData) => {

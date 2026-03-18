@@ -51,6 +51,7 @@ export default function ColumnFilterPopover({ columnKey, columnLabel, partition 
         columnKey,
         searchText: search,
         partition,
+        session_token: localStorage.getItem('app_session_token'),
       });
       setFilterValues(data.values || []);
       setHasBlanks(!!data.hasBlanks);
