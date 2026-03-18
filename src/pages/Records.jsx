@@ -139,6 +139,10 @@ export default function Records() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteJobId, setDeleteJobId] = useState(null);
   const [partition, setPartition] = useState('all');
+  const [mixedImportDialog, setMixedImportDialog] = useState(false);
+  const [mixedMissingCount, setMixedMissingCount] = useState(0);
+  const [serverSearchTerm, setServerSearchTerm] = useState('');
+  const serverSearchDebounceRef = useRef(null);
   // Column mapping state
   const [missingPersonIdDialog, setMissingPersonIdDialog] = useState(false);
   const [fileColumns, setFileColumns] = useState([]);
@@ -153,7 +157,7 @@ export default function Records() {
         const sessionToken = localStorage.getItem('app_session_token');
         const { data } = await base44.functions.invoke('gridPreferencesLoad', { grid_key: GRID_KEY, session_token: sessionToken });
         if (!cancelled) {
-          const sj = data?.state_json || {};
+          const sj = data?.state_json || data?.preference?.state_json || {};
           setColumnOrder(sj.columnOrder || COLUMNS.filter(c => c.reorderable).map(c => c.key));
           setFilterModel(sj.filterModel || {});
           setSortModel(sj.sortModel || { field: 'created_date', dir: 'desc' });
@@ -252,7 +256,7 @@ export default function Records() {
 
   const peopleQuery = useInfiniteQuery({
     // Include filterModel and sortModel in key so any change resets & refetches from row 0
-    queryKey: ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)],
+    queryKey: ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)],
     enabled: !!activeDatasetId,
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
@@ -265,8 +269,9 @@ export default function Records() {
         sortField: sortModel.field,
         sortDirection: sortModel.dir,
         filters: Object.keys(filterModel).length > 0 ? filterModel : null,
-      });
-      // personGridFetch returns { rows, lastRow }
+        search: serverSearchTerm || undefined,
+        });
+        // personGridFetch returns { rows, lastRow }
       return result?.rows ?? [];
     },
     getNextPageParam: (lastPage, pages) =>
@@ -298,25 +303,58 @@ export default function Records() {
   });
 
   const updateCellMutation = useMutation({
-    mutationFn: ({ id, patch }) => base44.entities.Person.update(id, patch),
-    onMutate: async ({ id, patch }) => {
+    mutationFn: async ({ id, field, value, row_version }) => {
+      try {
+        const { data } = await base44.functions.invoke('personGridUpdateCell', {
+          person_id: id,
+          field,
+          value,
+          expected_row_version: row_version || 1,
+        });
+        if (data?.error) throw new Error(data.error);
+        return data;
+      } catch (e) {
+        const errData = e?.response?.data;
+        if (errData?.error === 'Conflict') {
+          const conflict = new Error('Η εγγραφή άλλαξε από άλλον χρήστη. Κάνε ανανέωση και προσπάθησε ξανά.');
+          conflict.isConflict = true;
+          conflict.currentRow = errData.current_row;
+          throw conflict;
+        }
+        throw e;
+      }
+    },
+    onMutate: async ({ id, field, value }) => {
       if (!activeDatasetId) return;
-      const qk = ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)];
+      const qk = ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)];
       await queryClient.cancelQueries({ queryKey: qk });
       const prev = queryClient.getQueryData(qk);
       queryClient.setQueryData(qk, (old) => {
         if (!old) return old;
-        return { ...old, pages: old.pages.map(pg => pg.map(r => r.id === id ? { ...r, ...patch } : r)) };
+        return { ...old, pages: old.pages.map(pg => pg.map(r => r.id === id ? { ...r, [field]: value } : r)) };
       });
       return { prev, qk };
     },
+    onSuccess: (result, { id }, ctx) => {
+      const updatedRow = result?.data;
+      if (!updatedRow || !ctx?.qk) return;
+      queryClient.setQueryData(ctx.qk, (old) => {
+        if (!old) return old;
+        return { ...old, pages: old.pages.map(pg => pg.map(r => r.id === id ? updatedRow : r)) };
+      });
+    },
     onError: (err, _vars, ctx) => {
       if (ctx?.prev && ctx?.qk) queryClient.setQueryData(ctx.qk, ctx.prev);
-      const msg = err?.message || '';
-      if (msg.includes('not found')) {
+      if (err.isConflict) {
+        toast.error('Η εγγραφή άλλαξε από άλλον χρήστη. Κάνε ανανέωση και προσπάθησε ξανά.');
         queryClient.invalidateQueries({ queryKey: ['people'] });
       } else {
-        toast.error('Αποτυχία αποθήκευσης');
+        const msg = err?.message || '';
+        if (msg.includes('not found') || msg.includes('Not found')) {
+          queryClient.invalidateQueries({ queryKey: ['people'] });
+        } else {
+          toast.error('Αποτυχία αποθήκευσης');
+        }
       }
     },
   });
@@ -325,7 +363,7 @@ export default function Records() {
     mutationFn: (id) => base44.entities.Person.delete(id),
     onSuccess: () => {
       // Use the full query key to precisely target the current cache entry
-      const qk = ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)];
+      const qk = ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)];
       queryClient.removeQueries({ queryKey: qk });
       queryClient.invalidateQueries({ queryKey: ['people'] });
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
@@ -333,7 +371,7 @@ export default function Records() {
     },
     onError: (e) => {
       if (e?.message?.includes('not found')) {
-        const qk = ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)];
+        const qk = ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)];
         queryClient.invalidateQueries({ queryKey: qk });
       } else {
         toast.error(e.message);
@@ -358,6 +396,7 @@ export default function Records() {
           sortField: sortModel.field,
           sortDirection: sortModel.dir,
           filters: Object.keys(filterModel).length > 0 ? filterModel : null,
+          search: serverSearchTerm || undefined,
         });
         const batch = result?.rows ?? [];
         all = all.concat(batch);
@@ -461,6 +500,16 @@ export default function Records() {
         setUploadLoading(false);
         setMissingPersonIdDialog(true);
         return;
+      } else if (hasMissingPersonId && rawRows.length > 0) {
+        // Mixed: some rows have person_id, some don't
+        const missingCount = normalized.filter(r => !r.person_id || String(r.person_id).trim() === '').length;
+        const cols = Object.keys(rawRows[0] || {});
+        setFileColumns(cols);
+        setPendingRows(rawRows);
+        setMixedMissingCount(missingCount);
+        setUploadLoading(false);
+        setMixedImportDialog(true);
+        return;
       }
 
       await doImport(rawRows);
@@ -481,6 +530,28 @@ export default function Records() {
     if (!personIdMapping) return toast.error('Παρακαλώ επιλέξτε στήλη');
     const rowsWithId = pendingRows.map(r => ({ ...r, person_id: String(r[personIdMapping] ?? '').trim() }));
     await doImport(rowsWithId);
+  };
+
+  const handleMixedAutoGenerate = async () => {
+    const existingIds = new Set(
+      pendingRows.map(normalizeRow).filter(r => r.person_id && String(r.person_id).trim() !== '').map(r => String(r.person_id).trim())
+    );
+    let counter = 1;
+    const rowsWithId = pendingRows.map(r => {
+      const norm = normalizeRow(r);
+      if (norm.person_id && String(norm.person_id).trim() !== '') return r;
+      let gen;
+      do { gen = `AUTO-${counter++}`; } while (existingIds.has(gen));
+      existingIds.add(gen);
+      return { ...r, person_id: gen };
+    });
+    setMixedImportDialog(false);
+    await doImport(rowsWithId);
+  };
+
+  const handleMixedSkipMissing = async () => {
+    setMixedImportDialog(false);
+    await doImport(pendingRows);
   };
 
   const handleActivateDataset = async (datasetId) => {
@@ -514,7 +585,7 @@ export default function Records() {
   };
 
   const handleDeleteAllPersons = async () => {
-    if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε ΟΛΕΣ τις εγγραφές από τον πίνακα Person;')) return;
+    if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε ΟΛΕΣ τις εγγραφές Person ΚΑΙ ΟΛΕΣ τις εγγραφές Dataset; Αυτή η ενέργεια δεν αναιρείται.')) return;
     setDeleteLoading(true);
     try {
       const sessionToken = localStorage.getItem('app_session_token');
@@ -538,7 +609,7 @@ export default function Records() {
   const handleRowRefreshed = useCallback((id, newData) => {
     if (!activeDatasetId) return;
     // Must match the full queryKey including filterModel + sortModel
-    const qk = ['people', activeDatasetId, partition, stableStringify(filterModel), stableStringify(sortModel)];
+    const qk = ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)];
     queryClient.setQueryData(qk, (old) => {
       if (!old) return old;
       return { ...old, pages: old.pages.map(pg => pg.map(r => r.id === id ? newData : r)) };
@@ -614,7 +685,7 @@ export default function Records() {
                   <Trash2 className="h-4 w-4 mr-2" /> Διαγραφή Ενεργού Dataset
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDeleteAllPersons} className="text-red-700">
-                  <ShieldAlert className="h-4 w-4 mr-2" /> Διαγραφή Όλων των Person
+                  <ShieldAlert className="h-4 w-4 mr-2" /> Ολική Διαγραφή (Person & Datasets)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -680,8 +751,12 @@ export default function Records() {
           sortModel={sortModel}
           onSortModelChange={handleSortModelChange}
           partition={partition}
+          onSearchChange={(value) => {
+            if (serverSearchDebounceRef.current) clearTimeout(serverSearchDebounceRef.current);
+            serverSearchDebounceRef.current = setTimeout(() => setServerSearchTerm(value), 300);
+          }}
           onCellUpdate={async ({ row, key, value }) => {
-            await updateCellMutation.mutateAsync({ id: row.id, patch: { [key]: value } });
+            await updateCellMutation.mutateAsync({ id: row.id, field: key, value, row_version: row.row_version || 1 });
           }}
           actions={(row) => (
             <DropdownMenu>
@@ -824,6 +899,58 @@ export default function Records() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setMissingPersonIdDialog(false); setPendingRows([]); }}>
               Ακύρωση
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mixed Import Dialog */}
+      <Dialog open={mixedImportDialog} onOpenChange={(open) => { if (!uploadLoading) setMixedImportDialog(open); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>⚠️ Μερικές γραμμές χωρίς person_id</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {uploadLoading && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600 flex-shrink-0" />
+                  <p className="text-sm font-medium text-slate-700">{uploadProgress.step}</p>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                  <div className="bg-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${uploadProgress.percent}%` }} />
+                </div>
+                <p className="text-xs text-slate-500 text-center">{uploadProgress.percent}% ολοκληρώθηκε — παρακαλώ περιμένετε...</p>
+              </div>
+            )}
+            <p className="text-sm text-slate-700">
+              Το αρχείο περιέχει <strong>{mixedMissingCount}</strong> γραμμές <em>χωρίς</em> person_id και{' '}
+              <strong>{pendingRows.length - mixedMissingCount}</strong> γραμμές <em>με</em> person_id.
+              Επίλεξε πώς να χειριστείς τις γραμμές χωρίς ID:
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-medium text-blue-900">Επιλογή 1: Αυτόματη δημιουργία ID</p>
+              <p className="text-xs text-blue-800">
+                Οι {mixedMissingCount} γραμμές χωρίς ID θα λάβουν AUTO-1, AUTO-2... Οι υπόλοιπες {pendingRows.length - mixedMissingCount} διατηρούν το ID τους.
+              </p>
+              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={handleMixedAutoGenerate} disabled={uploadLoading}>
+                {uploadLoading ? 'Εισαγωγή...' : `Αυτόματη δημιουργία ID (${mixedMissingCount} γραμμές)`}
+              </Button>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-medium text-amber-900">Επιλογή 2: Παράλειψη γραμμών χωρίς ID</p>
+              <p className="text-xs text-amber-800">
+                Θα εισαχθούν μόνο οι {pendingRows.length - mixedMissingCount} γραμμές με person_id.
+                Οι {mixedMissingCount} γραμμές χωρίς ID θα παραλειφθούν.
+              </p>
+              <Button variant="outline" className="w-full" onClick={handleMixedSkipMissing} disabled={uploadLoading}>
+                Παράλειψη των {mixedMissingCount} γραμμών χωρίς ID
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setMixedImportDialog(false); setPendingRows([]); }} disabled={uploadLoading}>
+              Ακύρωση (διόρθωσε το αρχείο)
             </Button>
           </DialogFooter>
         </DialogContent>

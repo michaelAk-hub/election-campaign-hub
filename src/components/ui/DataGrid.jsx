@@ -45,6 +45,7 @@ export default function DataGrid({
   sortModel = null,          // controlled: { field: string, dir: 'asc'|'desc' } | null
   onSortModelChange,         // (field, dir) => void
   partition = 'all',         // passed through to ColumnFilterPopover for filter-value loading
+  onSearchChange,            // (value: string) => void — when provided + serverFiltering, disables local search
 }) {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
@@ -104,7 +105,7 @@ export default function DataGrid({
   const displayData = useMemo(() => {
     let result = [...data];
 
-    if (searchable && search) {
+    if (searchable && search && !(serverFiltering && onSearchChange)) {
       const lower = search.toLowerCase();
       result = result.filter(row =>
         orderedColumns.some(col => {
@@ -289,7 +290,7 @@ export default function DataGrid({
             <Input
               placeholder="Αναζήτηση..."
               value={search}
-              onChange={e => { setSearch(e.target.value); setPage(0); }}
+              onChange={e => { setSearch(e.target.value); setPage(0); onSearchChange?.(e.target.value); }}
               className="pl-9"
             />
           </div>

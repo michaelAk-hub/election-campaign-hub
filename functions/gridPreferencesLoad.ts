@@ -69,10 +69,10 @@ Deno.serve(async (req) => {
         });
 
         if (preferences.length === 0) {
-            return Response.json({ preference: null });
+            return Response.json({ preference: null, state_json: {} });
         }
 
-        return Response.json({ preference: preferences[0] });
+        return Response.json({ preference: preferences[0], state_json: preferences[0].state_json || {} });
 
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
