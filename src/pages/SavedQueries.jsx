@@ -270,7 +270,7 @@ function compileManualExpression(text) {
 
 // ─── DEFAULT TREE ──────────────────────────────────────────────────────────────
 
-const DEFAULT_TREE = () => ({ type: 'group', op: 'AND', children: [newCond()] });
+const DEFAULT_TREE = () => ({ type: 'group', op: 'AND', children: [newCond(AVAILABLE_COLUMNS)] });
 
 // ─── PAGE COMPONENT ────────────────────────────────────────────────────────────
 
