@@ -68,8 +68,9 @@ function addChildAtPath(root, pathToGroup, childNode) {
   return next;
 }
 
-export function newCond() {
-  return { type: 'cond', field: 'department', operator: '=', value: '' };
+export function newCond(availableColumns) {
+  const firstField = availableColumns?.[0]?.key ?? 'person_id';
+  return { type: 'cond', field: firstField, operator: '=', value: '' };
 }
 export function newGroup() {
   return { type: 'group', op: 'AND', children: [newCond()] };
