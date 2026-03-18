@@ -45,6 +45,11 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
     const fetchChartData = useCallback(async (listOverride) => {
         const list = listOverride || parataksiList;
         if (!list.length) return;
+        if (!sessionToken) {
+            console.warn('[VoteFlowChart] fetchChartData: sessionToken missing, aborting.');
+            setSessionExpired(true);
+            return;
+        }
 
         setLoading(true);
         try {
@@ -54,14 +59,27 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
                 bucket_minutes: 5,
                 mapping,
             });
+            if (data?.error === 'Unauthorized' || data?.status === 401) {
+                console.warn('[VoteFlowChart] predictionVoteFlow 401 — session expired.');
+                setSessionExpired(true);
+                return;
+            }
             setChartData(data);
             setShowConfig(false);
         } catch (error) {
-            alert('Σφάλμα κατά τη φόρτωση δεδομένων: ' + error.message);
+            if (error?.response?.status === 401 || error?.status === 401) {
+                console.warn('[VoteFlowChart] predictionVoteFlow caught 401.');
+                setSessionExpired(true);
+            } else {
+                alert('Σφάλμα κατά τη φόρτωση δεδομένων: ' + error.message);
+            }
         } finally {
             setLoading(false);
         }
     }, [parataksiList, sessionToken]);
+
+    // Reset expired state if token changes
+    useEffect(() => { setSessionExpired(false); }, [sessionToken]);
 
     // Auto-refresh
     useEffect(() => {
