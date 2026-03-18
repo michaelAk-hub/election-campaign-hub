@@ -11,20 +11,44 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
     const [results, setResults] = useState({}); // keyed by scenario.id
     const [loadingResults, setLoadingResults] = useState({});
     const [resultErrors, setResultErrors] = useState({}); // keyed by scenario.id
+    const [sessionExpired, setSessionExpired] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [editScenario, setEditScenario] = useState(null);
     const [detailScenario, setDetailScenario] = useState(null);
     const [detailResult, setDetailResult] = useState(null);
 
+    const is401 = (e) => e?.response?.status === 401 || e?.status === 401;
+
     const loadScenarios = useCallback(async () => {
-        if (!sessionToken) return;
-        const { data } = await base44.functions.invoke('scenarioList', { session_token: sessionToken });
-        const list = data?.scenarios || [];
-        setScenarios(list);
-        return list;
+        if (!sessionToken) {
+            console.warn('[ScenarioSection] loadScenarios: sessionToken is missing, skipping.');
+            return;
+        }
+        console.log('[ScenarioSection] loadScenarios: token present, fetching list...');
+        try {
+            const { data } = await base44.functions.invoke('scenarioList', { session_token: sessionToken });
+            if (data?.error === 'Unauthorized' || data?.status === 401) {
+                setSessionExpired(true);
+                return;
+            }
+            const list = data?.scenarios || [];
+            setScenarios(list);
+            return list;
+        } catch (e) {
+            if (is401(e)) {
+                console.warn('[ScenarioSection] scenarioList returned 401 — session expired.');
+                setSessionExpired(true);
+                return;
+            }
+            throw e;
+        }
     }, [sessionToken]);
 
     const calculateAll = useCallback(async (list) => {
+        if (!sessionToken) {
+            console.warn('[ScenarioSection] calculateAll: sessionToken is missing, skipping.');
+            return;
+        }
         const ids = (list || []).map(s => s.id);
         const loadingMap = {};
         ids.forEach(id => loadingMap[id] = true);
@@ -33,13 +57,23 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
 
         await Promise.all(ids.map(async (id) => {
             try {
+                console.log(`[ScenarioSection] scenarioCalculate: scenario ${id}, token present: ${!!sessionToken}`);
                 const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
+                if (data?.error === 'Unauthorized' || data?.status === 401) {
+                    setSessionExpired(true);
+                    return;
+                }
                 if (data?.error) {
                     setResultErrors(prev => ({ ...prev, [id]: data.message || data.error }));
                 } else {
                     setResults(prev => ({ ...prev, [id]: data }));
                 }
             } catch (e) {
+                if (is401(e)) {
+                    console.warn(`[ScenarioSection] scenarioCalculate 401 for scenario ${id}`);
+                    setSessionExpired(true);
+                    return;
+                }
                 setResultErrors(prev => ({ ...prev, [id]: e.message || 'Σφάλμα υπολογισμού' }));
             } finally {
                 setLoadingResults(prev => ({ ...prev, [id]: false }));
@@ -48,9 +82,14 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
     }, [sessionToken]);
 
     const refresh = useCallback(async () => {
+        if (!sessionToken) {
+            console.warn('[ScenarioSection] refresh: no sessionToken, aborting.');
+            return;
+        }
+        console.log('[ScenarioSection] refresh: starting...');
         const list = await loadScenarios();
         if (list?.length) await calculateAll(list);
-    }, [loadScenarios, calculateAll]);
+    }, [loadScenarios, calculateAll, sessionToken]);
 
     useEffect(() => { refresh(); }, [refresh, refreshSignal]);
 
