@@ -91,6 +91,9 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
         if (list?.length) await calculateAll(list);
     }, [loadScenarios, calculateAll, sessionToken]);
 
+    // Reset expired state if token changes (e.g. re-login)
+    useEffect(() => { setSessionExpired(false); }, [sessionToken]);
+
     useEffect(() => { refresh(); }, [refresh, refreshSignal]);
 
     // Auto-refresh every 5 minutes
