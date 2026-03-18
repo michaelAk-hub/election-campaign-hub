@@ -751,6 +751,16 @@ th{background:#f3f4f6;font-weight:700}
         }
       />
 
+      {/* Partial load warning */}
+      {peoplePartial && (
+        <div className="bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-700 rounded-xl p-3 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>
+            Φορτώθηκαν μόνο <strong>{people.length.toLocaleString()}</strong> εγγραφές — τα αποτελέσματα μπορεί να είναι ελλιπή.
+          </span>
+        </div>
+      )}
+
       {/* Page description */}
       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-800 dark:text-blue-300 space-y-1">
         <p className="font-semibold">📋 Πώς λειτουργεί η σελίδα:</p>
