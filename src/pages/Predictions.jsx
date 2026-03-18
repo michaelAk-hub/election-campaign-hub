@@ -15,7 +15,13 @@ import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
 
 export default function Predictions() {
-    const sessionToken = localStorage.getItem('app_session_token');
+    const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('app_session_token'));
+
+    // Keep sessionToken reactive — re-read if localStorage changes (e.g. after login restore)
+    useEffect(() => {
+        const token = localStorage.getItem('app_session_token');
+        if (token !== sessionToken) setSessionToken(token);
+    }, []);
 
     const queryParams = (() => {
         const params = new URLSearchParams();
