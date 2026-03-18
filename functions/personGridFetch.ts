@@ -120,12 +120,27 @@ Deno.serve(async (req) => {
     if (search) {
       and.push({
         $or: [
-          { person_id:    { $regex: search, $options: "i" } },
-          { first_name:   { $regex: search, $options: "i" } },
-          { last_name:    { $regex: search, $options: "i" } },
-          { mobile_phone: { $regex: search, $options: "i" } },
-          { department:   { $regex: search, $options: "i" } },
-          { ucid:         { $regex: search, $options: "i" } },
+          { person_id:         { $regex: search, $options: "i" } },
+          { first_name:        { $regex: search, $options: "i" } },
+          { last_name:         { $regex: search, $options: "i" } },
+          { mobile_phone:      { $regex: search, $options: "i" } },
+          { department:        { $regex: search, $options: "i" } },
+          { ucid:              { $regex: search, $options: "i" } },
+          { direction:         { $regex: search, $options: "i" } },
+          { X:                 { $regex: search, $options: "i" } },
+          { F26_1:             { $regex: search, $options: "i" } },
+          { F25:               { $regex: search, $options: "i" } },
+          { phone:             { $regex: search, $options: "i" } },
+          { T24:               { $regex: search, $options: "i" } },
+          { F24:               { $regex: search, $options: "i" } },
+          { F23:               { $regex: search, $options: "i" } },
+          { T22:               { $regex: search, $options: "i" } },
+          { details:           { $regex: search, $options: "i" } },
+          { father_n:          { $regex: search, $options: "i" } },
+          { father_name:       { $regex: search, $options: "i" } },
+          { ElectoralDistrict: { $regex: search, $options: "i" } },
+          { ElectoralTown:     { $regex: search, $options: "i" } },
+          { RelatedMember:     { $regex: search, $options: "i" } },
         ],
       });
     }
