@@ -22,10 +22,22 @@ function isHighCardinality(columnKey) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const me = await base44.auth.me();
-    if (!me) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { columnKey, searchText = "", partition = "postgrad" } = await req.json();
+    const body = await req.json();
+    const sessionToken = String(body?.session_token ?? "").trim();
+
+    if (!sessionToken) return Response.json({ error: "Απαιτείται session token" }, { status: 401 });
+    const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token: sessionToken, is_active: true });
+    if (sessions.length === 0) return Response.json({ error: "Μη έγκυρη συνεδρία" }, { status: 401 });
+    const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
+    if (users.length === 0 || !["ADMIN", "ORGANOTIKI"].includes(users[0].role)) {
+      return Response.json({ error: "Δεν επιτρέπεται η πρόσβαση" }, { status: 403 });
+    }
+    if (users[0].role === "ORGANOTIKI" && !users[0].is_active) {
+      return Response.json({ error: "Ο λογαριασμός σας έχει απενεργοποιηθεί" }, { status: 403 });
+    }
+
+    const { columnKey, searchText = "", partition = "postgrad" } = body;
 
     // Fast path for academic_level column — values are known statically per partition
     if (columnKey === "academic_level") {
