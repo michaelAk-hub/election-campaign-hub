@@ -364,7 +364,8 @@ export default function Records() {
     onSuccess: () => {
       // Use the full query key to precisely target the current cache entry
       const qk = ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)];
-      queryClient.removeQueries({ queryKey: qk });
+      const qk2 = ['people', activeDatasetId, partition, serverSearchTerm, stableStringify(filterModel), stableStringify(sortModel)];
+      queryClient.removeQueries({ queryKey: qk2 });
       queryClient.invalidateQueries({ queryKey: ['people'] });
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
       toast.success('Η εγγραφή διαγράφηκε');
@@ -614,7 +615,7 @@ export default function Records() {
       if (!old) return old;
       return { ...old, pages: old.pages.map(pg => pg.map(r => r.id === id ? newData : r)) };
     });
-  }, [activeDatasetId, partition, filterModel, sortModel, queryClient]);
+  }, [activeDatasetId, partition, serverSearchTerm, filterModel, sortModel, queryClient]);
 
   const handleDeleteJobClose = () => {
     setDeleteJobId(null);
