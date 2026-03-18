@@ -70,7 +70,7 @@ function addChildAtPath(root, pathToGroup, childNode) {
 
 export function newCond(availableColumns) {
   const firstField = availableColumns?.[0]?.key ?? 'person_id';
-  return { type: 'cond', field: firstField, operator: '=', value: '' };
+  return { type: 'cond', field: firstField, operator: 'contains', value: '' };
 }
 export function newGroup(availableColumns) {
   return { type: 'group', op: 'AND', children: [newCond(availableColumns)] };
