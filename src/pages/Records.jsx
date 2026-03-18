@@ -69,6 +69,24 @@ const COLUMNS = [
     key: 'notes', label: 'Σημειώσεις', editable: true, reorderable: true,
     render: (val) => <span className="truncate max-w-[150px] block">{val || '-'}</span>
   },
+  { key: 'direction', label: 'ΚΑΤ', editable: true, reorderable: true },
+  { key: 'X', label: 'X', editable: true, reorderable: true },
+  { key: 'F26_1', label: 'Φ26_1', editable: true, reorderable: true },
+  { key: 'F25', label: 'Φ25', editable: true, reorderable: true },
+  { key: 'phone', label: 'phone', editable: true, reorderable: true },
+  { key: 'T24', label: 'T24', editable: true, reorderable: true },
+  { key: 'F24', label: 'Φ24', editable: true, reorderable: true },
+  { key: 'F23', label: 'Φ23', editable: true, reorderable: true },
+  { key: 'T22', label: 'T22', editable: true, reorderable: true },
+  {
+    key: 'details', label: 'ΠΑΡΑΤΗΡΗΣΕΙΣ', editable: true, reorderable: true,
+    render: (val) => <span className="truncate max-w-[150px] block">{val || '-'}</span>
+  },
+  { key: 'father_n', label: 'ΟΝ_ΠΑΤΡΟΣ', editable: true, reorderable: true },
+  { key: 'father_name', label: 'ΟΝΟΜΑ ΠΑΤΕΡΑ', editable: true, reorderable: true },
+  { key: 'ElectoralDistrict', label: 'ElectoralDistrict', editable: true, reorderable: true },
+  { key: 'ElectoralTown', label: 'ElectoralTown', editable: true, reorderable: true },
+  { key: 'RelatedMember', label: 'RelatedMember', editable: true, reorderable: true },
 ];
 
 const LABEL_TO_KEY = Object.fromEntries(COLUMNS.map(c => [c.label, c.key]));
@@ -799,6 +817,20 @@ export default function Records() {
               { key: 'contact_person_2', label: 'Άτομο 2' },
               { key: 'member', label: 'Μέλος' },
               { key: 'prediction_symbol', label: 'Σύμβολο Πρόβλεψης' },
+              { key: 'direction', label: 'ΚΑΤ' },
+              { key: 'X', label: 'X' },
+              { key: 'F26_1', label: 'Φ26_1' },
+              { key: 'F25', label: 'Φ25' },
+              { key: 'phone', label: 'phone' },
+              { key: 'T24', label: 'T24' },
+              { key: 'F24', label: 'Φ24' },
+              { key: 'F23', label: 'Φ23' },
+              { key: 'T22', label: 'T22' },
+              { key: 'father_n', label: 'ΟΝ_ΠΑΤΡΟΣ' },
+              { key: 'father_name', label: 'ΟΝΟΜΑ ΠΑΤΕΡΑ' },
+              { key: 'ElectoralDistrict', label: 'ElectoralDistrict' },
+              { key: 'ElectoralTown', label: 'ElectoralTown' },
+              { key: 'RelatedMember', label: 'RelatedMember' },
             ].map(({ key, label }) => (
               <div key={key} className="space-y-2">
                 <Label>{label}</Label>
