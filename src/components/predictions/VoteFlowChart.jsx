@@ -17,6 +17,7 @@ const CHART_COLORS = [
 ];
 
 export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
+    const [sessionExpired, setSessionExpired] = useState(false);
     const [showConfig, setShowConfig] = useState(false);
     const [parataksiList, setParataksiList] = useState(() => {
         const saved = localStorage.getItem('voteFlow_parataksiList');
