@@ -19,7 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Database, Plus, Download, MoreHorizontal, Pencil, Trash2,
-  CheckCircle2, Phone, Upload, FileSpreadsheet, ShieldAlert, Loader2
+  CheckCircle2, Phone, Upload, FileSpreadsheet, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteProgressModal from '../components/records/DeleteProgressModal';
