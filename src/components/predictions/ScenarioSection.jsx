@@ -118,7 +118,8 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
             const status = err?.response?.status;
             const msg = err?.response?.data?.message;
             if (status === 401) {
-                alert('Η συνεδρία σας έχει λήξει. Παρακαλώ συνδεθείτε ξανά.');
+                console.warn('[ScenarioSection] scenarioDelete 401 — session expired.');
+                setSessionExpired(true);
             } else if (status === 404) {
                 // Already gone — clean up stale row
                 removeScenarioFromState(scenario.id);
