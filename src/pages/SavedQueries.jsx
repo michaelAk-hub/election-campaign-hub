@@ -301,10 +301,25 @@ export default function SavedQueries() {
     queryFn: () => base44.entities.SavedQuery.list('-created_date')
   });
 
-  const { data: people = [] } = useQuery({
-    queryKey: ['people'],
-    queryFn: () => base44.entities.Person.list('-created_date', 10000)
+  const { data: peopleData = { rows: [], total: null, partial: false } } = useQuery({
+    queryKey: ['people-all'],
+    queryFn: async () => {
+      const PAGE = 5000;
+      let all = [], skip = 0;
+      // First page — also used to discover total
+      while (true) {
+        const batch = await base44.entities.Person.list('-created_date', PAGE, skip);
+        all = all.concat(batch);
+        if (batch.length < PAGE) break;
+        skip += PAGE;
+      }
+      return { rows: all, total: all.length, partial: false };
+    },
+    staleTime: 30_000,
   });
+
+  const people = peopleData.rows;
+  const peoplePartial = peopleData.partial;
 
   useEffect(() => {
     const validIds = new Set(savedQueries.map(q => q.id));
