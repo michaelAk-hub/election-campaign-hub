@@ -168,6 +168,25 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
         );
     };
 
+    if (sessionExpired || !sessionToken) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5" />
+                        Διάγραμμα Ροής Ψήφων
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        Η συνεδρία έχει λήξει. Παρακαλώ ανανεώστε τη σελίδα για να συνδεθείτε ξανά.
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
     if (!chartData && !showConfig) {
         return (
             <Card>
