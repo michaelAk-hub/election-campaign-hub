@@ -40,13 +40,13 @@ export default function Predictions() {
     const [availableSymbols, setAvailableSymbols] = useState([]);
     const [scenarioRefreshSignal, setScenarioRefreshSignal] = useState(0);
 
-    // Load available symbols for VoteFlowChart grouping config
+    // Load available symbols — re-runs when sessionToken becomes available
     useEffect(() => {
         if (!sessionToken) return;
         base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
             .then(({ data }) => { if (data) setAvailableSymbols(data.symbols || []); })
             .catch(err => console.error('Filter options error:', err));
-    }, []);
+    }, [sessionToken]);
 
     const refetchInterval = autoRefresh ? 8000 : false;
 
