@@ -52,7 +52,7 @@ function removeNodeAtPath(root, path) {
   if (!parent) return next;
 
   if (lastKey === 'child') {
-    parent.child = newCond();
+    parent.child = newCond(null);
   } else if (parent.type === 'group') {
     parent.children.splice(lastKey, 1);
   }
