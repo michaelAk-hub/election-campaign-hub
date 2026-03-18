@@ -678,22 +678,15 @@ export default function Records() {
               <span className="hidden sm:inline">Νέα</span>
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="destructive" className="h-10">
-                  <Trash2 className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Διαγραφές</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => activeDatasetId && handleDeleteDataset(activeDatasetId)} className="text-red-700">
-                  <Trash2 className="h-4 w-4 mr-2" /> Διαγραφή Ενεργού Dataset
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDeleteAllPersons} className="text-red-700">
-                  <ShieldAlert className="h-4 w-4 mr-2" /> Ολική Διαγραφή (Person & Datasets)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="destructive"
+              className="h-10"
+              disabled={deleteLoading}
+              onClick={() => setDeleteAllConfirmOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Ολική Διαγραφή</span>
+            </Button>
           </div>
         }
       />
