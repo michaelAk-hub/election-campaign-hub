@@ -954,6 +954,34 @@ export default function Records() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete All Confirmation Dialog */}
+      <Dialog open={deleteAllConfirmOpen} onOpenChange={setDeleteAllConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <Trash2 className="h-5 w-5" /> Ολική Διαγραφή Όλων των Δεδομένων
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-slate-700">
+              Θα διαγραφούν <strong>ΟΛΕΣ</strong> οι εγγραφές από τον πίνακα Person και <strong>ΟΛΑ</strong> τα Dataset.
+              Η ενέργεια είναι οριστική και δεν μπορεί να αναιρεθεί.
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+              ⚠️ Δεν υπάρχει δυνατότητα επαναφοράς μετά την επιβεβαίωση.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteAllConfirmOpen(false)}>
+              Ακύρωση
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAllPersons} disabled={deleteLoading}>
+              {deleteLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Διαγραφή...</> : 'Ναι, διαγραφή όλων'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Progress Modal */}
       {deleteJobId && (
         <DeleteProgressModal jobId={deleteJobId} onClose={handleDeleteJobClose} />
