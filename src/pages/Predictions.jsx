@@ -17,10 +17,18 @@ import ScenarioSection from '../components/predictions/ScenarioSection';
 export default function Predictions() {
     const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('app_session_token'));
 
-    // Keep sessionToken reactive — re-read if localStorage changes (e.g. after login restore)
+    // Re-check token whenever the page regains focus or becomes visible (covers login restore, tab switch back)
     useEffect(() => {
-        const token = localStorage.getItem('app_session_token');
-        if (token !== sessionToken) setSessionToken(token);
+        const syncToken = () => {
+            const token = localStorage.getItem('app_session_token');
+            setSessionToken(prev => prev !== token ? token : prev);
+        };
+        window.addEventListener('focus', syncToken);
+        document.addEventListener('visibilitychange', syncToken);
+        return () => {
+            window.removeEventListener('focus', syncToken);
+            document.removeEventListener('visibilitychange', syncToken);
+        };
     }, []);
 
     const queryParams = (() => {
