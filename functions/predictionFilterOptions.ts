@@ -25,7 +25,6 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
-        // Get active dataset
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
         if (activeDatasets.length === 0) {
             return Response.json({ years: [], symbols: [], departments: [] });
@@ -33,7 +32,6 @@ Deno.serve(async (req) => {
 
         const activeDatasetId = activeDatasets[0].id;
 
-        // Paginate through all Person records
         let allPersons = [];
         let skip = 0;
         const limit = 5000;

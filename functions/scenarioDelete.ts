@@ -5,7 +5,6 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { session_token, scenario_id } = body;
 
-    // --- Input validation (never 500) ---
     if (!session_token) {
         return Response.json({ message: 'Session token απαιτείται.' }, { status: 401 });
     }
@@ -13,7 +12,6 @@ Deno.serve(async (req) => {
         return Response.json({ message: 'Scenario ID απαιτείται.' }, { status: 400 });
     }
 
-    // --- Auth validation (never 500) ---
     let sessions;
     try {
         sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
@@ -41,7 +39,6 @@ Deno.serve(async (req) => {
         return Response.json({ message: 'Δεν έχετε δικαίωμα διαγραφής.' }, { status: 403 });
     }
 
-    // --- Scenario existence check (never 500) ---
     let scenarios;
     try {
         scenarios = await base44.asServiceRole.entities.PredictionScenario.filter({ id: scenario_id });
@@ -52,7 +49,6 @@ Deno.serve(async (req) => {
         return Response.json({ message: 'Το σενάριο δεν βρέθηκε.' }, { status: 404 });
     }
 
-    // --- Actual delete (only true unexpected errors become 500) ---
     try {
         await base44.asServiceRole.entities.PredictionScenario.delete(scenario_id);
         return Response.json({ success: true });

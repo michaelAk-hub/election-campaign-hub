@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Play, XCircle, Plus, Trash2, Loader2, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Play, XCircle, Plus, Trash2, Loader2, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 
@@ -17,7 +17,6 @@ const CHART_COLORS = [
 ];
 
 export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
-    const [sessionExpired, setSessionExpired] = useState(false);
     const [showConfig, setShowConfig] = useState(false);
     const [parataksiList, setParataksiList] = useState(() => {
         const saved = localStorage.getItem('voteFlow_parataksiList');
@@ -28,6 +27,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
         return saved ? JSON.parse(saved) : null;
     });
     const [loading, setLoading] = useState(false);
+    const [autoRefresh, setAutoRefresh] = useState(false);
 
     useEffect(() => {
         if (parataksiList.length > 0) {
@@ -44,11 +44,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
     const fetchChartData = useCallback(async (listOverride) => {
         const list = listOverride || parataksiList;
         if (!list.length) return;
-        if (!sessionToken) {
-            console.warn('[VoteFlowChart] fetchChartData: sessionToken missing, aborting.');
-            setSessionExpired(true);
-            return;
-        }
 
         setLoading(true);
         try {
@@ -58,27 +53,21 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
                 bucket_minutes: 5,
                 mapping,
             });
-            if (data?.error === 'Unauthorized' || data?.status === 401) {
-                console.warn('[VoteFlowChart] predictionVoteFlow 401 — session expired.');
-                setSessionExpired(true);
-                return;
-            }
             setChartData(data);
             setShowConfig(false);
         } catch (error) {
-            if (error?.response?.status === 401 || error?.status === 401) {
-                console.warn('[VoteFlowChart] predictionVoteFlow caught 401.');
-                setSessionExpired(true);
-            } else {
-                alert('Σφάλμα κατά τη φόρτωση δεδομένων: ' + error.message);
-            }
+            alert('Σφάλμα κατά τη φόρτωση δεδομένων: ' + error.message);
         } finally {
             setLoading(false);
         }
     }, [parataksiList, sessionToken]);
 
-    // Reset expired state if token changes
-    useEffect(() => { setSessionExpired(false); }, [sessionToken]);
+    // Auto-refresh
+    useEffect(() => {
+        if (!autoRefresh || !chartData) return;
+        const interval = setInterval(() => fetchChartData(), 30000);
+        return () => clearInterval(interval);
+    }, [autoRefresh, chartData, fetchChartData]);
 
     const handleStart = () => {
         setShowConfig(true);
@@ -127,6 +116,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
     const handleCancel = () => {
         setChartData(null);
         setParataksiList([]);
+        setAutoRefresh(false);
         setShowConfig(false);
         localStorage.removeItem('voteFlow_parataksiList');
         localStorage.removeItem('voteFlow_chartData');
@@ -158,25 +148,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
             </div>
         );
     };
-
-    if (sessionExpired || !sessionToken) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5" />
-                        Διάγραμμα Ροής Ψήφων
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        Η συνεδρία έχει λήξει. Παρακαλώ ανανεώστε τη σελίδα για να συνδεθείτε ξανά.
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
 
     if (!chartData && !showConfig) {
         return (
@@ -293,6 +264,9 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
                                 Διάγραμμα Ροής Ψήφων (Αθροιστικό)
                             </CardTitle>
                             <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setAutoRefresh(r => !r)}>
+                                    {autoRefresh ? 'Παύση Ανανέωσης' : 'Αυτόματη Ανανέωση'}
+                                </Button>
                                 <Button variant="outline" size="sm" onClick={() => setShowConfig(true)}>
                                     Ρυθμίσεις
                                 </Button>

@@ -8,104 +8,57 @@ import ScenarioDetailModal from './ScenarioDetailModal';
 
 export default function ScenarioSection({ sessionToken, refreshSignal }) {
     const [scenarios, setScenarios] = useState([]);
-    const [results, setResults] = useState({}); // keyed by scenario.id
+    const [results, setResults] = useState({});
     const [loadingResults, setLoadingResults] = useState({});
-    const [resultErrors, setResultErrors] = useState({}); // keyed by scenario.id
-    const [sessionExpired, setSessionExpired] = useState(false);
+    const [resultErrors, setResultErrors] = useState({});
     const [showForm, setShowForm] = useState(false);
     const [editScenario, setEditScenario] = useState(null);
     const [detailScenario, setDetailScenario] = useState(null);
     const [detailResult, setDetailResult] = useState(null);
 
-    const is401 = (e) => e?.response?.status === 401 || e?.status === 401;
-    const is502 = (e) => e?.response?.status === 502 || e?.status === 502 ||
-        (typeof e?.message === 'string' && (e.message.includes('502') || e.message.toLowerCase().includes('bad gateway')));
-
     const loadScenarios = useCallback(async () => {
-        if (!sessionToken) {
-            console.warn('[ScenarioSection] loadScenarios: sessionToken is missing, skipping.');
-            return;
-        }
-        console.log('[ScenarioSection] loadScenarios: token present, fetching list...');
-        try {
-            const { data } = await base44.functions.invoke('scenarioList', { session_token: sessionToken });
-            if (data?.error === 'Unauthorized' || data?.status === 401) {
-                setSessionExpired(true);
-                return;
-            }
-            const list = data?.scenarios || [];
-            setScenarios(list);
-            return list;
-        } catch (e) {
-            if (is401(e)) {
-                console.warn('[ScenarioSection] scenarioList returned 401 — session expired.');
-                setSessionExpired(true);
-                return;
-            }
-            throw e;
-        }
+        if (!sessionToken) return;
+        const { data } = await base44.functions.invoke('scenarioList', { session_token: sessionToken });
+        const list = data?.scenarios || [];
+        setScenarios(list);
+        return list;
     }, [sessionToken]);
 
     const calculateAll = useCallback(async (list) => {
-        if (!sessionToken) {
-            console.warn('[ScenarioSection] calculateAll: sessionToken is missing, skipping.');
-            return;
-        }
         const ids = (list || []).map(s => s.id);
-        // Mark all as loading upfront
         const loadingMap = {};
         ids.forEach(id => loadingMap[id] = true);
         setLoadingResults(loadingMap);
         setResultErrors({});
 
-        // Sequential — one at a time so a 502 on one doesn't block others
-        for (const id of ids) {
+        await Promise.all(ids.map(async (id) => {
             try {
-                console.log(`[ScenarioSection] scenarioCalculate: scenario ${id} (sequential)`);
                 const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
-                if (data?.error === 'Unauthorized' || data?.status === 401) {
-                    setSessionExpired(true);
-                    setLoadingResults(prev => ({ ...prev, [id]: false }));
-                    continue;
-                }
                 if (data?.error) {
                     setResultErrors(prev => ({ ...prev, [id]: data.message || data.error }));
                 } else {
                     setResults(prev => ({ ...prev, [id]: data }));
                 }
             } catch (e) {
-                if (is401(e)) {
-                    console.warn(`[ScenarioSection] scenarioCalculate 401 for scenario ${id}`);
-                    setSessionExpired(true);
-                    setLoadingResults(prev => ({ ...prev, [id]: false }));
-                    continue;
-                }
-                if (is502(e)) {
-                    console.warn(`[ScenarioSection] scenarioCalculate 502 for scenario ${id}`);
-                    setResultErrors(prev => ({ ...prev, [id]: 'Προσωρινό σφάλμα υπολογισμού (gateway error). Δοκιμάστε ξανά σε λίγο.' }));
-                } else {
-                    setResultErrors(prev => ({ ...prev, [id]: e.message || 'Σφάλμα υπολογισμού' }));
-                }
+                setResultErrors(prev => ({ ...prev, [id]: e.message || 'Σφάλμα υπολογισμού' }));
             } finally {
                 setLoadingResults(prev => ({ ...prev, [id]: false }));
             }
-        }
+        }));
     }, [sessionToken]);
 
     const refresh = useCallback(async () => {
-        if (!sessionToken) {
-            console.warn('[ScenarioSection] refresh: no sessionToken, aborting.');
-            return;
-        }
-        console.log('[ScenarioSection] refresh: starting...');
         const list = await loadScenarios();
         if (list?.length) await calculateAll(list);
-    }, [loadScenarios, calculateAll, sessionToken]);
-
-    // Reset expired state if token changes (e.g. re-login)
-    useEffect(() => { setSessionExpired(false); }, [sessionToken]);
+    }, [loadScenarios, calculateAll]);
 
     useEffect(() => { refresh(); }, [refresh, refreshSignal]);
+
+    // Auto-refresh every 5 minutes
+    useEffect(() => {
+        const interval = setInterval(refresh, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [refresh]);
 
     const removeScenarioFromState = (id) => {
         setScenarios(prev => prev.filter(s => s.id !== id));
@@ -123,10 +76,8 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
             const status = err?.response?.status;
             const msg = err?.response?.data?.message;
             if (status === 401) {
-                console.warn('[ScenarioSection] scenarioDelete 401 — session expired.');
-                setSessionExpired(true);
+                alert('Η συνεδρία σας έχει λήξει. Παρακαλώ συνδεθείτε ξανά.');
             } else if (status === 404) {
-                // Already gone — clean up stale row
                 removeScenarioFromState(scenario.id);
             } else if (status === 500) {
                 alert('Σφάλμα διακομιστή κατά τη διαγραφή. Παρακαλώ δοκιμάστε ξανά.');
@@ -141,15 +92,6 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
     const handleView = (scenario, result) => { setDetailScenario(scenario); setDetailResult(result); };
 
     const atMax = scenarios.length >= 4;
-
-    if (sessionExpired || !sessionToken) {
-        return (
-            <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                Η συνεδρία έχει λήξει. Παρακαλώ ανανεώστε τη σελίδα για να συνδεθείτε ξανά.
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-4">

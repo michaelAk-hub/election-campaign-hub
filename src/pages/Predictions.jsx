@@ -14,67 +14,53 @@ import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
 
+const sessionToken = localStorage.getItem('app_session_token');
+
+const queryParams = (() => {
+    const params = new URLSearchParams();
+    if (sessionToken) params.set('session_token', sessionToken);
+    return params.toString();
+})();
+
 export default function Predictions() {
-    const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('app_session_token'));
-
-    // Re-check token whenever the page regains focus or becomes visible (covers login restore, tab switch back)
-    useEffect(() => {
-        const syncToken = () => {
-            const token = localStorage.getItem('app_session_token');
-            setSessionToken(prev => prev !== token ? token : prev);
-        };
-        window.addEventListener('focus', syncToken);
-        document.addEventListener('visibilitychange', syncToken);
-        return () => {
-            window.removeEventListener('focus', syncToken);
-            document.removeEventListener('visibilitychange', syncToken);
-        };
-    }, []);
-
-    const queryParams = (() => {
-        const params = new URLSearchParams();
-        if (sessionToken) params.set('session_token', sessionToken);
-        return params.toString();
-    })();
+    const [autoRefresh, setAutoRefresh] = useState(false);
     const [availableSymbols, setAvailableSymbols] = useState([]);
     const [scenarioRefreshSignal, setScenarioRefreshSignal] = useState(0);
 
-    // Load available symbols — re-runs when sessionToken becomes available
     useEffect(() => {
         if (!sessionToken) return;
         base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
             .then(({ data }) => { if (data) setAvailableSymbols(data.symbols || []); })
             .catch(err => console.error('Filter options error:', err));
-    }, [sessionToken]);
+    }, []);
+
+    const refetchInterval = autoRefresh ? 8000 : false;
 
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
-        queryKey: ['predictionKPIs', sessionToken],
+        queryKey: ['predictionKPIs'],
         queryFn: async () => {
-            if (!sessionToken) return null;
             const { data } = await base44.functions.invoke('predictionKPIs', { queryParams });
             return data;
         },
-        enabled: !!sessionToken,
+        refetchInterval,
     });
 
     const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
-        queryKey: ['predictionBySymbol', sessionToken],
+        queryKey: ['predictionBySymbol'],
         queryFn: async () => {
-            if (!sessionToken) return null;
             const { data } = await base44.functions.invoke('predictionBySymbol', { queryParams });
             return data;
         },
-        enabled: !!sessionToken,
+        refetchInterval,
     });
 
     const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
-        queryKey: ['predictionByYearSymbol', sessionToken],
+        queryKey: ['predictionByYearSymbol'],
         queryFn: async () => {
-            if (!sessionToken) return null;
             const { data } = await base44.functions.invoke('predictionByYearSymbol', { queryParams });
             return data;
         },
-        enabled: !!sessionToken,
+        refetchInterval,
     });
 
     const loading = kpisLoading || symbolLoading || yearSymbolLoading;
@@ -126,13 +112,21 @@ export default function Predictions() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Προβλέψεις</h1>
                     <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">Ανάλυση συμβόλων πρόβλεψης και ψηφοφορίας</p>
                 </div>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <Button
+                        variant="outline"
+                        onClick={() => setAutoRefresh(r => !r)}
+                        className={cn("h-10 flex-1 sm:flex-initial", autoRefresh && "bg-blue-50 border-blue-300")}
+                    >
+                        <RefreshCw className={cn("h-4 w-4 sm:mr-2", autoRefresh && "animate-spin")} />
+                        <span className="hidden sm:inline">Auto-refresh {autoRefresh ? 'ON' : 'OFF'}</span>
+                        <span className="sm:hidden">{autoRefresh ? 'ON' : 'OFF'}</span>
+                    </Button>
                     <Button variant="outline" onClick={handleRefresh} className="h-10 flex-1 sm:flex-initial">
                         <RefreshCw className="h-4 w-4 sm:mr-2" />
                         <span className="hidden sm:inline">Ανανέωση</span>
@@ -144,7 +138,6 @@ export default function Predictions() {
                 </div>
             </div>
 
-            {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
                     <CardHeader className="pb-2">
@@ -200,10 +193,8 @@ export default function Predictions() {
                 </Card>
             </div>
 
-            {/* Scenario Predictions */}
             <ScenarioSection sessionToken={sessionToken} refreshSignal={scenarioRefreshSignal} />
 
-            {/* By Symbol Table */}
             <Card>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base sm:text-lg">Ανά Σύμβολο Πρόβλεψης</CardTitle>
@@ -251,7 +242,6 @@ export default function Predictions() {
                 </CardContent>
             </Card>
 
-            {/* By Year Accordion */}
             <Card>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base sm:text-lg">Ανά Έτος Εισδοχής</CardTitle>
@@ -326,7 +316,6 @@ export default function Predictions() {
                 </CardContent>
             </Card>
 
-            {/* Vote Flow Chart — global, no page filters */}
             <VoteFlowChart
                 sessionToken={sessionToken}
                 availableSymbols={availableSymbols}

@@ -18,7 +18,6 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
                     </div>
                 </DialogHeader>
 
-                {/* Party table */}
                 <div className="mt-4">
                     <h3 className="font-semibold text-sm mb-2 text-slate-700 dark:text-slate-300">Αποτελέσματα ανά Παράταξη</h3>
                     <div className="overflow-x-auto rounded-lg border">
@@ -60,7 +59,6 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
                     </div>
                 </div>
 
-                {/* Academic group breakdown */}
                 {groups.length > 0 && (
                     <div className="mt-6">
                         <h3 className="font-semibold text-sm mb-2 text-slate-700 dark:text-slate-300">Ανάλυση ανά Ακαδ. Ομάδα</h3>

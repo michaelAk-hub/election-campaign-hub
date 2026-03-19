@@ -1,12 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
 
 export default function ScenarioCard({ scenario, result, loading, error, onEdit, onDelete, onView }) {
     const parties = result?.parties || [];
-    const totalVotes = result?.total_predicted_votes || 0;
 
     return (
         <Card className="relative border-2 hover:shadow-md transition-shadow">

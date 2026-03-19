@@ -4,11 +4,9 @@ Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         
-        // Parse request body
         const body = await req.json();
         const queryParams = new URLSearchParams(body.queryParams || '');
         
-        // Validate custom app session
         const sessionToken = queryParams.get('session_token');
         
         if (!sessionToken) {
@@ -31,12 +29,10 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Get filters from query params
         const yearFilter = queryParams.get('year');
         const symbolFilter = queryParams.get('symbol');
         const departmentFilter = queryParams.get('department');
 
-        // Get active dataset
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
         if (activeDatasets.length === 0) {
             return Response.json({ 
@@ -47,7 +43,6 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Get all Person records from active dataset with pagination (5000 limit per request)
         let allPersons = [];
         let skip = 0;
         const limit = 5000;
@@ -65,7 +60,6 @@ Deno.serve(async (req) => {
             hasMore = batch.length === limit;
         }
 
-        // Apply filters
         let filtered = allPersons;
 
         if (yearFilter) {
@@ -86,7 +80,6 @@ Deno.serve(async (req) => {
             filtered = filtered.filter(p => departments.includes(p.department || ''));
         }
 
-        // Normalize helpers
         const normalizeSymbol = (sym) => {
             if (!sym) return '(Κενό)';
             const normalized = sym.trim().replace(/\s+/g, ' ');
@@ -97,7 +90,6 @@ Deno.serve(async (req) => {
             return year ? String(year) : '(Άγνωστο)';
         };
 
-        // Group by year and symbol
         const yearSymbolMap = {};
         filtered.forEach(p => {
             const year = normalizeYear(p.admission_year);
@@ -121,9 +113,7 @@ Deno.serve(async (req) => {
             }
         });
 
-        // Convert to array and sort
         const rows = Object.values(yearSymbolMap).sort((a, b) => {
-            // Sort by year DESC, total DESC, symbol ASC
             if (a.admission_year !== b.admission_year) {
                 if (a.admission_year === '(Άγνωστο)') return 1;
                 if (b.admission_year === '(Άγνωστο)') return -1;

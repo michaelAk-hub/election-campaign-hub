@@ -10,38 +10,33 @@ function validateScenarioPayload(scenario) {
         return ['Το σενάριο δεν είναι έγκυρο αντικείμενο'];
     }
 
-    // name
     if (!scenario.name || typeof scenario.name !== 'string' || !scenario.name.trim()) {
         errors.push('Το όνομα σεναρίου είναι υποχρεωτικό');
     }
 
-    // total_seats
     const seats = Number(scenario.total_seats);
     if (!isFinite(seats) || seats <= 0) {
         errors.push('Ο αριθμός εδρών πρέπει να είναι θετικός αριθμός');
     }
 
-    // display_order
     const order = Number(scenario.display_order);
     if (!isFinite(order) || order <= 0) {
         errors.push('Η σειρά εμφάνισης πρέπει να είναι θετικός αριθμός');
     }
 
-    // config_json
     const cfg = scenario.config_json;
     if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
         errors.push('Το config_json πρέπει να είναι αντικείμενο');
         return errors;
     }
 
-    // parties
     if (!Array.isArray(cfg.parties) || cfg.parties.length === 0) {
         errors.push('Απαιτείται τουλάχιστον μία παράταξη');
         return errors;
     }
 
     const partyNames = [];
-    const globalSymbols = new Map(); // symbol -> partyName
+    const globalSymbols = new Map();
 
     for (let pi = 0; pi < cfg.parties.length; pi++) {
         const party = cfg.parties[pi];
@@ -88,7 +83,6 @@ function validateScenarioPayload(scenario) {
         }
     }
 
-    // year_groups
     if (cfg.year_groups !== undefined && cfg.year_groups !== null) {
         if (!Array.isArray(cfg.year_groups)) {
             errors.push('Το year_groups πρέπει να είναι πίνακας');
@@ -173,7 +167,6 @@ Deno.serve(async (req) => {
         const user = users[0];
         if (!['ADMIN', 'ORGANOTIKI'].includes(user.role)) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-        // Validate
         const validationErrors = validateScenarioPayload(scenario);
         if (validationErrors.length > 0) {
             return Response.json({
@@ -186,7 +179,6 @@ Deno.serve(async (req) => {
         const normalized = normalizeScenario(scenario);
 
         if (!scenario_id) {
-            // Create: check limit
             const existing = await base44.asServiceRole.entities.PredictionScenario.list('display_order', 4);
             if ((existing || []).length >= 4) {
                 return Response.json({ error: 'MAX_LIMIT', message: 'Υπάρχουν ήδη 4 σενάρια. Διαγράψτε ένα πρώτα.' }, { status: 400 });
