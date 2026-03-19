@@ -107,12 +107,6 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
 
     useEffect(() => { refresh(); }, [refresh, refreshSignal]);
 
-    // Auto-refresh every 5 minutes
-    useEffect(() => {
-        const interval = setInterval(refresh, 5 * 60 * 1000);
-        return () => clearInterval(interval);
-    }, [refresh]);
-
     const removeScenarioFromState = (id) => {
         setScenarios(prev => prev.filter(s => s.id !== id));
         setResults(prev => { const n = { ...prev }; delete n[id]; return n; });

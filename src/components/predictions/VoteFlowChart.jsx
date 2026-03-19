@@ -28,7 +28,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
         return saved ? JSON.parse(saved) : null;
     });
     const [loading, setLoading] = useState(false);
-    const [autoRefresh, setAutoRefresh] = useState(false);
 
     useEffect(() => {
         if (parataksiList.length > 0) {
@@ -81,13 +80,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
     // Reset expired state if token changes
     useEffect(() => { setSessionExpired(false); }, [sessionToken]);
 
-    // Auto-refresh
-    useEffect(() => {
-        if (!autoRefresh || !chartData) return;
-        const interval = setInterval(() => fetchChartData(), 30000);
-        return () => clearInterval(interval);
-    }, [autoRefresh, chartData, fetchChartData]);
-
     const handleStart = () => {
         setShowConfig(true);
         if (parataksiList.length === 0) {
@@ -135,7 +127,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
     const handleCancel = () => {
         setChartData(null);
         setParataksiList([]);
-        setAutoRefresh(false);
         setShowConfig(false);
         localStorage.removeItem('voteFlow_parataksiList');
         localStorage.removeItem('voteFlow_chartData');
@@ -302,9 +293,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
                                 Διάγραμμα Ροής Ψήφων (Αθροιστικό)
                             </CardTitle>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => setAutoRefresh(r => !r)}>
-                                    {autoRefresh ? 'Παύση Ανανέωσης' : 'Αυτόματη Ανανέωση'}
-                                </Button>
                                 <Button variant="outline" size="sm" onClick={() => setShowConfig(true)}>
                                     Ρυθμίσεις
                                 </Button>
