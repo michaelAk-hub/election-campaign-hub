@@ -36,7 +36,6 @@ export default function Predictions() {
         if (sessionToken) params.set('session_token', sessionToken);
         return params.toString();
     })();
-    const [autoRefresh, setAutoRefresh] = useState(false);
     const [availableSymbols, setAvailableSymbols] = useState([]);
     const [scenarioRefreshSignal, setScenarioRefreshSignal] = useState(0);
 
@@ -48,8 +47,6 @@ export default function Predictions() {
             .catch(err => console.error('Filter options error:', err));
     }, [sessionToken]);
 
-    const refetchInterval = autoRefresh ? 8000 : false;
-
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
         queryKey: ['predictionKPIs', sessionToken],
         queryFn: async () => {
@@ -58,7 +55,6 @@ export default function Predictions() {
             return data;
         },
         enabled: !!sessionToken,
-        refetchInterval: sessionToken ? refetchInterval : false,
     });
 
     const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
@@ -69,7 +65,6 @@ export default function Predictions() {
             return data;
         },
         enabled: !!sessionToken,
-        refetchInterval: sessionToken ? refetchInterval : false,
     });
 
     const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
@@ -80,7 +75,6 @@ export default function Predictions() {
             return data;
         },
         enabled: !!sessionToken,
-        refetchInterval: sessionToken ? refetchInterval : false,
     });
 
     const loading = kpisLoading || symbolLoading || yearSymbolLoading;
@@ -139,15 +133,6 @@ export default function Predictions() {
                     <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">Ανάλυση συμβόλων πρόβλεψης και ψηφοφορίας</p>
                 </div>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                    <Button
-                        variant="outline"
-                        onClick={() => setAutoRefresh(r => !r)}
-                        className={cn("h-10 flex-1 sm:flex-initial", autoRefresh && "bg-blue-50 border-blue-300")}
-                    >
-                        <RefreshCw className={cn("h-4 w-4 sm:mr-2", autoRefresh && "animate-spin")} />
-                        <span className="hidden sm:inline">Auto-refresh {autoRefresh ? 'ON' : 'OFF'}</span>
-                        <span className="sm:hidden">{autoRefresh ? 'ON' : 'OFF'}</span>
-                    </Button>
                     <Button variant="outline" onClick={handleRefresh} className="h-10 flex-1 sm:flex-initial">
                         <RefreshCw className="h-4 w-4 sm:mr-2" />
                         <span className="hidden sm:inline">Ανανέωση</span>
