@@ -18,6 +18,8 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
     const [detailResult, setDetailResult] = useState(null);
 
     const is401 = (e) => e?.response?.status === 401 || e?.status === 401;
+    const is502 = (e) => e?.response?.status === 502 || e?.status === 502 ||
+        (typeof e?.message === 'string' && (e.message.includes('502') || e.message.toLowerCase().includes('bad gateway')));
 
     const loadScenarios = useCallback(async () => {
         if (!sessionToken) {
