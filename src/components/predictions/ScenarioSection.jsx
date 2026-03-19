@@ -52,18 +52,21 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
             return;
         }
         const ids = (list || []).map(s => s.id);
+        // Mark all as loading upfront
         const loadingMap = {};
         ids.forEach(id => loadingMap[id] = true);
         setLoadingResults(loadingMap);
         setResultErrors({});
 
-        await Promise.all(ids.map(async (id) => {
+        // Sequential — one at a time so a 502 on one doesn't block others
+        for (const id of ids) {
             try {
-                console.log(`[ScenarioSection] scenarioCalculate: scenario ${id}, token present: ${!!sessionToken}`);
+                console.log(`[ScenarioSection] scenarioCalculate: scenario ${id} (sequential)`);
                 const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
                 if (data?.error === 'Unauthorized' || data?.status === 401) {
                     setSessionExpired(true);
-                    return;
+                    setLoadingResults(prev => ({ ...prev, [id]: false }));
+                    continue;
                 }
                 if (data?.error) {
                     setResultErrors(prev => ({ ...prev, [id]: data.message || data.error }));
@@ -74,13 +77,19 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
                 if (is401(e)) {
                     console.warn(`[ScenarioSection] scenarioCalculate 401 for scenario ${id}`);
                     setSessionExpired(true);
-                    return;
+                    setLoadingResults(prev => ({ ...prev, [id]: false }));
+                    continue;
                 }
-                setResultErrors(prev => ({ ...prev, [id]: e.message || 'Σφάλμα υπολογισμού' }));
+                if (is502(e)) {
+                    console.warn(`[ScenarioSection] scenarioCalculate 502 for scenario ${id}`);
+                    setResultErrors(prev => ({ ...prev, [id]: 'Προσωρινό σφάλμα υπολογισμού (gateway error). Δοκιμάστε ξανά σε λίγο.' }));
+                } else {
+                    setResultErrors(prev => ({ ...prev, [id]: e.message || 'Σφάλμα υπολογισμού' }));
+                }
             } finally {
                 setLoadingResults(prev => ({ ...prev, [id]: false }));
             }
-        }));
+        }
     }, [sessionToken]);
 
     const refresh = useCallback(async () => {
