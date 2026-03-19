@@ -34,19 +34,20 @@ Deno.serve(async (req) => {
 
         let allPersons = [];
         let skip = 0;
-        const limit = 5000;
-        let hasMore = true;
+        const limit = 500;
 
-        while (hasMore) {
+        while (true) {
             const batch = await base44.asServiceRole.entities.Person.filter(
                 { dataset_id: activeDatasetId },
                 '-created_date',
                 limit,
                 skip
             );
-            allPersons = allPersons.concat(batch);
+            const items = Array.isArray(batch) ? batch : [];
+            if (!items.length) break;
+            allPersons = allPersons.concat(items);
+            if (items.length < limit) break;
             skip += limit;
-            hasMore = batch.length === limit;
         }
 
         const years = [...new Set(allPersons.map(p => p.admission_year).filter(Boolean))]
