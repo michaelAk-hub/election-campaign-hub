@@ -40,7 +40,16 @@ export default function Dashboard() {
   const downloadTemplate = async () => {
     setTemplateLoading(true);
     try {
-      const { fields } = await callBackendFunction('personSchemaFields', { session_token: sessionToken });
+      const result = await callBackendFunction('personSchemaFields', { session_token: sessionToken });
+      const { fields } = result;
+
+      if (!Array.isArray(fields) || fields.length === 0) {
+        throw new Error('personSchemaFields returned no fields: ' + JSON.stringify(result));
+      }
+
+      if (import.meta.env.DEV) {
+        console.log('[Dashboard] personSchemaFields returned', fields.length, 'fields:', fields);
+      }
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([fields]);
@@ -50,6 +59,7 @@ export default function Dashboard() {
       XLSX.writeFile(wb, `person_template_${date}.xlsx`);
       toast.success('Το πρότυπο κατέβηκε επιτυχώς');
     } catch (err) {
+      console.error('[Dashboard] downloadTemplate error:', err);
       toast.error('Σφάλμα κατά τη δημιουργία προτύπου: ' + err.message);
     } finally {
       setTemplateLoading(false);
