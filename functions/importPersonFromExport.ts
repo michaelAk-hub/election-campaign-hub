@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
             'academic_level', 'prediction_symbol', 'contact_person_1', 'contact_person_2',
             'direction', 'X', 'F26_1', 'F25', 'F24', 'F23', 'T22', 'T24',
             'details', 'notes', 'member', 'ElectoralDistrict', 'ElectoralTown',
-            'RelatedMember', 'father_n', 'father_name', 'dataset_id'
+            'RelatedMember', 'father_n', 'father_name', 'dataset_id', 'voted_at'
         ]);
 
         // Strip excluded columns and normalize
