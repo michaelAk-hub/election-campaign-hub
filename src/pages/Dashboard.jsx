@@ -32,7 +32,10 @@ export default function Dashboard() {
   // ── Single aggregated summary call — no SDK, raw callBackendFunction ───────
   const { data: summary, isLoading, isError } = useQuery({
     queryKey: ['dashboard-summary'],
-    queryFn: () => callBackendFunction('dashboardSummary', { session_token: sessionToken }),
+    queryFn: async () => {
+      const res = await base44.functions.invoke('dashboardSummary', { session_token: sessionToken });
+      return res.data;
+    },
     staleTime: 60_000,
   });
 
