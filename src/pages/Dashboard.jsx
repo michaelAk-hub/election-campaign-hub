@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { base44 } from '@/api/base44Client';
+import { callBackendFunction } from '@/lib/backendCall';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -32,10 +32,7 @@ export default function Dashboard() {
   // ── Single aggregated summary call — no SDK, raw callBackendFunction ───────
   const { data: summary, isLoading, isError } = useQuery({
     queryKey: ['dashboard-summary'],
-    queryFn: async () => {
-      const res = await base44.functions.invoke('dashboardSummary', { session_token: sessionToken });
-      return res.data;
-    },
+    queryFn: () => callBackendFunction('dashboardSummary', { session_token: sessionToken }),
     staleTime: 60_000,
   });
 
@@ -43,8 +40,7 @@ export default function Dashboard() {
   const downloadTemplate = async () => {
     setTemplateLoading(true);
     try {
-      const res = await base44.functions.invoke('personSchemaFields', { session_token: sessionToken });
-      const { fields } = res.data;
+      const { fields } = await callBackendFunction('personSchemaFields', { session_token: sessionToken });
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([fields]);
