@@ -1,8 +1,8 @@
-import React from 'react';
-import { base44 } from '@/api/base44Client';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
+import { callBackendFunction } from '@/lib/backendCall';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -26,25 +26,21 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export default function Dashboard() {
+  const [templateLoading, setTemplateLoading] = useState(false);
   const sessionToken = localStorage.getItem('app_session_token');
 
-  // ── Single backend summary query ──────────────────────────────────────────
+  // ── Single aggregated summary call — no SDK, raw callBackendFunction ───────
   const { data: summary, isLoading, isError } = useQuery({
     queryKey: ['dashboard-summary'],
-    queryFn: async () => {
-      const res = await base44.functions.invoke('dashboardSummary', {
-        session_token: sessionToken
-      });
-      return res.data;
-    },
+    queryFn: () => callBackendFunction('dashboardSummary', { session_token: sessionToken }),
     staleTime: 60_000,
   });
 
-  // ── Dynamic Person template download (.xlsx) ─────────────────────────────
+  // ── Dynamic Person template via personSchemaFields endpoint ───────────────
   const downloadTemplate = async () => {
+    setTemplateLoading(true);
     try {
-      const schema = await base44.entities.Person.schema();
-      const fields = Object.keys(schema.properties || {});
+      const { fields } = await callBackendFunction('personSchemaFields', { session_token: sessionToken });
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([fields]);
@@ -52,13 +48,15 @@ export default function Dashboard() {
 
       const date = new Date().toISOString().split('T')[0];
       XLSX.writeFile(wb, `person_template_${date}.xlsx`);
-      toast.success('Το πρότυπο κατέβηκε');
+      toast.success('Το πρότυπο κατέβηκε επιτυχώς');
     } catch (err) {
       toast.error('Σφάλμα κατά τη δημιουργία προτύπου: ' + err.message);
+    } finally {
+      setTemplateLoading(false);
     }
   };
 
-  // ── Loading state ─────────────────────────────────────────────────────────
+  // ── Full-page loading — no partial renders, no fake zeros ─────────────────
   if (isLoading) {
     return <LoadingSpinner text="Φόρτωση πίνακα ελέγχου..." />;
   }
@@ -85,7 +83,7 @@ export default function Dashboard() {
     active_kanali_count,
     recent_submissions,
     not_found_count,
-    sms_logs
+    sms_logs,
   } = summary;
 
   return (
@@ -95,9 +93,14 @@ export default function Dashboard() {
         subtitle="Επισκόπηση της εκλογικής διαδικασίας"
         icon={LayoutDashboard}
         actions={
-          <Button variant="outline" onClick={downloadTemplate} className="h-10">
+          <Button
+            variant="outline"
+            onClick={downloadTemplate}
+            disabled={templateLoading}
+            className="h-10"
+          >
             <Download className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Πρότυπο</span>
+            <span className="hidden sm:inline">{templateLoading ? 'Παρακαλώ...' : 'Πρότυπο'}</span>
           </Button>
         }
       />
@@ -155,7 +158,7 @@ export default function Dashboard() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Department Stats */}
+        {/* Top Departments */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
             <CardTitle className="text-base sm:text-lg">Κορυφαία Τμήματα</CardTitle>
@@ -181,7 +184,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Account Stats */}
+        {/* Account Counts */}
         <Card>
           <CardHeader className="pb-3 sm:pb-6">
             <CardTitle className="text-base sm:text-lg">Λογαριασμοί</CardTitle>
@@ -258,8 +261,9 @@ export default function Dashboard() {
                       ? 'bg-amber-100 text-amber-700'
                       : 'bg-red-100 text-red-700'
                   }`}>
-                    {sub.status === 'MARKED_VOTED' ? 'Επιτυχής' :
-                     sub.status === 'ALREADY_VOTED' ? 'Ήδη Ψήφισε' : 'Δεν Βρέθηκε'}
+                    {sub.status === 'MARKED_VOTED' ? 'Επιτυχής'
+                     : sub.status === 'ALREADY_VOTED' ? 'Ήδη Ψήφισε'
+                     : 'Δεν Βρέθηκε'}
                   </span>
                 </div>
               ))}
@@ -296,7 +300,10 @@ export default function Dashboard() {
                   {sms_logs.map(log => (
                     <tr key={log.id} className="border-b last:border-0 hover:bg-slate-50">
                       <td className="py-2 pr-3 text-xs text-slate-500 whitespace-nowrap">
-                        {new Date(log.created_date).toLocaleString('el-GR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(log.created_date).toLocaleString('el-GR', {
+                          day: '2-digit', month: '2-digit',
+                          hour: '2-digit', minute: '2-digit'
+                        })}
                       </td>
                       <td className="py-2 pr-3 text-xs text-slate-600">{log.category || '—'}</td>
                       <td className="py-2 pr-3 font-medium truncate max-w-[120px]">{log.to_username || '—'}</td>
