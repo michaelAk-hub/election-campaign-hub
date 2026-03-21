@@ -1,14 +1,15 @@
 /**
  * Raw fetch helper for Base44 backend functions.
- * Mirrors exactly what base44.functions.invoke does internally:
- *   POST ${appBaseUrl}/api/functions/${name}
- * with a JSON body — no SDK dependency.
+ * Constructs the same URL the Base44 SDK uses internally:
+ *   POST ${appBaseUrl}/api/v${functionsVersion}/functions/${name}
+ * No SDK dependency — plain browser fetch.
  */
 import { appParams } from '@/lib/app-params';
 
 export async function callBackendFunction(functionName, payload = {}) {
   const base = (appParams.appBaseUrl || window.location.origin).replace(/\/$/, '');
-  const url = `${base}/api/functions/${functionName}`;
+  const version = appParams.functionsVersion || '3';
+  const url = `${base}/api/v${version}/functions/${functionName}`;
 
   const res = await fetch(url, {
     method: 'POST',
