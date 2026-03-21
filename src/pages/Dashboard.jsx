@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -9,14 +9,6 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
@@ -24,253 +16,77 @@ import {
   Vote,
   UserCheck,
   AlertCircle,
-  TrendingUp,
-  FileSpreadsheet,
-  RefreshCw,
   ArrowRight,
   Clock,
   CheckCircle2,
   Download,
-  Upload,
   MessageSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 export default function Dashboard() {
-  const [uploadDialog, setUploadDialog] = useState(false);
-  const [uploadFile, setUploadFile] = useState(null);
-  const [importMode, setImportMode] = useState('append');
-  const [isUploading, setIsUploading] = useState(false);
-  const { data: people = [], isLoading: loadingPeople, refetch } = useQuery({
-    queryKey: ['people'],
+  const sessionToken = localStorage.getItem('app_session_token');
+
+  // ── Single backend summary query ──────────────────────────────────────────
+  const { data: summary, isLoading, isError } = useQuery({
+    queryKey: ['dashboard-summary'],
     queryFn: async () => {
-      let allRecords = [];
-      let skip = 0;
-      const limit = 5000;
-      let hasMore = true;
-
-      while (hasMore) {
-        const batch = await base44.entities.Person.list('-created_date', limit, skip);
-        allRecords = allRecords.concat(batch);
-        skip += limit;
-        hasMore = batch.length === limit;
-      }
-      return allRecords;
-    }
-  });
-
-  const { data: chreosiAccounts = [] } = useQuery({
-    queryKey: ['chreosi-accounts'],
-    queryFn: async () => {
-      let allRecords = [];
-      let skip = 0;
-      const limit = 5000;
-      let hasMore = true;
-      while (hasMore) {
-        const batch = await base44.entities.ChreosiAccount.list('-created_date', limit, skip);
-        allRecords = allRecords.concat(batch);
-        skip += limit;
-        hasMore = batch.length === limit;
-      }
-      return allRecords;
-    }
-  });
-
-  const { data: kanaliAccounts = [] } = useQuery({
-    queryKey: ['kanali-accounts'],
-    queryFn: async () => {
-      let allRecords = [];
-      let skip = 0;
-      const limit = 5000;
-      let hasMore = true;
-      while (hasMore) {
-        const batch = await base44.entities.KanaliAccount.list('-created_date', limit, skip);
-        allRecords = allRecords.concat(batch);
-        skip += limit;
-        hasMore = batch.length === limit;
-      }
-      return allRecords;
-    }
-  });
-
-  const { data: notFoundVoters = [] } = useQuery({
-    queryKey: ['not-found-voters'],
-    queryFn: async () => {
-      let allRecords = [];
-      let skip = 0;
-      const limit = 5000;
-      let hasMore = true;
-      while (hasMore) {
-        const batch = await base44.entities.NotFoundVoter.list('-created_date', limit, skip);
-        allRecords = allRecords.concat(batch);
-        skip += limit;
-        hasMore = batch.length === limit;
-      }
-      return allRecords;
-    }
-  });
-
-  const { data: recentSubmissions = [] } = useQuery({
-    queryKey: ['recent-submissions'],
-    queryFn: async () => {
-      let allRecords = [];
-      let skip = 0;
-      const limit = 5000;
-      let hasMore = true;
-      while (hasMore) {
-        const batch = await base44.entities.KanaliSubmission.list('-created_date', limit, skip);
-        allRecords = allRecords.concat(batch);
-        skip += limit;
-        hasMore = batch.length === limit;
-      }
-      return allRecords;
-    }
-  });
-
-  const { data: smsLogs = [] } = useQuery({
-    queryKey: ['sms-logs-dashboard'],
-    queryFn: () => base44.entities.SmsLog.list('-created_date', 50)
-  });
-
-  const totalPeople = people.length;
-  const votedCount = people.filter(p => p.voted).length;
-  const notVotedCount = totalPeople - votedCount;
-  const votePercentage = totalPeople > 0 ? Math.round((votedCount / totalPeople) * 100) : 0;
-
-  // Department stats
-  const departmentStats = React.useMemo(() => {
-    const stats = {};
-    people.forEach(p => {
-      const dept = p.department || 'Άγνωστο';
-      if (!stats[dept]) {
-        stats[dept] = { total: 0, voted: 0 };
-      }
-      stats[dept].total++;
-      if (p.voted) stats[dept].voted++;
-    });
-    return Object.entries(stats)
-      .map(([dept, data]) => ({
-        department: dept,
-        total: data.total,
-        voted: data.voted,
-        percentage: Math.round((data.voted / data.total) * 100)
-      }))
-      .sort((a, b) => b.voted - a.voted)
-      .slice(0, 5);
-  }, [people]);
-
-  const downloadTemplate = () => {
-    const headers = [
-      'department',
-      'admission_year',
-      'academic_level',
-      'person_id',
-      'ucid',
-      'mobile_phone',
-      'first_name',
-      'last_name',
-      'contact_person_1',
-      'contact_person_2',
-      'member',
-      'prediction_symbol',
-      'voted',
-      'notes',
-      'monadikos_kanali'
-    ];
-    
-    const csv = '\uFEFF' + headers.join(',') + '\n';
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `template_person_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Το πρότυπο κατέβηκε');
-  };
-
-  const handleUpload = async () => {
-    if (!uploadFile) {
-      toast.error('Επιλέξτε αρχείο');
-      return;
-    }
-
-    setIsUploading(true);
-
-    try {
-      // Upload file first
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
-
-      // Extract data from file
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: 'object',
-          properties: {
-            department: { type: 'string' },
-            admission_year: { type: 'string' },
-            academic_level: { type: 'string' },
-            person_id: { type: 'string' },
-            ucid: { type: 'string' },
-            mobile_phone: { type: 'string' },
-            first_name: { type: 'string' },
-            last_name: { type: 'string' },
-            contact_person_1: { type: 'string' },
-            contact_person_2: { type: 'string' },
-            member: { type: 'string' },
-            prediction_symbol: { type: 'string' },
-            voted: { type: 'boolean' },
-            notes: { type: 'string' },
-            monadikos_kanali: { type: 'string' }
-          }
-        }
+      const res = await base44.functions.invoke('dashboardSummary', {
+        session_token: sessionToken
       });
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
 
-      if (result.status === 'error') {
-        toast.error('Σφάλμα ανάλυσης αρχείου: ' + result.details);
-        setIsUploading(false);
-        return;
-      }
+  // ── Dynamic Person template download (.xlsx) ─────────────────────────────
+  const downloadTemplate = async () => {
+    try {
+      const schema = await base44.entities.Person.schema();
+      const fields = Object.keys(schema.properties || {});
 
-      const records = Array.isArray(result.output) ? result.output : [result.output];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([fields]);
+      XLSX.utils.book_append_sheet(wb, ws, 'Person Template');
 
-      // Delete all if replace mode
-      if (importMode === 'replace') {
-        let allPeople = [];
-        let skip = 0;
-        const limit = 5000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const batch = await base44.entities.Person.list('-created_date', limit, skip);
-          allPeople = allPeople.concat(batch);
-          skip += limit;
-          hasMore = batch.length === limit;
-        }
-
-        for (const person of allPeople) {
-          await base44.entities.Person.delete(person.id);
-        }
-        toast.success(`Διαγράφηκαν ${allPeople.length} εγγραφές`);
-      }
-
-      // Import new records
-      await base44.entities.Person.bulkCreate(records);
-      
-      toast.success(`Εισήχθησαν ${records.length} εγγραφές επιτυχώς`);
-      setUploadDialog(false);
-      setUploadFile(null);
-      refetch();
-    } catch (error) {
-      toast.error('Σφάλμα: ' + error.message);
-    } finally {
-      setIsUploading(false);
+      const date = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `person_template_${date}.xlsx`);
+      toast.success('Το πρότυπο κατέβηκε');
+    } catch (err) {
+      toast.error('Σφάλμα κατά τη δημιουργία προτύπου: ' + err.message);
     }
   };
 
-  if (loadingPeople) {
-    return <LoadingSpinner />;
+  // ── Loading state ─────────────────────────────────────────────────────────
+  if (isLoading) {
+    return <LoadingSpinner text="Φόρτωση πίνακα ελέγχου..." />;
   }
+
+  if (isError || !summary) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <AlertCircle className="h-12 w-12 text-red-400" />
+        <p className="text-slate-600 text-lg">Αδυναμία φόρτωσης δεδομένων.</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Δοκιμάστε ξανά
+        </Button>
+      </div>
+    );
+  }
+
+  const {
+    total_people,
+    voted_count,
+    not_voted_count,
+    vote_percentage,
+    top_departments,
+    active_chreosi_count,
+    active_kanali_count,
+    recent_submissions,
+    not_found_count,
+    sms_logs
+  } = summary;
 
   return (
     <div className="space-y-8">
@@ -279,20 +95,10 @@ export default function Dashboard() {
         subtitle="Επισκόπηση της εκλογικής διαδικασίας"
         icon={LayoutDashboard}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={downloadTemplate} className="h-10">
-              <Download className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Πρότυπο</span>
-            </Button>
-            <Button variant="default" onClick={() => setUploadDialog(true)} className="h-10">
-              <Upload className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Εισαγωγή</span>
-            </Button>
-            <Button variant="outline" onClick={() => refetch()} className="h-10">
-              <RefreshCw className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Ανανέωση</span>
-            </Button>
-          </div>
+          <Button variant="outline" onClick={downloadTemplate} className="h-10">
+            <Download className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Πρότυπο</span>
+          </Button>
         }
       />
 
@@ -300,26 +106,26 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Σύνολο Εγγραφών"
-          value={totalPeople.toLocaleString('el-GR')}
+          value={total_people.toLocaleString('el-GR')}
           icon={Users}
           iconClassName="bg-blue-100"
         />
         <StatCard
           title="Ψήφισαν"
-          value={votedCount.toLocaleString('el-GR')}
-          subtitle={`${votePercentage}% του συνόλου`}
+          value={voted_count.toLocaleString('el-GR')}
+          subtitle={`${vote_percentage}% του συνόλου`}
           icon={CheckCircle2}
           iconClassName="bg-emerald-100"
         />
         <StatCard
           title="Δεν Ψήφισαν"
-          value={notVotedCount.toLocaleString('el-GR')}
+          value={not_voted_count.toLocaleString('el-GR')}
           icon={Clock}
           iconClassName="bg-amber-100"
         />
         <StatCard
           title="Αποτυχημένες Καταχωρήσεις"
-          value={notFoundVoters.length}
+          value={not_found_count}
           icon={AlertCircle}
           iconClassName="bg-red-100"
         />
@@ -337,12 +143,12 @@ export default function Dashboard() {
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Συνολική Πρόοδος</span>
-              <span className="font-semibold text-slate-900">{votePercentage}%</span>
+              <span className="font-semibold text-slate-900">{vote_percentage}%</span>
             </div>
-            <Progress value={votePercentage} className="h-3" />
+            <Progress value={vote_percentage} className="h-3" />
             <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{votedCount.toLocaleString('el-GR')} ψήφισαν</span>
-              <span>{notVotedCount.toLocaleString('el-GR')} απομένουν</span>
+              <span>{voted_count.toLocaleString('el-GR')} ψήφισαν</span>
+              <span>{not_voted_count.toLocaleString('el-GR')} απομένουν</span>
             </div>
           </div>
         </CardContent>
@@ -361,7 +167,7 @@ export default function Dashboard() {
             </Link>
           </CardHeader>
           <CardContent className="space-y-4">
-            {departmentStats.map((dept, idx) => (
+            {top_departments.map((dept) => (
               <div key={dept.department} className="space-y-2">
                 <div className="flex items-center justify-between text-xs sm:text-sm">
                   <span className="text-slate-700 truncate max-w-[140px] sm:max-w-[200px]">{dept.department}</span>
@@ -391,9 +197,7 @@ export default function Dashboard() {
                   <p className="text-xs sm:text-sm text-slate-500">Ενεργοί λογαριασμοί</p>
                 </div>
               </div>
-              <span className="text-xl sm:text-2xl font-bold text-slate-900">
-                {chreosiAccounts.filter(a => a.is_active).length}
-              </span>
+              <span className="text-xl sm:text-2xl font-bold text-slate-900">{active_chreosi_count}</span>
             </div>
             <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-lg">
               <div className="flex items-center gap-2 sm:gap-3">
@@ -405,9 +209,7 @@ export default function Dashboard() {
                   <p className="text-xs sm:text-sm text-slate-500">Ενεργοί λογαριασμοί</p>
                 </div>
               </div>
-              <span className="text-xl sm:text-2xl font-bold text-slate-900">
-                {kanaliAccounts.filter(a => a.is_active).length}
-              </span>
+              <span className="text-xl sm:text-2xl font-bold text-slate-900">{active_kanali_count}</span>
             </div>
           </CardContent>
         </Card>
@@ -425,20 +227,18 @@ export default function Dashboard() {
           </Link>
         </CardHeader>
         <CardContent>
-          {recentSubmissions.length === 0 ? (
+          {recent_submissions.length === 0 ? (
             <p className="text-slate-500 text-center py-8">Δεν υπάρχουν καταχωρήσεις ακόμα</p>
           ) : (
             <div className="space-y-2">
-              {recentSubmissions.slice(0, 5).map(sub => (
-                <div 
-                  key={sub.id} 
+              {recent_submissions.map(sub => (
+                <div
+                  key={sub.id}
                   className="flex items-center justify-between p-2 sm:p-3 bg-slate-50 rounded-lg gap-2"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     <div className={`p-1 sm:p-1.5 rounded-full flex-shrink-0 ${
-                      sub.status === 'MARKED_VOTED' 
-                        ? 'bg-emerald-100' 
-                        : 'bg-red-100'
+                      sub.status === 'MARKED_VOTED' ? 'bg-emerald-100' : 'bg-red-100'
                     }`}>
                       {sub.status === 'MARKED_VOTED' ? (
                         <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-600" />
@@ -470,14 +270,14 @@ export default function Dashboard() {
 
       {/* SMS History */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
+        <CardHeader className="pb-3 sm:pb-6">
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <MessageSquare className="h-5 w-5 text-blue-600" />
             SMS History (τελευταία 50)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {smsLogs.length === 0 ? (
+          {sms_logs.length === 0 ? (
             <p className="text-slate-500 text-center py-8">Δεν υπάρχουν SMS ακόμα</p>
           ) : (
             <div className="overflow-auto max-h-96">
@@ -493,10 +293,10 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {smsLogs.map(log => (
+                  {sms_logs.map(log => (
                     <tr key={log.id} className="border-b last:border-0 hover:bg-slate-50">
                       <td className="py-2 pr-3 text-xs text-slate-500 whitespace-nowrap">
-                        {new Date(log.created_date).toLocaleString('el-GR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
+                        {new Date(log.created_date).toLocaleString('el-GR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="py-2 pr-3 text-xs text-slate-600">{log.category || '—'}</td>
                       <td className="py-2 pr-3 font-medium truncate max-w-[120px]">{log.to_username || '—'}</td>
@@ -518,87 +318,6 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
-
-      {/* Upload Dialog */}
-      <Dialog open={uploadDialog} onOpenChange={setUploadDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Εισαγωγή Δεδομένων από Excel/CSV</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Επιλογή Αρχείου</Label>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => setUploadFile(e.target.files[0])}
-                className="block w-full text-sm text-slate-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-md file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
-              />
-              <p className="text-xs text-slate-500">
-                Η πρώτη γραμμή του αρχείου πρέπει να περιέχει τα ονόματα των πεδίων
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Τρόπος Εισαγωγής</Label>
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    value="append"
-                    checked={importMode === 'append'}
-                    onChange={(e) => setImportMode(e.target.value)}
-                    className="text-blue-600"
-                  />
-                  <div>
-                    <p className="font-medium text-sm">Προσθήκη</p>
-                    <p className="text-xs text-slate-500">Προσθήκη νέων εγγραφών στις υπάρχουσες</p>
-                  </div>
-                </label>
-                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    value="replace"
-                    checked={importMode === 'replace'}
-                    onChange={(e) => setImportMode(e.target.value)}
-                    className="text-red-600"
-                  />
-                  <div>
-                    <p className="font-medium text-sm text-red-600">Αντικατάσταση</p>
-                    <p className="text-xs text-slate-500">Διαγραφή όλων και εισαγωγή νέων</p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {importMode === 'replace' && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700 font-medium">⚠️ Προσοχή!</p>
-                <p className="text-xs text-red-600 mt-1">
-                  Όλες οι υπάρχουσες εγγραφές θα διαγραφούν πριν την εισαγωγή των νέων.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialog(false)} disabled={isUploading}>
-              Ακύρωση
-            </Button>
-            <Button onClick={handleUpload} disabled={!uploadFile || isUploading}>
-              {isUploading ? 'Εισαγωγή...' : 'Εισαγωγή'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
