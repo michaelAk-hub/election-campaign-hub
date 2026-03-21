@@ -43,7 +43,8 @@ export default function Dashboard() {
   const downloadTemplate = async () => {
     setTemplateLoading(true);
     try {
-      const { fields } = await callBackendFunction('personSchemaFields', { session_token: sessionToken });
+      const res = await base44.functions.invoke('personSchemaFields', { session_token: sessionToken });
+      const { fields } = res.data;
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([fields]);
