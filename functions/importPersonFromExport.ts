@@ -23,29 +23,32 @@ Deno.serve(async (req) => {
 
         if (!rows.length) return Response.json({ error: 'No rows found' }, { status: 400 });
 
+        // Fields that must be strings in the entity schema
+        const STRING_FIELDS = new Set([
+            'admission_year', 'mobile_phone', 'monadikos_kanali', 'phone',
+            'person_id', 'ucid', 'department', 'first_name', 'last_name',
+            'academic_level', 'prediction_symbol', 'contact_person_1', 'contact_person_2',
+            'direction', 'X', 'F26_1', 'F25', 'F24', 'F23', 'T22', 'T24',
+            'details', 'notes', 'member', 'ElectoralDistrict', 'ElectoralTown',
+            'RelatedMember', 'father_n', 'father_name', 'dataset_id'
+        ]);
+
         // Strip excluded columns and normalize
         const cleaned = rows.map(row => {
             const out = {};
             for (const [k, v] of Object.entries(row)) {
                 if (EXCLUDE_COLS.has(k)) continue;
-                // Convert empty strings to null for non-required fields
-                if (v === '' || v === undefined) {
+                if (v === null || v === undefined || v === '') {
                     out[k] = null;
+                } else if (STRING_FIELDS.has(k)) {
+                    out[k] = String(v);
                 } else {
                     out[k] = v;
                 }
             }
-            // Ensure booleans
-            if (out.voted !== null && out.voted !== undefined) {
-                out.voted = out.voted === true || out.voted === 'TRUE' || out.voted === 1 || out.voted === '1';
-            } else {
-                out.voted = false;
-            }
-            if (out.member !== null && out.member !== undefined) {
-                out.member = out.member === true || out.member === 'TRUE' || out.member === 1 || out.member === '1';
-            } else {
-                out.member = false;
-            }
+            // Ensure voted is boolean
+            const votedRaw = out.voted;
+            out.voted = votedRaw === true || votedRaw === 'TRUE' || votedRaw === 1 || votedRaw === '1' || votedRaw === 'true';
             return out;
         });
 
