@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { callBackendFunction } from '@/lib/backendCall';
+import { base44 } from '@/api/base44Client';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -40,16 +41,14 @@ export default function Dashboard() {
   const downloadTemplate = async () => {
     setTemplateLoading(true);
     try {
-      const result = await callBackendFunction('personSchemaFields', { session_token: sessionToken });
-      const { fields } = result;
+      const schema = await base44.entities.Person.schema();
+      const fields = Object.keys(schema?.properties || {});
 
       if (!Array.isArray(fields) || fields.length === 0) {
-        throw new Error('personSchemaFields returned no fields: ' + JSON.stringify(result));
+        throw new Error('Person.schema() returned no properties: ' + JSON.stringify(schema));
       }
 
-      if (import.meta.env.DEV) {
-        console.log('[Dashboard] personSchemaFields returned', fields.length, 'fields:', fields);
-      }
+      console.log('[Dashboard] Person.schema() returned', fields.length, 'fields:', fields);
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([fields]);
