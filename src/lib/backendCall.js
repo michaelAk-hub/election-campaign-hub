@@ -1,12 +1,9 @@
 /**
  * Raw fetch helper for Base44 backend functions.
- * Zero SDK dependency — constructs the URL from Vite env vars and uses
- * the native browser fetch API directly.
+ * Zero SDK dependency — constructs the correct versioned URL from appParams
+ * and uses the native browser fetch API directly.
  */
-
-const APP_BASE_URL =
-  import.meta.env.VITE_BASE44_APP_BASE_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : '');
+import { appParams } from '@/lib/app-params';
 
 /**
  * Call a Base44 backend function by name with a plain JSON payload.
@@ -17,7 +14,9 @@ const APP_BASE_URL =
  * @returns {Promise<object>}    - Parsed JSON response body
  */
 export async function callBackendFunction(functionName, payload = {}) {
-  const url = `${APP_BASE_URL}/api/functions/${functionName}`;
+  const version = appParams.functionsVersion || '3';
+  const base = appParams.appBaseUrl || window.location.origin;
+  const url = `${base}/api/v${version}/functions/${functionName}`;
 
   const res = await fetch(url, {
     method: 'POST',
