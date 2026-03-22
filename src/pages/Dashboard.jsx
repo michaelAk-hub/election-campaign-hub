@@ -29,10 +29,15 @@ export default function Dashboard() {
   const [templateLoading, setTemplateLoading] = useState(false);
   const sessionToken = localStorage.getItem('app_session_token');
 
-  // ── Single aggregated summary call — no SDK, raw callBackendFunction ───────
+  // ── Single aggregated summary call via SDK (reliable, correct URL) ──────────
   const { data: summary, isLoading, isError } = useQuery({
     queryKey: ['dashboard-summary'],
-    queryFn: () => callBackendFunction('dashboardSummary', { session_token: sessionToken }),
+    queryFn: async () => {
+      console.log('[Dashboard] fetching dashboardSummary, session_token present:', !!sessionToken);
+      const res = await base44.functions.invoke('dashboardSummary', { session_token: sessionToken });
+      console.log('[Dashboard] dashboardSummary response status:', res.status, 'data keys:', Object.keys(res.data || {}));
+      return res.data;
+    },
     staleTime: 60_000,
   });
 
