@@ -6,36 +6,42 @@ Deno.serve(async (req) => {
         const body = await req.json();
         const sessionToken = body.session_token;
 
+        console.log('[dashboardSummary] session_token present:', !!sessionToken);
+
         if (!sessionToken) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        console.log('[dashboardSummary] validating session...');
         const sessions = await base44.asServiceRole.entities.AppSession.filter({
             session_token: sessionToken,
             is_active: true
         });
+        console.log('[dashboardSummary] sessions found:', sessions.length);
 
         if (!sessions.length) {
             return Response.json({ error: 'Invalid session' }, { status: 401 });
         }
 
         const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
+        console.log('[dashboardSummary] user found:', users.length > 0, 'role:', users[0]?.role);
+
         if (!users.length || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
             return Response.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        // Fetch all required data in parallel (server-side, no client involvement)
-        const [activeDatasets, chreosiAccounts, kanaliAccounts, recentSubmissions, notFoundVoters, smsLogs] = await Promise.all([
+        console.log('[dashboardSummary] fetching parallel data...');
+        const [activeDatasets, chreosiAccounts, kanaliAccounts, recentSubmissions, smsLogs] = await Promise.all([
             base44.asServiceRole.entities.Dataset.filter({ status: 'active' }),
             base44.asServiceRole.entities.ChreosiAccount.filter({ is_active: true }),
             base44.asServiceRole.entities.KanaliAccount.filter({ is_active: true }),
             base44.asServiceRole.entities.KanaliSubmission.list('-created_date', 5, 0),
-            base44.asServiceRole.entities.NotFoundVoter.list('-created_date', 1, 0),
             base44.asServiceRole.entities.SmsLog.list('-created_date', 50, 0)
         ]);
+        console.log('[dashboardSummary] parallel fetch done. datasets:', activeDatasets.length, 'chreosi:', chreosiAccounts.length, 'kanali:', kanaliAccounts.length);
 
-        // NotFoundVoter total count — fetch count via paginated approach but only need 1 page for count
-        // Use a filter count trick: fetch all with small fields is ok since we need count
+        // NotFoundVoter total count
+        console.log('[dashboardSummary] counting NotFoundVoters...');
         let notFoundCount = 0;
         {
             let skip = 0;
@@ -47,6 +53,7 @@ Deno.serve(async (req) => {
                 skip += limit;
             }
         }
+        console.log('[dashboardSummary] not_found_count:', notFoundCount);
 
         // Aggregate person stats from active dataset
         let total_people = 0;
@@ -55,6 +62,7 @@ Deno.serve(async (req) => {
 
         if (activeDatasets.length > 0) {
             const datasetId = activeDatasets[0].id;
+            console.log('[dashboardSummary] fetching persons for dataset:', datasetId);
             let skip = 0;
             const limit = 500;
             while (true) {
@@ -69,7 +77,6 @@ Deno.serve(async (req) => {
                 for (const p of batch) {
                     total_people++;
                     if (p.voted === true) voted_count++;
-
                     const dept = p.department || 'Άγνωστο';
                     if (!deptMap[dept]) deptMap[dept] = { total: 0, voted: 0 };
                     deptMap[dept].total++;
@@ -79,6 +86,9 @@ Deno.serve(async (req) => {
                 if (batch.length < limit) break;
                 skip += limit;
             }
+            console.log('[dashboardSummary] persons fetched:', total_people, 'voted:', voted_count);
+        } else {
+            console.log('[dashboardSummary] no active dataset found');
         }
 
         const not_voted_count = total_people - voted_count;
@@ -94,7 +104,7 @@ Deno.serve(async (req) => {
             .sort((a, b) => b.voted - a.voted)
             .slice(0, 5);
 
-        return Response.json({
+        const payload = {
             total_people,
             voted_count,
             not_voted_count,
@@ -106,10 +116,14 @@ Deno.serve(async (req) => {
             not_found_count: notFoundCount,
             sms_logs: smsLogs,
             generated_at: new Date().toISOString()
-        });
+        };
+
+        console.log('[dashboardSummary] returning payload. keys:', Object.keys(payload).join(', '), '| total_people:', total_people, '| voted_count:', voted_count);
+
+        return Response.json(payload);
 
     } catch (error) {
-        console.error('dashboardSummary error:', error);
+        console.error('[dashboardSummary] FATAL ERROR:', error.message, error.stack);
         return Response.json({ error: error.message }, { status: 500 });
     }
 });

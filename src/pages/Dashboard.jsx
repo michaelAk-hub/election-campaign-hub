@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { callBackendFunction } from '@/lib/backendCall';
 import { base44 } from '@/api/base44Client';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
