@@ -1,9 +1,25 @@
-// This function is no longer used. Person schema is fetched on the frontend
-// via base44.entities.Person.schema() which is the live authoritative source.
-// File kept to avoid broken references if any old code still points here.
-
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 
 Deno.serve(async (req) => {
-    return Response.json({ error: 'Deprecated. Use base44.entities.Person.schema() on the frontend.' }, { status: 410 });
+    try {
+        const base44 = createClientFromRequest(req);
+        const body = await req.json().catch(() => ({}));
+        const { session_token } = body;
+
+        if (!session_token) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
+        if (!sessions?.length) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
+        if (!users?.length || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
+            return Response.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
+        const schema = await base44.asServiceRole.entities.Person.schema();
+        const fields = Object.keys(schema?.properties || {});
+
+        return Response.json({ fields });
+    } catch (error) {
+        return Response.json({ error: error.message }, { status: 500 });
+    }
 });
