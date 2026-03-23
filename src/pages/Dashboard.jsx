@@ -45,14 +45,14 @@ export default function Dashboard() {
   const downloadTemplate = async () => {
     setTemplateLoading(true);
     try {
-      const schema = await base44.entities.Person.schema();
-      const fields = Object.keys(schema?.properties || {});
+      const res = await base44.functions.invoke('personSchemaFields', { session_token: sessionToken });
+      const fields = res.data?.fields;
 
       if (!Array.isArray(fields) || fields.length === 0) {
-        throw new Error('Person.schema() returned no properties: ' + JSON.stringify(schema));
+        throw new Error('personSchemaFields returned no fields: ' + JSON.stringify(res.data));
       }
 
-      console.log('[Dashboard] Person.schema() returned', fields.length, 'fields:', fields);
+      console.log('[Dashboard] personSchemaFields returned', fields.length, 'fields:', fields);
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([fields]);
