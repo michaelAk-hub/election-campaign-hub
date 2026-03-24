@@ -18,18 +18,22 @@ async function deleteWithRetry(entity, id, retries = 4) {
 }
 
 Deno.serve(async (req) => {
+  let base44Ref = null;
+  let jobRef = null;
+
   try {
     const base44 = createClientFromRequest(req);
+    base44Ref = base44;
     const body = await req.json();
 
     const sessionToken = body.session_token;
-    const jobId = body.job_id; // If provided, resume an existing job
+    const jobId = body.job_id;
 
-    // Auth check
     const INTERNAL_SECRET = Deno.env.get('BASE44_APP_ID') + '_internal_resume';
     const isInternalResume = jobId && body.resume_key === INTERNAL_SECRET;
 
     if (!isInternalResume) {
+      // Client-initiated: always require a valid ADMIN session token
       if (!sessionToken) return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
       const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token: sessionToken, is_active: true });
@@ -44,17 +48,14 @@ Deno.serve(async (req) => {
     let job;
 
     if (jobId) {
-      // Resume existing job
       const jobs = await base44.asServiceRole.entities.DeleteJob.filter({ id: jobId });
       if (jobs.length === 0) return Response.json({ success: false, error: 'Job not found' }, { status: 404 });
       job = jobs[0];
-      // Safety: refuse to resume the wrong job type
       if (job.job_type !== 'delete_all_persons') {
         return Response.json({ success: false, error: 'Job type mismatch' }, { status: 400 });
       }
       if (job.status !== 'running') return Response.json({ success: true, job_id: job.id, status: job.status });
     } else {
-      // New job: count total persons
       const countBatch = await base44.asServiceRole.entities.Person.list('created_date', 5000, 0);
       const total = countBatch.length;
 
@@ -67,7 +68,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Process a batch of up to 200 records (safe within time limit)
+    jobRef = job;
+
     const BATCH_SIZE = 200;
     const people = await base44.asServiceRole.entities.Person.list('created_date', BATCH_SIZE, 0);
 
@@ -81,28 +83,26 @@ Deno.serve(async (req) => {
     const newDeleted = (job.deleted || 0) + batchDeleted;
     const total = job.total || 0;
 
-    // Check if there are more persons left
     const remaining = await base44.asServiceRole.entities.Person.list('created_date', 1, 0);
 
     if (remaining.length > 0) {
-      // More to delete — update progress and self-invoke to continue
       await base44.asServiceRole.entities.DeleteJob.update(job.id, {
         deleted: newDeleted,
         message: `Διαγραφή εγγραφών (${newDeleted}/${total})...`
       });
 
-      // Self-invoke to continue (fire and forget)
       const appId = Deno.env.get('BASE44_APP_ID');
       const fnUrl = `https://api.base44.com/api/apps/${appId}/functions/deleteAllPersons`;
       fetch(fnUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: job.id, resume_key: Deno.env.get('BASE44_APP_ID') + '_internal_resume' })
+        body: JSON.stringify({ job_id: job.id, resume_key: INTERNAL_SECRET })
       }).catch(e => console.error('Self-invoke failed:', e));
 
+      // FIX 1: Small delay so the outgoing fetch is dispatched before the isolate freezes
+      await sleep(50);
       return Response.json({ success: true, job_id: job.id, deleted: newDeleted, total });
     } else {
-      // All persons deleted — now delete datasets
       const datasets = await base44.asServiceRole.entities.Dataset.list('-created_date', 5000, 0);
       for (const ds of datasets) {
         await deleteWithRetry(base44.asServiceRole.entities.Dataset, ds.id);
@@ -120,18 +120,16 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Delete all persons error:', error);
 
-    // Try to mark job as error if we have a job_id
-    try {
-      const base44 = createClientFromRequest(req);
-      const body = await req.clone().json().catch(() => ({}));
-      if (body.job_id) {
-        await base44.asServiceRole.entities.DeleteJob.update(body.job_id, {
+    // FIX 2: Use jobRef captured before the error — never re-parse the consumed request body
+    if (base44Ref && jobRef) {
+      try {
+        await base44Ref.asServiceRole.entities.DeleteJob.update(jobRef.id, {
           status: 'error',
           error: error?.message ?? String(error),
           message: `Σφάλμα: ${error?.message ?? String(error)}`
         });
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     return Response.json({ success: false, error: error?.message ?? String(error) }, { status: 500 });
   }
