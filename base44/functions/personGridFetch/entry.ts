@@ -11,8 +11,9 @@ function buildPartitionCondition(partition) {
   return null;
 }
 
-function escapeRegex(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function escapeRegExp(string) {
+  if (!string) return "";
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function normalizeFilters(filtersRaw) {
@@ -122,7 +123,7 @@ Deno.serve(async (req) => {
     ];
 
     if (search) {
-      const safeSearch = escapeRegex(search);
+      const safeSearch = escapeRegExp(search);
       and.push({
         $or: [
           { person_id:         { $regex: safeSearch, $options: "i" } },
@@ -174,12 +175,12 @@ Deno.serve(async (req) => {
 
         if (typeof model === "object" && model.filterType === "text") {
           const type = String(model.type ?? "contains");
-          const val = String(model.filter ?? "");
-          if (!val) continue;
-          const safeVal = escapeRegex(val);
+          const rawVal = String(model.filter ?? "");
+          if (!rawVal) continue;
+          const safeVal = escapeRegExp(rawVal);
           if (type === "contains") and.push({ [field]: { $regex: safeVal, $options: "i" } });
           else if (type === "startsWith") and.push({ [field]: { $regex: `^${safeVal}`, $options: "i" } });
-          else if (type === "equals") and.push({ [field]: val });
+          else if (type === "equals") and.push({ [field]: rawVal }); // Exact match doesn't need regex escaping
           continue;
         }
 
