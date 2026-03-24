@@ -2,21 +2,22 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-async function deleteWithRetry(entity, id, retries = 4) {
+async function deleteWithRetry(entity, id, retries = 5) {
   for (let i = 0; i < retries; i++) {
     try {
       await entity.delete(id);
       return;
     } catch (e) {
-      const errorMsg = e?.message || String(e);
+      const errorMsg = e?.message ? e.message.toLowerCase() : String(e).toLowerCase();
       if (e?.status === 404 || errorMsg.includes('not found')) {
         return; // Already deleted — treat as success
       }
-      if (e?.status === 429 && i < retries - 1) {
-        await sleep(500 * (i + 1));
-      } else {
-        if (i === retries - 1) throw e;
+      const isRateLimit = e?.status === 429 || errorMsg.includes('rate limit');
+      if (isRateLimit && i < retries - 1) {
+        await sleep(1000 * (i + 1));
+        continue;
       }
+      if (i === retries - 1) throw e;
     }
   }
 }
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
     for (const person of people) {
       await deleteWithRetry(base44.asServiceRole.entities.Person, person.id);
       batchDeleted++;
-      await sleep(30);
+      await sleep(80);
     }
 
     const newDeleted = (job.deleted || 0) + batchDeleted;
@@ -110,7 +111,7 @@ Deno.serve(async (req) => {
       const datasets = await base44.asServiceRole.entities.Dataset.list('-created_date', 5000, 0);
       for (const ds of datasets) {
         await deleteWithRetry(base44.asServiceRole.entities.Dataset, ds.id);
-        await sleep(30);
+        await sleep(80);
       }
 
       await base44.asServiceRole.entities.DeleteJob.update(job.id, {
