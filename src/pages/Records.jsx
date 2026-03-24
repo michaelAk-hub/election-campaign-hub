@@ -716,7 +716,7 @@ export default function Records() {
           </h3>
           <div className="space-y-2">
             {datasets.map(dataset => (
-              <div key={dataset.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 rounded-lg gap-3">
+              <div key={dataset.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg gap-3">
                 <div className="min-w-0">
                   <p className="font-medium text-sm sm:text-base truncate">{dataset.name}</p>
                   <p className="text-xs sm:text-sm text-slate-600">{dataset.total_records || 0} εγγραφές • {dataset.status}</p>
