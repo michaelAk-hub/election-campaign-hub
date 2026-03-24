@@ -710,7 +710,7 @@ export default function Records() {
       />
 
       {datasets.length > 0 && (
-        <div className="bg-white rounded-lg border p-3 sm:p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 p-3 sm:p-4">
           <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
             <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5" /> Datasets
           </h3>
