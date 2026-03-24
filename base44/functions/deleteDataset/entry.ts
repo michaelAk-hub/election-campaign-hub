@@ -10,10 +10,14 @@ async function deleteWithRetry(entity, id, retries = 4) {
       await entity.delete(id);
       return;
     } catch (e) {
+      const errorMsg = e?.message || String(e);
+      if (e?.status === 404 || errorMsg.includes('not found')) {
+        return; // Already deleted — treat as success
+      }
       if (e?.status === 429 && i < retries - 1) {
         await sleep(700 * (i + 1));
       } else {
-        throw e;
+        if (i === retries - 1) throw e;
       }
     }
   }
