@@ -11,6 +11,10 @@ function buildPartitionCondition(partition) {
   return null;
 }
 
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function normalizeFilters(filtersRaw) {
   if (!filtersRaw) return null;
   if (typeof filtersRaw === "string") {
@@ -118,29 +122,30 @@ Deno.serve(async (req) => {
     ];
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       and.push({
         $or: [
-          { person_id:         { $regex: search, $options: "i" } },
-          { first_name:        { $regex: search, $options: "i" } },
-          { last_name:         { $regex: search, $options: "i" } },
-          { mobile_phone:      { $regex: search, $options: "i" } },
-          { department:        { $regex: search, $options: "i" } },
-          { ucid:              { $regex: search, $options: "i" } },
-          { direction:         { $regex: search, $options: "i" } },
-          { X:                 { $regex: search, $options: "i" } },
-          { F26_1:             { $regex: search, $options: "i" } },
-          { F25:               { $regex: search, $options: "i" } },
-          { phone:             { $regex: search, $options: "i" } },
-          { T24:               { $regex: search, $options: "i" } },
-          { F24:               { $regex: search, $options: "i" } },
-          { F23:               { $regex: search, $options: "i" } },
-          { T22:               { $regex: search, $options: "i" } },
-          { details:           { $regex: search, $options: "i" } },
-          { father_n:          { $regex: search, $options: "i" } },
-          { father_name:       { $regex: search, $options: "i" } },
-          { ElectoralDistrict: { $regex: search, $options: "i" } },
-          { ElectoralTown:     { $regex: search, $options: "i" } },
-          { RelatedMember:     { $regex: search, $options: "i" } },
+          { person_id:         { $regex: safeSearch, $options: "i" } },
+          { first_name:        { $regex: safeSearch, $options: "i" } },
+          { last_name:         { $regex: safeSearch, $options: "i" } },
+          { mobile_phone:      { $regex: safeSearch, $options: "i" } },
+          { department:        { $regex: safeSearch, $options: "i" } },
+          { ucid:              { $regex: safeSearch, $options: "i" } },
+          { direction:         { $regex: safeSearch, $options: "i" } },
+          { X:                 { $regex: safeSearch, $options: "i" } },
+          { F26_1:             { $regex: safeSearch, $options: "i" } },
+          { F25:               { $regex: safeSearch, $options: "i" } },
+          { phone:             { $regex: safeSearch, $options: "i" } },
+          { T24:               { $regex: safeSearch, $options: "i" } },
+          { F24:               { $regex: safeSearch, $options: "i" } },
+          { F23:               { $regex: safeSearch, $options: "i" } },
+          { T22:               { $regex: safeSearch, $options: "i" } },
+          { details:           { $regex: safeSearch, $options: "i" } },
+          { father_n:          { $regex: safeSearch, $options: "i" } },
+          { father_name:       { $regex: safeSearch, $options: "i" } },
+          { ElectoralDistrict: { $regex: safeSearch, $options: "i" } },
+          { ElectoralTown:     { $regex: safeSearch, $options: "i" } },
+          { RelatedMember:     { $regex: safeSearch, $options: "i" } },
         ],
       });
     }
@@ -171,8 +176,9 @@ Deno.serve(async (req) => {
           const type = String(model.type ?? "contains");
           const val = String(model.filter ?? "");
           if (!val) continue;
-          if (type === "contains") and.push({ [field]: { $regex: val, $options: "i" } });
-          else if (type === "startsWith") and.push({ [field]: { $regex: `^${val}`, $options: "i" } });
+          const safeVal = escapeRegex(val);
+          if (type === "contains") and.push({ [field]: { $regex: safeVal, $options: "i" } });
+          else if (type === "startsWith") and.push({ [field]: { $regex: `^${safeVal}`, $options: "i" } });
           else if (type === "equals") and.push({ [field]: val });
           continue;
         }

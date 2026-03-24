@@ -27,7 +27,10 @@ export default function DeleteProgressModal({ jobId, onClose }) {
           console.error('[DeleteProgressModal] Unknown job type, cannot resume:', jobType);
           return;
         }
-        await base44.functions.invoke(fnName, { job_id: jId, resume_key: 'internal_resume' });
+        await base44.functions.invoke(fnName, {
+          job_id: jId,
+          session_token: localStorage.getItem('app_session_token'),
+        });
       } catch (e) {
         console.error('Resume invoke failed:', e);
       }

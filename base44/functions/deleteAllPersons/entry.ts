@@ -25,8 +25,11 @@ Deno.serve(async (req) => {
     const sessionToken = body.session_token;
     const jobId = body.job_id; // If provided, resume an existing job
 
-    // Auth check (skip for internal resume calls that pass job_id with a special key)
-    if (!jobId || body.resume_key !== 'internal_resume') {
+    // Auth check
+    const INTERNAL_SECRET = Deno.env.get('BASE44_APP_ID') + '_internal_resume';
+    const isInternalResume = jobId && body.resume_key === INTERNAL_SECRET;
+
+    if (!isInternalResume) {
       if (!sessionToken) return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
       const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token: sessionToken, is_active: true });
@@ -94,7 +97,7 @@ Deno.serve(async (req) => {
       fetch(fnUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: job.id, resume_key: 'internal_resume' })
+        body: JSON.stringify({ job_id: job.id, resume_key: Deno.env.get('BASE44_APP_ID') + '_internal_resume' })
       }).catch(e => console.error('Self-invoke failed:', e));
 
       return Response.json({ success: true, job_id: job.id, deleted: newDeleted, total });

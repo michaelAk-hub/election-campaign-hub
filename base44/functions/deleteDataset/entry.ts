@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const BATCH_SIZE = 150;
-const RESUME_KEY = 'internal_resume';
+
 
 async function deleteWithRetry(entity, id, retries = 4) {
   for (let i = 0; i < retries; i++) {
@@ -31,7 +31,8 @@ Deno.serve(async (req) => {
 
     let job;
 
-    if (jobId && body.resume_key === RESUME_KEY) {
+    const INTERNAL_SECRET = Deno.env.get('BASE44_APP_ID') + '_internal_resume';
+    if (jobId && body.resume_key === INTERNAL_SECRET) {
       // ── Internal resume path ──────────────────────────────────────────────
       const jobs = await base44.asServiceRole.entities.DeleteJob.filter({ id: jobId });
       if (jobs.length === 0) return Response.json({ success: false, error: 'Job not found' }, { status: 404 });
@@ -105,7 +106,7 @@ Deno.serve(async (req) => {
       fetch(fnUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: job.id, resume_key: RESUME_KEY })
+        body: JSON.stringify({ job_id: job.id, resume_key: Deno.env.get('BASE44_APP_ID') + '_internal_resume' })
       }).catch(e => console.error('Self-invoke failed:', e));
 
       return Response.json({ success: true, job_id: job.id, deleted: newDeleted, total });
