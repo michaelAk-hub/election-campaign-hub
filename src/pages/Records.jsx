@@ -401,20 +401,20 @@ export default function Records() {
     if (!activeDatasetId) return toast.error('Δεν υπάρχει ενεργό dataset');
     try {
       toast.message('Ετοιμασία εξαγωγής...');
-      // Export respects current partition + filters + sort (matches what user sees)
+      // Export always fetches ALL rows (no partition, no search, no filters)
       let all = [], startRow = 0;
       const batchSize = 5000;
       while (true) {
         const { data: result } = await base44.functions.invoke('personGridFetch', {
           session_token: localStorage.getItem('app_session_token'),
           datasetId: activeDatasetId,
-          partition,
+          partition: 'all',
           startRow,
           endRow: startRow + batchSize,
-          sortField: sortModel.field,
-          sortDirection: sortModel.dir,
-          filters: Object.keys(filterModel).length > 0 ? filterModel : null,
-          search: serverSearchTerm || undefined,
+          sortField: 'created_date',
+          sortDirection: 'asc',
+          filters: null,
+          search: undefined,
         });
         const batch = result?.rows ?? [];
         all = all.concat(batch);
