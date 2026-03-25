@@ -59,7 +59,10 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
         if (list?.length) await calculateAll(list);
     }, [loadScenarios, calculateAll]);
 
-    useEffect(() => { refresh(); }, [refresh, refreshSignal]);
+    useEffect(() => {
+        const timer = setTimeout(() => { refresh(); }, 2400);
+        return () => clearTimeout(timer);
+    }, [refresh, refreshSignal]);
 
     // Auto-refresh every 5 minutes
     useEffect(() => {
