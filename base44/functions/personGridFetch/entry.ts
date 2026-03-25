@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     const filters = normalizeFilters(getAny("filters", null));
     const datasetId = getAny("datasetId", null);
 
-    const limit = Math.max(1, Math.min((endRow - startRow) || 100, 1000));
+    const limit = Math.max(1, Math.min((endRow - startRow) || 100, 5000));
     const sort = sortDirection === "asc" ? sortField : `-${sortField}`;
 
     let resolvedDatasetId = datasetId;
