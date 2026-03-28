@@ -32,8 +32,8 @@ Deno.serve(async (req) => {
       activated_at: new Date().toISOString(),
     });
 
-    // Rebuild prediction stats cache for the newly activated dataset
-    base44.asServiceRole.functions.invoke('rebuildPredictionStats', { dataset_id }).catch(() => {});
+    // Rebuild prediction stats cache for the newly activated dataset — pass internal_key so auth is bypassed safely
+    base44.asServiceRole.functions.invoke('rebuildPredictionStats', { dataset_id, internal_key: 'internal_rebuild' }).catch(() => {});
 
     return Response.json({ success: true });
   } catch (error) {

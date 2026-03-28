@@ -112,8 +112,8 @@ Deno.serve(async (req) => {
         message: `Ολοκληρώθηκε! Διαγράφηκαν ${newDeleted} εγγραφές και ${datasets.length} datasets.`
       });
 
-      // Clear prediction stats caches since all data is gone
-      base44.asServiceRole.functions.invoke('rebuildPredictionStats', {}).catch(() => {});
+      // Clear prediction stats caches since all data is gone — pass internal_key so auth is bypassed safely
+      base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: 'internal_rebuild' }).catch(() => {});
 
       return Response.json({ success: true, job_id: job.id, done: true, deleted: newDeleted });
     }

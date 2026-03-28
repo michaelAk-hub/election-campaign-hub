@@ -89,9 +89,9 @@ Deno.serve(async (req) => {
             person_record_id: personRecordId
         });
 
-        // Rebuild prediction stats cache after a successful vote
+        // Rebuild prediction stats cache after a successful vote — pass internal_key so auth is bypassed safely
         if (status === 'MARKED_VOTED') {
-            base44.asServiceRole.functions.invoke('rebuildPredictionStats', {}).catch(() => {});
+            base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: 'internal_rebuild' }).catch(() => {});
         }
 
         return Response.json({ status, reason });

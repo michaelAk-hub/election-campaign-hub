@@ -76,6 +76,15 @@ Deno.serve(async (req) => {
             }
         }
 
+        // Rebuild prediction stats if any prediction-relevant field was changed
+        const predictionFields = new Set(['prediction_symbol', 'admission_year', 'department', 'voted', 'voted_at']);
+        const hasPredictionChange = updates.some(u =>
+            u.changes && Object.keys(u.changes).some(f => predictionFields.has(f))
+        );
+        if (hasPredictionChange) {
+            base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: 'internal_rebuild' }).catch(() => {});
+        }
+
         return Response.json({ results });
 
     } catch (error) {

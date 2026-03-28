@@ -18,7 +18,7 @@ const CHART_COLORS = [
 
 // VoteFlowChart — shared config is stored in backend (PredictionVoteFlowConfig), not localStorage.
 // No internal timer. Refreshes on parent refreshSignal.
-export default function VoteFlowChart({ sessionToken, availableSymbols = [], refreshSignal }) {
+export default function VoteFlowChart({ sessionToken, availableSymbols = [], filterOptionsLoading = false, filterOptionsError = null, refreshSignal }) {
     const [sharedConfig, setSharedConfig] = useState(null); // loaded from backend
     const [configLoaded, setConfigLoaded] = useState(false);
 
@@ -324,21 +324,26 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], ref
                                 <CardContent>
                                     <Label className="text-sm font-medium mb-2 block">Επιλέξτε Σύμβολα:</Label>
                                     <div className="flex flex-wrap gap-2">
-                                        {availableSymbols.map(symbol => (
-                                            <Badge
-                                                key={symbol}
-                                                variant={parataksi.symbols.includes(symbol) ? "default" : "outline"}
-                                                className="cursor-pointer"
-                                                style={parataksi.symbols.includes(symbol) ? {
-                                                    backgroundColor: parataksi.color, borderColor: parataksi.color
-                                                } : {}}
-                                                onClick={() => toggleSymbol(parataksi.id, symbol)}
-                                            >
-                                                {symbol}
-                                            </Badge>
-                                        ))}
-                                        {availableSymbols.length === 0 && (
+                                        {filterOptionsLoading ? (
                                             <p className="text-sm text-slate-400">Φόρτωση συμβόλων...</p>
+                                        ) : filterOptionsError ? (
+                                            <p className="text-sm text-red-500">Αποτυχία φόρτωσης συμβόλων: {filterOptionsError}</p>
+                                        ) : availableSymbols.length === 0 ? (
+                                            <p className="text-sm text-slate-400">Δεν υπάρχουν διαθέσιμα σύμβολα</p>
+                                        ) : (
+                                            availableSymbols.map(symbol => (
+                                                <Badge
+                                                    key={symbol}
+                                                    variant={parataksi.symbols.includes(symbol) ? "default" : "outline"}
+                                                    className="cursor-pointer"
+                                                    style={parataksi.symbols.includes(symbol) ? {
+                                                        backgroundColor: parataksi.color, borderColor: parataksi.color
+                                                    } : {}}
+                                                    onClick={() => toggleSymbol(parataksi.id, symbol)}
+                                                >
+                                                    {symbol}
+                                                </Badge>
+                                            ))
                                         )}
                                     </div>
                                     {parataksi.symbols.length > 0 && (

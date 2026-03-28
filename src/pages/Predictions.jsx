@@ -3,35 +3,32 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
     Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, Settings } from 'lucide-react';
+import { Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, Settings } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
+import AutoRefreshModal from '../components/predictions/AutoRefreshModal';
 
-// Auto-refresh settings stored per-browser
+// Auto-refresh settings stored per-browser (preference only, not shared)
 const AR_KEY = 'predictions_autorefresh';
 function loadArSettings() {
     try {
         const s = JSON.parse(localStorage.getItem(AR_KEY) || '{}');
         return {
             enabled: !!s.enabled,
-            intervalSeconds: Number(s.intervalSeconds) > 0 ? Number(s.intervalSeconds) : 30,
+            intervalSec: Number(s.intervalSec) >= 10 ? Number(s.intervalSec) : 30,
         };
-    } catch { return { enabled: false, intervalSeconds: 30 }; }
+    } catch { return { enabled: false, intervalSec: 30 }; }
 }
 
 export default function Predictions() {
-    // --- Session token: read fresh, never at module scope ---
+    // --- Session token: read inside component, never at module scope ---
     const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('app_session_token') || '');
 
     useEffect(() => {
@@ -48,33 +45,51 @@ export default function Predictions() {
     // --- Auto-refresh settings ---
     const [arSettings, setArSettings] = useState(loadArSettings);
     const [showArModal, setShowArModal] = useState(false);
-    // Local draft inside modal
-    const [draftEnabled, setDraftEnabled] = useState(arSettings.enabled);
-    const [draftInterval, setDraftInterval] = useState(String(arSettings.intervalSeconds));
 
-    // Single timer
+    // Single timer for the whole page
     const timerRef = useRef(null);
     useEffect(() => {
         if (timerRef.current) clearInterval(timerRef.current);
-        if (arSettings.enabled && arSettings.intervalSeconds >= 5) {
-            timerRef.current = setInterval(doRefresh, arSettings.intervalSeconds * 1000);
+        if (arSettings.enabled && arSettings.intervalSec >= 10) {
+            timerRef.current = setInterval(doRefresh, arSettings.intervalSec * 1000);
         }
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [arSettings, doRefresh]);
 
-    // Persist settings
+    // Persist settings to localStorage
     useEffect(() => {
         localStorage.setItem(AR_KEY, JSON.stringify(arSettings));
     }, [arSettings]);
 
-    // --- Available symbols ---
+    // --- Filter options (symbols, years, departments) ---
     const [availableSymbols, setAvailableSymbols] = useState([]);
+    const [filterOptionsLoading, setFilterOptionsLoading] = useState(true);
+    const [filterOptionsError, setFilterOptionsError] = useState(null);
+
+    const loadFilterOptions = useCallback(async (token) => {
+        if (!token) return;
+        setFilterOptionsLoading(true);
+        setFilterOptionsError(null);
+        try {
+            const { data } = await base44.functions.invoke('predictionFilterOptions', { session_token: token });
+            setAvailableSymbols(data?.symbols || []);
+        } catch (err) {
+            setFilterOptionsError(err?.message || 'Αποτυχία φόρτωσης επιλογών');
+            setAvailableSymbols([]);
+        } finally {
+            setFilterOptionsLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
-        if (!sessionToken) return;
-        base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
-            .then(({ data }) => { if (data) setAvailableSymbols(data.symbols || []); })
-            .catch(() => {});
-    }, [sessionToken, refreshTick]);
+        loadFilterOptions(sessionToken);
+    }, [sessionToken, loadFilterOptions]);
+
+    // Reload filter options on refresh tick
+    useEffect(() => {
+        if (refreshTick === 0) return;
+        loadFilterOptions(sessionToken);
+    }, [refreshTick]); // eslint-disable-line
 
     // --- queryParams built fresh from current sessionToken ---
     const queryParams = useMemo(() => {
@@ -83,7 +98,7 @@ export default function Predictions() {
         return p.toString();
     }, [sessionToken]);
 
-    // --- Queries — invalidate on refreshTick ---
+    // --- Queries ---
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
         queryKey: ['predictionKPIs', sessionToken],
         queryFn: async () => {
@@ -111,9 +126,9 @@ export default function Predictions() {
         enabled: !!sessionToken,
     });
 
-    // On refreshTick, refetch all queries and signal children
+    // On refreshTick, refetch all queries
     useEffect(() => {
-        if (refreshTick === 0) return; // skip initial mount
+        if (refreshTick === 0) return;
         refetchKPIs();
         refetchBySymbol();
         refetchByYearSymbol();
@@ -159,52 +174,16 @@ export default function Predictions() {
         link.click();
     };
 
-    const openArModal = () => {
-        setDraftEnabled(arSettings.enabled);
-        setDraftInterval(String(arSettings.intervalSeconds));
-        setShowArModal(true);
-    };
-
-    const applyArSettings = () => {
-        const secs = Math.max(5, parseInt(draftInterval) || 30);
-        setArSettings({ enabled: draftEnabled, intervalSeconds: secs });
-        setShowArModal(false);
-    };
-
     return (
         <div className="space-y-6">
-            {/* Auto-refresh modal */}
-            <Dialog open={showArModal} onOpenChange={(open) => { if (!open) setShowArModal(false); }}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>Ρυθμίσεις Αυτόματης Ανανέωσης</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="flex items-center justify-between">
-                            <Label>Αυτόματη ανανέωση</Label>
-                            <Switch checked={draftEnabled} onCheckedChange={setDraftEnabled} />
-                        </div>
-                        <div className="space-y-1">
-                            <Label>Διάστημα (δευτερόλεπτα, ελάχ. 5)</Label>
-                            <Input
-                                type="number"
-                                min={5}
-                                value={draftInterval}
-                                onChange={e => setDraftInterval(e.target.value)}
-                                disabled={!draftEnabled}
-                            />
-                        </div>
-                        <Button variant="outline" className="w-full" onClick={() => { doRefresh(); setShowArModal(false); }}>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Ανανέωση τώρα
-                        </Button>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowArModal(false)}>Ακύρωση</Button>
-                        <Button onClick={applyArSettings}>Εφαρμογή</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {/* Auto-refresh modal — uses the shared AutoRefreshModal component */}
+            <AutoRefreshModal
+                open={showArModal}
+                onClose={() => setShowArModal(false)}
+                settings={arSettings}
+                onSave={(newSettings) => setArSettings(newSettings)}
+                onRefreshNow={doRefresh}
+            />
 
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -215,12 +194,12 @@ export default function Predictions() {
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     <Button
                         variant="outline"
-                        onClick={openArModal}
+                        onClick={() => setShowArModal(true)}
                         className={cn("h-10 flex-1 sm:flex-initial", arSettings.enabled && "bg-blue-50 border-blue-300 dark:bg-blue-900/30 dark:border-blue-600")}
                     >
                         <Settings className={cn("h-4 w-4 sm:mr-2", arSettings.enabled && "text-blue-600")} />
                         <span className="hidden sm:inline">
-                            Auto-refresh {arSettings.enabled ? `ON (${arSettings.intervalSeconds}s)` : 'OFF'}
+                            Auto-refresh {arSettings.enabled ? `ON (${arSettings.intervalSec}s)` : 'OFF'}
                         </span>
                         <span className="sm:hidden">{arSettings.enabled ? 'AR ON' : 'AR OFF'}</span>
                     </Button>
@@ -417,6 +396,8 @@ export default function Predictions() {
             <VoteFlowChart
                 sessionToken={sessionToken}
                 availableSymbols={availableSymbols}
+                filterOptionsLoading={filterOptionsLoading}
+                filterOptionsError={filterOptionsError}
                 refreshSignal={refreshTick}
             />
         </div>

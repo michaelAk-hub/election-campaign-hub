@@ -3,7 +3,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-
         const body = await req.json();
         const sessionToken = body.session_token;
 
@@ -11,52 +10,38 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
         }
 
-        const sessions = await base44.asServiceRole.entities.AppSession.filter({
-            session_token: sessionToken,
-            is_active: true
-        });
+        const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token: sessionToken, is_active: true });
+        if (!sessions?.length) return Response.json({ error: 'Invalid session' }, { status: 401 });
 
-        if (sessions.length === 0) {
-            return Response.json({ error: 'Invalid session' }, { status: 401 });
+        const session = sessions[0];
+        if (session.expires_at && new Date(session.expires_at) < new Date()) {
+            return Response.json({ error: 'Session expired' }, { status: 401 });
         }
 
-        const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
-        if (users.length === 0 || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
-            return Response.json({ error: 'Unauthorized' }, { status: 403 });
+        const users = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+        if (!users?.length) return Response.json({ error: 'User not found' }, { status: 401 });
+        const user = users[0];
+        if (!['ADMIN', 'ORGANOTIKI'].includes(user.role)) {
+            return Response.json({ error: 'Forbidden' }, { status: 403 });
         }
 
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
-        if (activeDatasets.length === 0) {
+        if (!activeDatasets?.length) {
             return Response.json({ years: [], symbols: [], departments: [] });
         }
 
-        const activeDatasetId = activeDatasets[0].id;
+        const datasetId = activeDatasets[0].id;
 
-        let allPersons = [];
-        let skip = 0;
-        const limit = 5000;
-        let hasMore = true;
-
-        while (hasMore) {
-            const batch = await base44.asServiceRole.entities.Person.filter(
-                { dataset_id: activeDatasetId },
-                '-created_date',
-                limit,
-                skip
-            );
-            allPersons = allPersons.concat(batch);
-            skip += limit;
-            hasMore = batch.length === limit;
+        // Read from PredictionFilterCache — no Person scan
+        const caches = await base44.asServiceRole.entities.PredictionFilterCache.filter({ dataset_id: datasetId });
+        if (!caches?.length) {
+            return Response.json({ years: [], symbols: [], departments: [], cache_missing: true });
         }
 
-        const years = [...new Set(allPersons.map(p => p.admission_year).filter(Boolean))]
-            .sort((a, b) => String(b).localeCompare(String(a)));
-
-        const symbols = [...new Set(allPersons.map(p => (p.prediction_symbol || '').trim()).filter(Boolean))]
-            .sort((a, b) => a.localeCompare(b, 'el'));
-
-        const departments = [...new Set(allPersons.map(p => p.department).filter(Boolean))]
-            .sort((a, b) => a.localeCompare(b, 'el'));
+        const cache = caches[0];
+        const years = cache.years_json?.data || [];
+        const symbols = cache.symbols_json?.data || [];
+        const departments = cache.departments_json?.data || [];
 
         return Response.json({ years, symbols, departments });
     } catch (error) {
