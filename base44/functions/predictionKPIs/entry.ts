@@ -6,7 +6,6 @@ Deno.serve(async (req) => {
 
         const body = await req.json();
         const queryParams = new URLSearchParams(body.queryParams || '');
-
         const sessionToken = queryParams.get('session_token');
 
         if (!sessionToken) {
@@ -27,50 +26,23 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
-        const yearFilter = queryParams.get('year');
-        const symbolFilter = queryParams.get('symbol');
-        const departmentFilter = queryParams.get('department');
-
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
         if (activeDatasets.length === 0) {
             return Response.json({ total: 0, voted_yes: 0, voted_no: 0, voted_yes_percent: 0, generated_at: new Date().toISOString() });
         }
 
-        let allPersons = [];
-        let skip = 0;
-        const limit = 5000;
-        let hasMore = true;
+        const datasetId = activeDatasets[0].id;
 
-        while (hasMore) {
-            const batch = await base44.asServiceRole.entities.Person.filter(
-                { dataset_id: activeDatasets[0].id },
-                '-created_date',
-                limit,
-                skip
-            );
-            allPersons = allPersons.concat(batch);
-            skip += limit;
-            hasMore = batch.length === limit;
+        // Read from cache
+        const overallStats = await base44.asServiceRole.entities.PredictionStatsOverall.filter({ dataset_id: datasetId });
+        if (!overallStats?.length) {
+            return Response.json({ total: 0, voted_yes: 0, voted_no: 0, voted_yes_percent: 0, generated_at: new Date().toISOString() });
         }
 
-        let filtered = allPersons;
-
-        if (yearFilter) {
-            const years = yearFilter.split(',').map(y => y.trim());
-            filtered = filtered.filter(p => years.includes(String(p.admission_year || '')));
-        }
-        if (symbolFilter) {
-            const symbols = symbolFilter.split(',').map(s => s.trim());
-            filtered = filtered.filter(p => symbols.includes((p.prediction_symbol || '').trim() || '(Κενό)'));
-        }
-        if (departmentFilter) {
-            const departments = departmentFilter.split(',').map(d => d.trim());
-            filtered = filtered.filter(p => departments.includes(p.department || ''));
-        }
-
-        const total = filtered.length;
-        const voted_yes = filtered.filter(p => p.voted === true).length;
-        const voted_no = total - voted_yes;
+        const stats = overallStats[0];
+        const total = stats.total || 0;
+        const voted_yes = stats.voted_yes || 0;
+        const voted_no = stats.voted_no || 0;
         const voted_yes_percent = total > 0 ? parseFloat((voted_yes / total * 100).toFixed(2)) : 0;
 
         return Response.json({ total, voted_yes, voted_no, voted_yes_percent, generated_at: new Date().toISOString() });
