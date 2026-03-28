@@ -401,20 +401,20 @@ export default function Records() {
     if (!activeDatasetId) return toast.error('Δεν υπάρχει ενεργό dataset');
     try {
       toast.message('Ετοιμασία εξαγωγής...');
-      // Export always fetches ALL rows (no partition, no search, no filters)
+      // Export respects current partition + filters + sort (matches what user sees)
       let all = [], startRow = 0;
       const batchSize = 5000;
       while (true) {
         const { data: result } = await base44.functions.invoke('personGridFetch', {
           session_token: localStorage.getItem('app_session_token'),
           datasetId: activeDatasetId,
-          partition: 'all',
+          partition,
           startRow,
           endRow: startRow + batchSize,
-          sortField: 'created_date',
-          sortDirection: 'asc',
-          filters: null,
-          search: undefined,
+          sortField: sortModel.field,
+          sortDirection: sortModel.dir,
+          filters: Object.keys(filterModel).length > 0 ? filterModel : null,
+          search: serverSearchTerm || undefined,
         });
         const batch = result?.rows ?? [];
         all = all.concat(batch);
@@ -710,13 +710,13 @@ export default function Records() {
       />
 
       {datasets.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 p-3 sm:p-4">
+        <div className="bg-white rounded-lg border p-3 sm:p-4">
           <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
             <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5" /> Datasets
           </h3>
           <div className="space-y-2">
             {datasets.map(dataset => (
-              <div key={dataset.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg gap-3">
+              <div key={dataset.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 rounded-lg gap-3">
                 <div className="min-w-0">
                   <p className="font-medium text-sm sm:text-base truncate">{dataset.name}</p>
                   <p className="text-xs sm:text-sm text-slate-600">{dataset.total_records || 0} εγγραφές • {dataset.status}</p>

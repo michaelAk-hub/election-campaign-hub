@@ -120,17 +120,13 @@ export default function DataGrid({
       result.sort((a, b) => {
         const aVal = a[localSortField];
         const bVal = b[localSortField];
-        const aStr = String(aVal ?? '');
-        const bStr = String(bVal ?? '');
         const aNum = Number(aVal);
         const bNum = Number(bVal);
-        const aIsNum = aStr !== '' && !Number.isNaN(aNum);
-        const bIsNum = bStr !== '' && !Number.isNaN(bNum);
         let cmp;
-        if (aIsNum && bIsNum) {
+        if (aVal != null && bVal != null && !Number.isNaN(aNum) && !Number.isNaN(bNum)) {
           cmp = aNum - bNum;
         } else {
-          cmp = aStr.localeCompare(bStr, 'el', { numeric: true, sensitivity: 'base' });
+          cmp = String(aVal ?? '').localeCompare(String(bVal ?? ''), 'el', { numeric: true, sensitivity: 'base' });
         }
         return localSortDir === 'asc' ? cmp : -cmp;
       });
@@ -363,7 +359,7 @@ export default function DataGrid({
                         </TableHead>
                       )}
 
-                      {orderedColumns.map((col, colIdx) => {
+                      {orderedColumns.map((col) => {
                         const isReorderable = !!col.reorderable && !!onColumnOrderChange;
                         const reorderableIndex = orderedColumns.filter(c => c.reorderable).findIndex(c => c.key === col.key);
                         const hasActiveFilter = serverFiltering && !!(filterModel?.[col.key]);
@@ -400,24 +396,40 @@ export default function DataGrid({
                           </div>
                         );
 
-                        return (
-                          <Draggable key={col.key} draggableId={col.key} index={colIdx} isDragDisabled={!isReorderable}>
-                            {(dragProvided, snapshot) => (
-                              <TableHead
+                        if (isReorderable) {
+                          return (
+                            <Draggable key={col.key} draggableId={col.key} index={reorderableIndex}>
+                              {(dragProvided, snapshot) => (
+                                <TableHead
                                 ref={dragProvided.innerRef}
                                 {...dragProvided.draggableProps}
                                 className={cn(
                                   "font-semibold text-slate-700 dark:text-slate-200 select-none",
                                   sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800",
-                                  snapshot.isDragging && isReorderable && "bg-blue-50 dark:bg-blue-900/40 shadow-lg opacity-90",
+                                  snapshot.isDragging && "bg-blue-50 dark:bg-blue-900/40 shadow-lg opacity-90",
                                   hasActiveFilter && "bg-blue-50 dark:bg-blue-900/40"
                                 )}
-                                onClick={() => !snapshot.isDragging && sortable && col.sortable !== false && handleSort(col.key)}
-                              >
-                                {headerContent(isReorderable ? dragProvided : null, snapshot)}
-                              </TableHead>
+                                  onClick={() => !snapshot.isDragging && sortable && col.sortable !== false && handleSort(col.key)}
+                                >
+                                  {headerContent(dragProvided, snapshot)}
+                                </TableHead>
+                              )}
+                            </Draggable>
+                          );
+                        }
+
+                        return (
+                          <TableHead
+                            key={col.key}
+                            className={cn(
+                              "font-semibold text-slate-700 dark:text-slate-200",
+                              sortable && col.sortable !== false && "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 select-none",
+                              hasActiveFilter && "bg-blue-50 dark:bg-blue-900/40"
                             )}
-                          </Draggable>
+                            onClick={() => sortable && col.sortable !== false && handleSort(col.key)}
+                          >
+                            {headerContent(null, null)}
+                          </TableHead>
                         );
                       })}
 

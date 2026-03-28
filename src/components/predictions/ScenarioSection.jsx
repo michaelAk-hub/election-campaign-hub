@@ -26,32 +26,25 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
 
     const calculateAll = useCallback(async (list) => {
         const ids = (list || []).map(s => s.id);
-        if (!ids.length) return;
         const loadingMap = {};
         ids.forEach(id => loadingMap[id] = true);
         setLoadingResults(loadingMap);
         setResultErrors({});
 
-        try {
-            // Single call — auth once, fetch persons once, calculate all in-memory
-            const { data } = await base44.functions.invoke('scenarioCalculateAll', { session_token: sessionToken });
-            const allResults = data?.results || {};
-            const newErrors = {};
-            ids.forEach(id => {
-                if (!allResults[id]) newErrors[id] = 'Δεν βρέθηκε αποτέλεσμα';
-            });
-            setResults(allResults);
-            setResultErrors(newErrors);
-        } catch (e) {
-            const errMsg = e.message || 'Σφάλμα υπολογισμού';
-            const errMap = {};
-            ids.forEach(id => errMap[id] = errMsg);
-            setResultErrors(errMap);
-        } finally {
-            const doneMap = {};
-            ids.forEach(id => doneMap[id] = false);
-            setLoadingResults(doneMap);
-        }
+        await Promise.all(ids.map(async (id) => {
+            try {
+                const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
+                if (data?.error) {
+                    setResultErrors(prev => ({ ...prev, [id]: data.message || data.error }));
+                } else {
+                    setResults(prev => ({ ...prev, [id]: data }));
+                }
+            } catch (e) {
+                setResultErrors(prev => ({ ...prev, [id]: e.message || 'Σφάλμα υπολογισμού' }));
+            } finally {
+                setLoadingResults(prev => ({ ...prev, [id]: false }));
+            }
+        }));
     }, [sessionToken]);
 
     const refresh = useCallback(async () => {
@@ -59,10 +52,7 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
         if (list?.length) await calculateAll(list);
     }, [loadScenarios, calculateAll]);
 
-    useEffect(() => {
-        const timer = setTimeout(() => { refresh(); }, 2400);
-        return () => clearTimeout(timer);
-    }, [refresh, refreshSignal]);
+    useEffect(() => { refresh(); }, [refresh, refreshSignal]);
 
     // Auto-refresh every 5 minutes
     useEffect(() => {

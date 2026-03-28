@@ -2,24 +2,19 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const BATCH_SIZE = 150;
+const RESUME_KEY = 'internal_resume';
 
-
-async function deleteWithRetry(entity, id, retries = 5) {
+async function deleteWithRetry(entity, id, retries = 4) {
   for (let i = 0; i < retries; i++) {
     try {
       await entity.delete(id);
       return;
     } catch (e) {
-      const errorMsg = e?.message ? e.message.toLowerCase() : String(e).toLowerCase();
-      if (e?.status === 404 || errorMsg.includes('not found')) {
-        return; // Already deleted — treat as success
+      if (e?.status === 429 && i < retries - 1) {
+        await sleep(700 * (i + 1));
+      } else {
+        throw e;
       }
-      const isRateLimit = e?.status === 429 || errorMsg.includes('rate limit');
-      if (isRateLimit && i < retries - 1) {
-        await sleep(1000 * (i + 1));
-        continue;
-      }
-      if (i === retries - 1) throw e;
     }
   }
 }
@@ -36,14 +31,13 @@ Deno.serve(async (req) => {
 
     let job;
 
-    const INTERNAL_SECRET = Deno.env.get('BASE44_APP_ID') + '_internal_resume';
-    const isInternalResume = jobId && body.resume_key === INTERNAL_SECRET;
-
-    if (isInternalResume) {
-      // ── Server-to-server resume (fire-and-forget self-invoke) ─────────────
+    if (jobId && body.resume_key === RESUME_KEY) {
+      // ── Internal resume path ──────────────────────────────────────────────
       const jobs = await base44.asServiceRole.entities.DeleteJob.filter({ id: jobId });
       if (jobs.length === 0) return Response.json({ success: false, error: 'Job not found' }, { status: 404 });
       job = jobs[0];
+
+      // Safety: refuse to resume the wrong job type
       if (job.job_type !== 'delete_dataset') {
         return Response.json({ success: false, error: 'Job type mismatch' }, { status: 400 });
       }
@@ -51,8 +45,7 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, job_id: job.id, status: job.status });
       }
     } else {
-      // ── Client-initiated call (new job OR watchdog resume) ────────────────
-      // FIX 3: Always validate session token for any client-initiated request
+      // ── Initial user call ─────────────────────────────────────────────────
       const sessionToken = body.session_token;
       if (!sessionToken) return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
@@ -64,34 +57,21 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
       }
 
-      if (jobId) {
-        // Watchdog resume from the frontend — just re-attach to the running job
-        const jobs = await base44.asServiceRole.entities.DeleteJob.filter({ id: jobId });
-        if (jobs.length === 0) return Response.json({ success: false, error: 'Job not found' }, { status: 404 });
-        job = jobs[0];
-        if (job.job_type !== 'delete_dataset') {
-          return Response.json({ success: false, error: 'Job type mismatch' }, { status: 400 });
-        }
-        if (job.status !== 'running') {
-          return Response.json({ success: true, job_id: job.id, status: job.status });
-        }
-      } else {
-        // New job
-        const dataset_id = body.dataset_id;
-        if (!dataset_id) return Response.json({ success: false, error: 'dataset_id is required' }, { status: 400 });
+      const dataset_id = body.dataset_id;
+      if (!dataset_id) return Response.json({ success: false, error: 'dataset_id is required' }, { status: 400 });
 
-        const countBatch = await base44.asServiceRole.entities.Person.filter({ dataset_id }, 'created_date', 5000, 0);
-        const total = countBatch.length;
+      // Count total persons in this dataset (sample up to 5000 for display; actual deletion is query-driven)
+      const countBatch = await base44.asServiceRole.entities.Person.filter({ dataset_id }, 'created_date', 5000, 0);
+      const total = countBatch.length;
 
-        job = await base44.asServiceRole.entities.DeleteJob.create({
-          job_type: 'delete_dataset',
-          status: 'running',
-          total,
-          deleted: 0,
-          dataset_id,
-          message: `Διαγραφή εγγραφών dataset (0/${total})...`
-        });
-      }
+      job = await base44.asServiceRole.entities.DeleteJob.create({
+        job_type: 'delete_dataset',
+        status: 'running',
+        total,
+        deleted: 0,
+        dataset_id,
+        message: `Διαγραφή εγγραφών dataset (0/${total})...`
+      });
     }
 
     jobRef = job;
@@ -104,7 +84,7 @@ Deno.serve(async (req) => {
     for (const person of people) {
       await deleteWithRetry(base44.asServiceRole.entities.Person, person.id);
       batchDeleted++;
-      await sleep(80);
+      await sleep(40);
     }
 
     const newDeleted = (job.deleted || 0) + batchDeleted;
@@ -122,15 +102,12 @@ Deno.serve(async (req) => {
 
       const appId = Deno.env.get('BASE44_APP_ID');
       const fnUrl = `https://api.base44.com/api/apps/${appId}/functions/deleteDataset`;
-      const INTERNAL_SECRET = Deno.env.get('BASE44_APP_ID') + '_internal_resume';
       fetch(fnUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: job.id, resume_key: INTERNAL_SECRET })
+        body: JSON.stringify({ job_id: job.id, resume_key: RESUME_KEY })
       }).catch(e => console.error('Self-invoke failed:', e));
 
-      // FIX 1: Small delay so the outgoing fetch is dispatched before the isolate freezes
-      await sleep(50);
       return Response.json({ success: true, job_id: job.id, deleted: newDeleted, total });
     } else {
       // ── All persons deleted — remove the dataset record itself ────────────

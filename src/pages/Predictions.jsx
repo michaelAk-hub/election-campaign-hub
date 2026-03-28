@@ -29,12 +29,9 @@ export default function Predictions() {
 
     useEffect(() => {
         if (!sessionToken) return;
-        const timer = setTimeout(() => {
-            base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
-                .then(({ data }) => { if (data) setAvailableSymbols(data.symbols || []); })
-                .catch(err => console.error('Filter options error:', err));
-        }, 1800);
-        return () => clearTimeout(timer);
+        base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
+            .then(({ data }) => { if (data) setAvailableSymbols(data.symbols || []); })
+            .catch(err => console.error('Filter options error:', err));
     }, []);
 
     const refetchInterval = autoRefresh ? 8000 : false;
@@ -46,29 +43,24 @@ export default function Predictions() {
             return data;
         },
         refetchInterval,
-        staleTime: 10000,
     });
 
     const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
         queryKey: ['predictionBySymbol'],
         queryFn: async () => {
-            await new Promise(r => setTimeout(r, 600));
             const { data } = await base44.functions.invoke('predictionBySymbol', { queryParams });
             return data;
         },
         refetchInterval,
-        staleTime: 10000,
     });
 
     const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
         queryKey: ['predictionByYearSymbol'],
         queryFn: async () => {
-            await new Promise(r => setTimeout(r, 1200));
             const { data } = await base44.functions.invoke('predictionByYearSymbol', { queryParams });
             return data;
         },
         refetchInterval,
-        staleTime: 10000,
     });
 
     const loading = kpisLoading || symbolLoading || yearSymbolLoading;
