@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Play, XCircle, Plus, Trash2, Loader2, TrendingUp } from 'lucide-react';
+import { Play, XCircle, Plus, Trash2, Loader2, TrendingUp, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 
@@ -16,72 +16,110 @@ const CHART_COLORS = [
     '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
 ];
 
-export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
+// VoteFlowChart — shared config is stored in backend (PredictionVoteFlowConfig), not localStorage.
+// No internal timer. Refreshes on parent refreshSignal.
+export default function VoteFlowChart({ sessionToken, availableSymbols = [], refreshSignal }) {
+    const [sharedConfig, setSharedConfig] = useState(null); // loaded from backend
+    const [configLoaded, setConfigLoaded] = useState(false);
+
+    // Local working parataksi list (for the config dialog, seeded from sharedConfig)
+    const [parataksiList, setParataksiList] = useState([]);
     const [showConfig, setShowConfig] = useState(false);
-    const [parataksiList, setParataksiList] = useState(() => {
-        const saved = localStorage.getItem('voteFlow_parataksiList');
-        return saved ? JSON.parse(saved) : [];
-    });
-    const [chartData, setChartData] = useState(() => {
-        const saved = localStorage.getItem('voteFlow_chartData');
-        return saved ? JSON.parse(saved) : null;
-    });
-    const [loading, setLoading] = useState(false);
-    const [autoRefresh, setAutoRefresh] = useState(false);
+    const [chartData, setChartData] = useState(null);
+    const [loadingChart, setLoadingChart] = useState(false);
+    const [loadingConfig, setLoadingConfig] = useState(false);
+    const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        if (parataksiList.length > 0) {
-            localStorage.setItem('voteFlow_parataksiList', JSON.stringify(parataksiList));
-        }
-    }, [parataksiList]);
-
-    useEffect(() => {
-        if (chartData) {
-            localStorage.setItem('voteFlow_chartData', JSON.stringify(chartData));
-        }
-    }, [chartData]);
-
-    const fetchChartData = useCallback(async (listOverride) => {
-        const list = listOverride || parataksiList;
-        if (!list.length) return;
-
-        setLoading(true);
+    // Load shared config from backend
+    const loadSharedConfig = useCallback(async () => {
+        if (!sessionToken) return;
+        setLoadingConfig(true);
         try {
-            const mapping = list.map(p => ({ parataxi: p.name, symbols: p.symbols, color: p.color }));
+            const { data } = await base44.functions.invoke('voteFlowConfigLoad', { session_token: sessionToken });
+            setSharedConfig(data?.config || null);
+        } catch (e) {
+            console.error('voteFlowConfigLoad error:', e);
+        } finally {
+            setConfigLoaded(true);
+            setLoadingConfig(false);
+        }
+    }, [sessionToken]);
+
+    // On mount and when sessionToken changes
+    useEffect(() => {
+        loadSharedConfig();
+    }, [loadSharedConfig]);
+
+    // Fetch chart data using the current shared config mapping
+    const fetchChartData = useCallback(async (mapping, bucketMinutes) => {
+        if (!mapping || !mapping.length) return;
+        setLoadingChart(true);
+        try {
             const { data } = await base44.functions.invoke('predictionVoteFlow', {
                 session_token: sessionToken,
-                bucket_minutes: 5,
-                mapping,
+                bucket_minutes: bucketMinutes || 5,
+                mapping: mapping.map(p => ({ parataxi: p.name, symbols: p.symbols, color: p.color })),
             });
             setChartData(data);
-            setShowConfig(false);
         } catch (error) {
-            alert('Σφάλμα κατά τη φόρτωση δεδομένων: ' + error.message);
+            console.error('predictionVoteFlow error:', error);
         } finally {
-            setLoading(false);
+            setLoadingChart(false);
         }
-    }, [parataksiList, sessionToken]);
+    }, [sessionToken]);
 
-    // Auto-refresh
+    // When shared config is loaded and enabled, fetch chart data
     useEffect(() => {
-        if (!autoRefresh || !chartData) return;
-        const interval = setInterval(() => fetchChartData(), 30000);
-        return () => clearInterval(interval);
-    }, [autoRefresh, chartData, fetchChartData]);
+        if (!configLoaded || !sharedConfig?.is_enabled) return;
+        const mapping = (sharedConfig.mapping || []).map((m, i) => ({
+            id: i,
+            name: m.parataxi,
+            symbols: m.symbols || [],
+            color: m.color || CHART_COLORS[i % CHART_COLORS.length],
+        }));
+        fetchChartData(mapping, sharedConfig.bucket_minutes);
+    }, [configLoaded, sharedConfig, fetchChartData]);
 
+    // On parent refreshSignal, refetch chart data if config is enabled
+    useEffect(() => {
+        if (refreshSignal === 0 || !sharedConfig?.is_enabled) return;
+        const mapping = (sharedConfig.mapping || []).map((m, i) => ({
+            id: i,
+            name: m.parataxi,
+            symbols: m.symbols || [],
+            color: m.color || CHART_COLORS[i % CHART_COLORS.length],
+        }));
+        fetchChartData(mapping, sharedConfig.bucket_minutes);
+    }, [refreshSignal]); // eslint-disable-line
+
+    // Open config dialog — seed parataksiList from sharedConfig
     const handleStart = () => {
-        setShowConfig(true);
-        if (parataksiList.length === 0) {
+        if (sharedConfig?.mapping?.length) {
+            setParataksiList(sharedConfig.mapping.map((m, i) => ({
+                id: Date.now() + i,
+                name: m.parataxi || '',
+                symbols: m.symbols || [],
+                color: m.color || CHART_COLORS[i % CHART_COLORS.length],
+            })));
+        } else {
             setParataksiList([{ id: Date.now(), name: '', symbols: [], color: CHART_COLORS[0] }]);
         }
+        setShowConfig(true);
     };
 
-    const addParataksi = () => {
-        setParataksiList(prev => [...prev, {
-            id: Date.now(), name: '', symbols: [],
-            color: CHART_COLORS[prev.length % CHART_COLORS.length]
-        }]);
+    const handleOpenSettings = () => {
+        const mapping = sharedConfig?.mapping || [];
+        setParataksiList(mapping.length
+            ? mapping.map((m, i) => ({ id: Date.now() + i, name: m.parataxi || '', symbols: m.symbols || [], color: m.color || CHART_COLORS[i % CHART_COLORS.length] }))
+            : [{ id: Date.now(), name: '', symbols: [], color: CHART_COLORS[0] }]
+        );
+        setShowConfig(true);
     };
+
+    const addParataksi = () => setParataksiList(prev => [...prev, {
+        id: Date.now(), name: '', symbols: [],
+        color: CHART_COLORS[prev.length % CHART_COLORS.length]
+    }]);
 
     const removeParataksi = (id) => setParataksiList(prev => prev.filter(p => p.id !== id));
 
@@ -108,19 +146,59 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
         return true;
     };
 
-    const handleSubmitConfig = () => {
+    // Save config to backend (shared) then fetch chart
+    const handleSubmitConfig = async () => {
         if (!validateConfig()) return;
-        fetchChartData(parataksiList);
+        setSaving(true);
+        try {
+            const mapping = parataksiList.map(p => ({ parataxi: p.name, symbols: p.symbols, color: p.color }));
+            const { data } = await base44.functions.invoke('voteFlowConfigSave', {
+                session_token: sessionToken,
+                is_enabled: true,
+                mapping,
+                bucket_minutes: sharedConfig?.bucket_minutes || 5,
+            });
+            const saved = data?.config || null;
+            setSharedConfig(saved);
+            setShowConfig(false);
+            if (saved?.mapping?.length) {
+                fetchChartData(
+                    saved.mapping.map((m, i) => ({ id: i, name: m.parataxi, symbols: m.symbols, color: m.color || CHART_COLORS[i % CHART_COLORS.length] })),
+                    saved.bucket_minutes
+                );
+            }
+        } catch (e) {
+            alert('Σφάλμα αποθήκευσης ρυθμίσεων: ' + e.message);
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const handleCancel = () => {
+    // Disable chart — save to backend with is_enabled=false
+    const handleCancel = async () => {
+        try {
+            await base44.functions.invoke('voteFlowConfigSave', {
+                session_token: sessionToken,
+                is_enabled: false,
+                mapping: sharedConfig?.mapping || [],
+                bucket_minutes: sharedConfig?.bucket_minutes || 5,
+            });
+        } catch (e) {
+            console.error('voteFlowConfigSave disable error:', e);
+        }
+        setSharedConfig(prev => prev ? { ...prev, is_enabled: false } : null);
         setChartData(null);
-        setParataksiList([]);
-        setAutoRefresh(false);
         setShowConfig(false);
-        localStorage.removeItem('voteFlow_parataksiList');
-        localStorage.removeItem('voteFlow_chartData');
     };
+
+    const parataksiForChart = useMemo(() => {
+        if (!sharedConfig?.mapping) return [];
+        return sharedConfig.mapping.map((m, i) => ({
+            id: i,
+            name: m.parataxi,
+            color: m.color || CHART_COLORS[i % CHART_COLORS.length],
+        }));
+    }, [sharedConfig]);
 
     const transformedData = useMemo(() => {
         if (!chartData) return [];
@@ -149,7 +227,15 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
         );
     };
 
-    if (!chartData && !showConfig) {
+    // Shared indicator badge
+    const SharedBadge = () => (
+        <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+            <Users className="h-3 w-3" />
+            Κοινό γράφημα για όλους τους χρήστες του ενεργού dataset
+        </span>
+    );
+
+    if (!configLoaded || loadingConfig) {
         return (
             <Card>
                 <CardHeader>
@@ -159,16 +245,35 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center py-12">
-                        <TrendingUp className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                        <p className="text-slate-600 mb-6">
+                    <div className="text-center py-8 text-slate-400">Φόρτωση ρυθμίσεων...</div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (!sharedConfig?.is_enabled && !showConfig) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5" />
+                        Διάγραμμα Ροής Ψήφων
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center py-8 space-y-3">
+                        <TrendingUp className="h-14 w-14 text-slate-300 mx-auto" />
+                        <p className="text-slate-600 text-sm">
                             Παρακολουθήστε τη ροή της ψηφοφορίας σε πραγματικό χρόνο<br />
                             με αθροιστικές γραμμές ανά παράταξη
                         </p>
-                        <Button onClick={handleStart} size="lg">
-                            <Play className="h-4 w-4 mr-2" />
-                            Έναρξη
-                        </Button>
+                        <SharedBadge />
+                        <div className="pt-2">
+                            <Button onClick={handleStart} size="lg">
+                                <Play className="h-4 w-4 mr-2" />
+                                Έναρξη
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -182,7 +287,10 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
                     <DialogHeader>
                         <DialogTitle>Ρύθμιση Παρατάξεων</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-6 py-4">
+                    <div className="mb-3">
+                        <SharedBadge />
+                    </div>
+                    <div className="space-y-6 py-2">
                         {parataksiList.map((parataksi, index) => (
                             <Card key={parataksi.id} className="border-2">
                                 <CardHeader className="pb-3">
@@ -248,78 +356,100 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowConfig(false)}>Ακύρωση</Button>
-                        <Button onClick={handleSubmitConfig} disabled={loading}>
-                            {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Φόρτωση...</> : <><Play className="h-4 w-4 mr-2" />Εμφάνιση Γραφήματος</>}
+                        <Button onClick={handleSubmitConfig} disabled={saving || loadingChart}>
+                            {saving || loadingChart
+                                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Αποθήκευση...</>
+                                : <><Play className="h-4 w-4 mr-2" />Αποθήκευση & Εμφάνιση</>}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {chartData && (
+            {sharedConfig?.is_enabled && (
                 <Card>
                     <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5" />
-                                Διάγραμμα Ροής Ψήφων (Αθροιστικό)
-                            </CardTitle>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => setAutoRefresh(r => !r)}>
-                                    {autoRefresh ? 'Παύση Ανανέωσης' : 'Αυτόματη Ανανέωση'}
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => setShowConfig(true)}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-1">
+                                <CardTitle className="flex items-center gap-2">
+                                    <TrendingUp className="h-5 w-5" />
+                                    Διάγραμμα Ροής Ψήφων (Αθροιστικό)
+                                </CardTitle>
+                                <SharedBadge />
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                                <Button variant="outline" size="sm" onClick={handleOpenSettings}>
                                     Ρυθμίσεις
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={handleCancel}>
+                                <Button variant="outline" size="sm" onClick={handleCancel} className="text-red-600 hover:bg-red-50">
                                     <XCircle className="h-4 w-4 mr-2" />
-                                    Ακύρωση
+                                    Απενεργοποίηση
                                 </Button>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-wrap gap-4 mb-6 p-4 bg-slate-50 rounded-lg">
-                            {parataksiList.map(p => (
-                                <div key={p.id} className="flex items-center gap-2">
-                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: p.color }} />
-                                    <span className="font-medium text-sm">{p.name}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="w-full h-96">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={transformedData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                    <XAxis
-                                        dataKey="time"
-                                        tickFormatter={(t) => format(new Date(t), 'HH:mm', { locale: el })}
-                                        stroke="#64748b" style={{ fontSize: '12px' }}
-                                    />
-                                    <YAxis stroke="#64748b" style={{ fontSize: '12px' }} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    {parataksiList.map(p => (
-                                        <Line key={p.name} type="monotone" dataKey={p.name}
-                                            stroke={p.color} strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                        {loadingChart && (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-slate-400 mr-2" />
+                                <span className="text-slate-500">Φόρτωση δεδομένων...</span>
+                            </div>
+                        )}
+                        {!loadingChart && chartData && (
+                            <>
+                                <div className="flex flex-wrap gap-4 mb-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                    {parataksiForChart.map(p => (
+                                        <div key={p.id} className="flex items-center gap-2">
+                                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: p.color }} />
+                                            <span className="font-medium text-sm">{p.name}</span>
+                                        </div>
                                     ))}
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                            <div className="p-4 bg-slate-50 rounded-lg">
-                                <div className="text-sm text-slate-600">Χρονικό Διάστημα</div>
-                                <div className="text-lg font-bold text-slate-900">{chartData.labels.length} buckets (5min)</div>
-                            </div>
-                            <div className="p-4 bg-slate-50 rounded-lg">
-                                <div className="text-sm text-slate-600">Παρατάξεις</div>
-                                <div className="text-lg font-bold text-slate-900">{parataksiList.length}</div>
-                            </div>
-                            <div className="p-4 bg-slate-50 rounded-lg">
-                                <div className="text-sm text-slate-600">Σύνολο Ψήφων</div>
-                                <div className="text-lg font-bold text-slate-900">
-                                    {chartData.series.reduce((max, s) => Math.max(max, s.points[s.points.length - 1] || 0), 0)}
                                 </div>
+                                <div className="w-full h-96">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={transformedData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                            <XAxis
+                                                dataKey="time"
+                                                tickFormatter={(t) => format(new Date(t), 'HH:mm', { locale: el })}
+                                                stroke="#64748b" style={{ fontSize: '12px' }}
+                                            />
+                                            <YAxis stroke="#64748b" style={{ fontSize: '12px' }} />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            {parataksiForChart.map(p => (
+                                                <Line key={p.name} type="monotone" dataKey={p.name}
+                                                    stroke={p.color} strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                                            ))}
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                                    <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                        <div className="text-sm text-slate-600 dark:text-slate-400">Χρονικό Διάστημα</div>
+                                        <div className="text-lg font-bold text-slate-900 dark:text-slate-100">{chartData.labels.length} buckets ({sharedConfig?.bucket_minutes || 5}min)</div>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                        <div className="text-sm text-slate-600 dark:text-slate-400">Παρατάξεις</div>
+                                        <div className="text-lg font-bold text-slate-900 dark:text-slate-100">{parataksiForChart.length}</div>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                        <div className="text-sm text-slate-600 dark:text-slate-400">Σύνολο Ψήφων</div>
+                                        <div className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                                            {chartData.series.reduce((max, s) => Math.max(max, s.points[s.points.length - 1] || 0), 0)}
+                                        </div>
+                                    </div>
+                                </div>
+                                {sharedConfig?.updated_by_name && (
+                                    <p className="text-xs text-slate-400 text-right mt-2">
+                                        Τελευταία ρύθμιση από: {sharedConfig.updated_by_name}
+                                    </p>
+                                )}
+                            </>
+                        )}
+                        {!loadingChart && !chartData && (
+                            <div className="text-center py-8 text-slate-400">
+                                Δεν υπάρχουν δεδομένα ροής ψήφων ακόμα.
                             </div>
-                        </div>
+                        )}
                     </CardContent>
                 </Card>
             )}
