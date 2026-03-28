@@ -710,16 +710,16 @@ export default function Records() {
       />
 
       {datasets.length > 0 && (
-        <div className="bg-white rounded-lg border p-3 sm:p-4">
-          <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 sm:p-4">
+          <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2 text-slate-900 dark:text-slate-100">
             <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5" /> Datasets
           </h3>
           <div className="space-y-2">
             {datasets.map(dataset => (
-              <div key={dataset.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 rounded-lg gap-3">
+              <div key={dataset.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium text-sm sm:text-base truncate">{dataset.name}</p>
-                  <p className="text-xs sm:text-sm text-slate-600">{dataset.total_records || 0} εγγραφές • {dataset.status}</p>
+                  <p className="font-medium text-sm sm:text-base truncate text-slate-900 dark:text-slate-100">{dataset.name}</p>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">{dataset.total_records || 0} εγγραφές • {dataset.status}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {dataset.status !== 'active' && (
@@ -728,7 +728,7 @@ export default function Records() {
                       <span className="hidden sm:inline">Ενεργοποίηση</span>
                     </Button>
                   )}
-                  {dataset.status === 'active' && <Badge className="bg-green-100 text-green-700">Ενεργό</Badge>}
+                  {dataset.status === 'active' && <Badge className="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-0">Ενεργό</Badge>}
                   <Button size="sm" variant="destructive" onClick={() => handleDeleteDataset(dataset.id)} className="h-9 w-9 p-0">
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -740,7 +740,7 @@ export default function Records() {
       )}
 
       {!activeDatasetId ? (
-        <div className="bg-white border rounded-lg p-8 text-center text-slate-600">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center text-slate-600 dark:text-slate-400">
           Δεν υπάρχει ενεργό dataset. Κάντε <strong>Εισαγωγή</strong> αρχείου ή ενεργοποιήστε ένα dataset.
         </div>
       ) : (
