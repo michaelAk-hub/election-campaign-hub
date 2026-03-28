@@ -39,7 +39,7 @@ export default function Predictions() {
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
         queryKey: ['predictionKPIs'],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionKPIs', { queryParams });
+            const { data } = await base44.functions.invoke('predictionKPIs', { session_token: sessionToken });
             return data;
         },
         refetchInterval,
@@ -48,7 +48,7 @@ export default function Predictions() {
     const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
         queryKey: ['predictionBySymbol'],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionBySymbol', { queryParams });
+            const { data } = await base44.functions.invoke('predictionBySymbol', { session_token: sessionToken });
             return data;
         },
         refetchInterval,
@@ -57,7 +57,7 @@ export default function Predictions() {
     const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
         queryKey: ['predictionByYearSymbol'],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionByYearSymbol', { queryParams });
+            const { data } = await base44.functions.invoke('predictionByYearSymbol', { session_token: sessionToken });
             return data;
         },
         refetchInterval,
