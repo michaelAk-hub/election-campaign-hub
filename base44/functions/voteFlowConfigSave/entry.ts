@@ -23,24 +23,52 @@ Deno.serve(async (req) => {
         const auth = await strictAuth(base44, body.session_token);
         if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
 
+        const { is_enabled, mapping, bucket_minutes } = body;
+
+        if (is_enabled && (!Array.isArray(mapping) || mapping.length === 0)) {
+            return Response.json({ error: 'mapping must be a non-empty array when is_enabled=true' }, { status: 400 });
+        }
+
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
         if (!activeDatasets?.length) {
-            return Response.json({ years: [], symbols: [], departments: [] });
+            return Response.json({ error: 'No active dataset found' }, { status: 400 });
         }
 
         const datasetId = activeDatasets[0].id;
-        const cacheRows = await base44.asServiceRole.entities.PredictionFilterCache.filter({ dataset_id: datasetId });
+        const user = auth.user;
+        const updatedByName = [user.name, user.surname].filter(Boolean).join(' ').trim() || user.email || '';
+        const now = new Date().toISOString();
 
-        if (!cacheRows?.length) {
-            return Response.json({ years: [], symbols: [], departments: [], cache_missing: true });
+        const payload = {
+            dataset_id: datasetId,
+            is_enabled: !!is_enabled,
+            bucket_minutes: Number(bucket_minutes) || 5,
+            mapping_json: { data: mapping || [] },
+            updated_by_user_id: user.id,
+            updated_by_name: updatedByName,
+            updated_at: now,
+        };
+
+        // Check for existing config row for this dataset
+        const existing = await base44.asServiceRole.entities.PredictionVoteFlowConfig.filter({ dataset_id: datasetId });
+
+        let saved;
+        if (existing?.length) {
+            saved = await base44.asServiceRole.entities.PredictionVoteFlowConfig.update(existing[0].id, payload);
+        } else {
+            saved = await base44.asServiceRole.entities.PredictionVoteFlowConfig.create(payload);
         }
 
-        const cache = cacheRows[0];
         return Response.json({
-            years: cache.years_json?.data || [],
-            symbols: cache.symbols_json?.data || [],
-            departments: cache.departments_json?.data || [],
-            cache_missing: false,
+            config: {
+                id: saved.id,
+                dataset_id: saved.dataset_id,
+                is_enabled: saved.is_enabled,
+                bucket_minutes: saved.bucket_minutes,
+                mapping: saved.mapping_json?.data || [],
+                updated_by_name: saved.updated_by_name,
+                updated_at: saved.updated_at,
+            },
         });
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });

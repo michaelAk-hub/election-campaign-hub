@@ -120,6 +120,12 @@ Deno.serve(async (req) => {
 
         const updated = await base44.asServiceRole.entities.Person.update(current.id, patch);
 
+        // Rebuild prediction stats if a prediction-relevant field changed
+        const predictionFields = new Set(['prediction_symbol', 'admission_year', 'department', 'voted', 'voted_at', 'dataset_id']);
+        if (predictionFields.has(field)) {
+            base44.asServiceRole.functions.invoke('rebuildPredictionStats', {}).catch(() => {});
+        }
+
         return Response.json({ data: updated });
     } catch (err) {
         console.error("❌ [personGridUpdateCell] Error:", err?.message || err);

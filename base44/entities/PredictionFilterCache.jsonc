@@ -1,0 +1,29 @@
+{
+  "name": "PredictionFilterCache",
+  "type": "object",
+  "properties": {
+    "dataset_id": {
+      "type": "string",
+      "description": "Dataset this cache belongs to"
+    },
+    "years_json": {
+      "type": "object",
+      "description": "Sorted array of unique admission years"
+    },
+    "symbols_json": {
+      "type": "object",
+      "description": "Sorted array of unique prediction symbols"
+    },
+    "departments_json": {
+      "type": "object",
+      "description": "Sorted array of unique departments"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "dataset_id"
+  ]
+}

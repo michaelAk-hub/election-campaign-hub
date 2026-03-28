@@ -110,6 +110,9 @@ Deno.serve(async (req) => {
             activated_at: new Date().toISOString()
         });
 
+        // Rebuild prediction stats cache after import
+        base44.asServiceRole.functions.invoke('rebuildPredictionStats', {}).catch(() => {});
+
         return Response.json({ 
             success: true, 
             imported_count: normalizedPersons.length 

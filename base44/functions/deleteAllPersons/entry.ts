@@ -112,6 +112,9 @@ Deno.serve(async (req) => {
         message: `Ολοκληρώθηκε! Διαγράφηκαν ${newDeleted} εγγραφές και ${datasets.length} datasets.`
       });
 
+      // Clear prediction stats caches since all data is gone
+      base44.asServiceRole.functions.invoke('rebuildPredictionStats', {}).catch(() => {});
+
       return Response.json({ success: true, job_id: job.id, done: true, deleted: newDeleted });
     }
   } catch (error) {

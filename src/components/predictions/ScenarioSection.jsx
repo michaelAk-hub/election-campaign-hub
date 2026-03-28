@@ -17,21 +17,22 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
     const [detailResult, setDetailResult] = useState(null);
 
     const loadScenarios = useCallback(async () => {
-        if (!sessionToken) return;
+        if (!sessionToken) return [];
         const { data } = await base44.functions.invoke('scenarioList', { session_token: sessionToken });
         const list = data?.scenarios || [];
         setScenarios(list);
         return list;
     }, [sessionToken]);
 
+    // Run scenario calculations SEQUENTIALLY to avoid server bursts
     const calculateAll = useCallback(async (list) => {
         const ids = (list || []).map(s => s.id);
         const loadingMap = {};
-        ids.forEach(id => loadingMap[id] = true);
+        ids.forEach(id => { loadingMap[id] = true; });
         setLoadingResults(loadingMap);
         setResultErrors({});
 
-        await Promise.all(ids.map(async (id) => {
+        for (const id of ids) {
             try {
                 const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
                 if (data?.error) {
@@ -44,7 +45,7 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
             } finally {
                 setLoadingResults(prev => ({ ...prev, [id]: false }));
             }
-        }));
+        }
     }, [sessionToken]);
 
     const refresh = useCallback(async () => {
@@ -52,13 +53,10 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
         if (list?.length) await calculateAll(list);
     }, [loadScenarios, calculateAll]);
 
-    useEffect(() => { refresh(); }, [refresh, refreshSignal]);
-
-    // Auto-refresh every 5 minutes
+    // Refresh on mount, sessionToken change, or parent refreshSignal
     useEffect(() => {
-        const interval = setInterval(refresh, 5 * 60 * 1000);
-        return () => clearInterval(interval);
-    }, [refresh]);
+        refresh();
+    }, [sessionToken, refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const removeScenarioFromState = (id) => {
         setScenarios(prev => prev.filter(s => s.id !== id));

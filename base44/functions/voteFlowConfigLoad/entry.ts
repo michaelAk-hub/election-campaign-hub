@@ -25,22 +25,28 @@ Deno.serve(async (req) => {
 
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
         if (!activeDatasets?.length) {
-            return Response.json({ years: [], symbols: [], departments: [] });
+            return Response.json({ config: null, dataset_id: null, message: 'No active dataset' });
         }
 
         const datasetId = activeDatasets[0].id;
-        const cacheRows = await base44.asServiceRole.entities.PredictionFilterCache.filter({ dataset_id: datasetId });
+        const configs = await base44.asServiceRole.entities.PredictionVoteFlowConfig.filter({ dataset_id: datasetId });
+        const config = configs?.[0] || null;
 
-        if (!cacheRows?.length) {
-            return Response.json({ years: [], symbols: [], departments: [], cache_missing: true });
+        if (!config) {
+            return Response.json({ config: null, dataset_id: datasetId });
         }
 
-        const cache = cacheRows[0];
         return Response.json({
-            years: cache.years_json?.data || [],
-            symbols: cache.symbols_json?.data || [],
-            departments: cache.departments_json?.data || [],
-            cache_missing: false,
+            config: {
+                id: config.id,
+                dataset_id: config.dataset_id,
+                is_enabled: config.is_enabled || false,
+                bucket_minutes: config.bucket_minutes || 5,
+                mapping: config.mapping_json?.data || [],
+                updated_by_name: config.updated_by_name || null,
+                updated_at: config.updated_at || null,
+            },
+            dataset_id: datasetId,
         });
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });

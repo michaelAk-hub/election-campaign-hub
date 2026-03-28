@@ -1,80 +1,47 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+
+async function strictAuth(base44, session_token) {
+    if (!session_token) return { error: 'Unauthorized: No session token', status: 401 };
+    const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
+    if (!sessions?.length) return { error: 'Invalid session', status: 401 };
+    const session = sessions[0];
+    if (session.expires_at && new Date(session.expires_at) < new Date()) return { error: 'Session expired', status: 401 };
+    const users = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+    if (!users?.length) return { error: 'User not found', status: 401 };
+    const user = users[0];
+    if (!user.is_active && user.role !== 'ADMIN') return { error: 'Account inactive', status: 401 };
+    if (session.session_version_at_login !== undefined && user.session_version !== undefined &&
+        session.session_version_at_login !== user.session_version) return { error: 'Session invalidated', status: 401 };
+    if (!['ADMIN', 'ORGANOTIKI'].includes(user.role)) return { error: 'Forbidden', status: 403 };
+    return { user, session };
+}
 
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-
-        const body = await req.json();
-        const queryParams = new URLSearchParams(body.queryParams || '');
-
-        const sessionToken = queryParams.get('session_token');
-
-        if (!sessionToken) {
-            return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
-        }
-
-        const sessions = await base44.asServiceRole.entities.AppSession.filter({
-            session_token: sessionToken,
-            is_active: true
-        });
-
-        if (sessions.length === 0) {
-            return Response.json({ error: 'Invalid session' }, { status: 401 });
-        }
-
-        const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
-        if (users.length === 0 || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
-            return Response.json({ error: 'Unauthorized' }, { status: 403 });
-        }
-
-        const yearFilter = queryParams.get('year');
-        const symbolFilter = queryParams.get('symbol');
-        const departmentFilter = queryParams.get('department');
+        const body = await req.json().catch(() => ({}));
+        const auth = await strictAuth(base44, body.session_token);
+        if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
 
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
-        if (activeDatasets.length === 0) {
-            return Response.json({ total: 0, voted_yes: 0, voted_no: 0, voted_yes_percent: 0, generated_at: new Date().toISOString() });
+        if (!activeDatasets?.length) {
+            return Response.json({ total: 0, voted_yes: 0, voted_no: 0, voted_yes_percent: 0, cache_missing: false, generated_at: new Date().toISOString() });
         }
 
-        let allPersons = [];
-        let skip = 0;
-        const limit = 500;
+        const datasetId = activeDatasets[0].id;
+        const cacheRows = await base44.asServiceRole.entities.PredictionStatsOverall.filter({ dataset_id: datasetId });
 
-        while (true) {
-            const batch = await base44.asServiceRole.entities.Person.filter(
-                { dataset_id: activeDatasets[0].id },
-                '-created_date',
-                limit,
-                skip
-            );
-            const items = Array.isArray(batch) ? batch : [];
-            if (!items.length) break;
-            allPersons = allPersons.concat(items);
-            if (items.length < limit) break;
-            skip += limit;
+        if (!cacheRows?.length) {
+            return Response.json({ total: 0, voted_yes: 0, voted_no: 0, voted_yes_percent: 0, cache_missing: true, generated_at: new Date().toISOString() });
         }
 
-        let filtered = allPersons;
-
-        if (yearFilter) {
-            const years = yearFilter.split(',').map(y => y.trim());
-            filtered = filtered.filter(p => years.includes(String(p.admission_year || '')));
-        }
-        if (symbolFilter) {
-            const symbols = symbolFilter.split(',').map(s => s.trim());
-            filtered = filtered.filter(p => symbols.includes((p.prediction_symbol || '').trim() || '(Κενό)'));
-        }
-        if (departmentFilter) {
-            const departments = departmentFilter.split(',').map(d => d.trim());
-            filtered = filtered.filter(p => departments.includes(p.department || ''));
-        }
-
-        const total = filtered.length;
-        const voted_yes = filtered.filter(p => p.voted === true).length;
-        const voted_no = total - voted_yes;
+        const cache = cacheRows[0];
+        const total = cache.total || 0;
+        const voted_yes = cache.voted_yes || 0;
+        const voted_no = cache.voted_no || 0;
         const voted_yes_percent = total > 0 ? parseFloat((voted_yes / total * 100).toFixed(2)) : 0;
 
-        return Response.json({ total, voted_yes, voted_no, voted_yes_percent, generated_at: new Date().toISOString() });
+        return Response.json({ total, voted_yes, voted_no, voted_yes_percent, cache_missing: false, generated_at: cache.updated_at || new Date().toISOString() });
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
     }

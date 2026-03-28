@@ -59,6 +59,9 @@ Deno.serve(async (req) => {
             updated++;
         }
 
+        // Rebuild prediction stats cache after bulk vote update
+        base44.asServiceRole.functions.invoke('rebuildPredictionStats', {}).catch(() => {});
+
         return Response.json({ success: true, updated, total: allPersons.length });
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });

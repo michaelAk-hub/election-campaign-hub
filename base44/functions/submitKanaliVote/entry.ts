@@ -89,6 +89,11 @@ Deno.serve(async (req) => {
             person_record_id: personRecordId
         });
 
+        // Rebuild prediction stats cache after a successful vote
+        if (status === 'MARKED_VOTED') {
+            base44.asServiceRole.functions.invoke('rebuildPredictionStats', {}).catch(() => {});
+        }
+
         return Response.json({ status, reason });
 
     } catch (error) {
