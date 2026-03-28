@@ -1,8 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-const APP_ID = Deno.env.get('BASE44_APP_ID');
-const API_BASE = `https://api.base44.com/api/apps/${APP_ID}`;
-
 async function strictAuth(base44, session_token) {
     if (!session_token) return { error: 'Unauthorized: No session token', status: 401 };
     const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
@@ -19,25 +16,6 @@ async function strictAuth(base44, session_token) {
     return { user, session };
 }
 
-// Fetch persons page by page via Base44 REST API (bypasses SDK string truncation)
-async function fetchPersonsPage(serviceToken, datasetId, skip, limit) {
-    const query = encodeURIComponent(JSON.stringify({ dataset_id: datasetId }));
-    const url = `${API_BASE}/entities/Person?query=${query}&sort=created_date&limit=${limit}&skip=${skip}`;
-    const resp = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${serviceToken}`,
-            'Content-Type': 'application/json',
-        }
-    });
-    if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(`Person fetch failed: ${resp.status} ${text.slice(0, 200)}`);
-    }
-    const json = await resp.json();
-    // Response is array or {data: [...]}
-    return Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : []);
-}
-
 async function deleteAllForDataset(base44, entityName, datasetId) {
     let skip = 0;
     const limit = 200;
@@ -52,21 +30,6 @@ async function deleteAllForDataset(base44, entityName, datasetId) {
     }
 }
 
-// Get the service role API token for REST calls
-async function getServiceToken(base44) {
-    // Use the SDK's internal service role token by making a test call and reading headers
-    // Instead, derive it from the app's service role via a known pattern
-    // We'll use the same approach as deleteDataset: get token from auth header of a test entity call
-    try {
-        const resp = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
-        // If this works, we need to get the token differently
-        // The service token is stored as env var in some setups, try common names
-        return null; // Will be determined below
-    } catch (_) {
-        return null;
-    }
-}
-
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -76,7 +39,7 @@ Deno.serve(async (req) => {
         const auth = await strictAuth(base44, session_token);
         if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
 
-        // Determine target dataset using SDK (small result set, works fine)
+        // Determine target dataset
         let dataset;
         if (requestedDatasetId) {
             const datasets = await base44.asServiceRole.entities.Dataset.filter({ id: requestedDatasetId });
@@ -93,7 +56,7 @@ Deno.serve(async (req) => {
         const datasetId = dataset.id;
         const now = new Date().toISOString();
 
-        // Accumulator maps
+        // Scan all Person rows for this dataset
         const overallMap = { total: 0, voted_yes: 0, voted_no: 0 };
         const symbolMap = {};
         const yearSymbolMap = {};
@@ -108,42 +71,47 @@ Deno.serve(async (req) => {
         };
         const normalizeYear = (year) => year ? String(year) : '(Άγνωστο)';
 
-        // Scan all Person rows for this dataset using the REST API directly
-        // We need the service role bearer token — extract it from the Authorization header the SDK would use
-        // The SDK's asServiceRole internally uses a service token. We can get it by doing an OPTIONS or
-        // by reading from env. The service token is available as BASE44_SERVICE_TOKEN in some versions.
-        // Fallback: use the incoming user's request auth to call personGridFetch as a helper.
-        
-        // Best approach: call personGridFetch (which works) via internal function invoke
-        // But that returns rows+lastRow format. Instead, let's use the SDK's filter with $and 
-        // on small cache entities, and for Person use the direct approach via the request's
-        // own authorization to read the service role token.
-
-        // The most reliable approach: use a service role client and read via HTTP with the service key
-        // BASE44_SERVICE_ROLE_KEY is not available. Instead piggyback on SDK's internal HTTP client.
-        // 
-        // ACTUAL FIX: The SDK filter() on large entities returns truncated strings.
-        // Use the user's AppSession + the internal API with the user's session to call personGridFetch
-        // OR use the admin user's base44 client (non-service-role) which has proper pagination.
-        
-        // Try using base44 (non-service-role) filter which uses the request user's auth:
         let skip = 0;
-        const limit = 200;
-        let pagesDone = 0;
+        const limit = 50;  // ~62KB SDK string limit fits ~73 records; use 50 to be safe
+        const query = { $and: [{ dataset_id: datasetId }] };
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+        console.log(`[rebuild] START scanning datasetId=${datasetId} query=${JSON.stringify(query)}`);
 
         while (true) {
-            const raw = await base44.entities.Person.filter(
-                { $and: [{ dataset_id: datasetId }] },
-                'created_date',
-                limit,
-                skip
-            );
-            const batch = Array.isArray(raw) ? raw : [];
-            console.log(`[rebuild] page=${pagesDone} skip=${skip} batch=${batch.length}`);
-            if (!batch.length) break;
+            console.log(`[rebuild] fetching skip=${skip}...`);
+            const batch = await base44.asServiceRole.entities.Person.filter(query, 'created_date', limit, skip);
+            let rows = [];
+            if (Array.isArray(batch)) {
+                rows = batch;
+            } else if (typeof batch === 'string' && batch.length > 0) {
+                // SDK returns a JSON string for large results — find the last complete object
+                // Truncate to the last complete '},' boundary to get a valid array
+                let s = batch.trim();
+                if (!s.startsWith('[')) s = '[' + s;
+                // Find last complete record by trimming to last '}' before end
+                let lastClose = s.lastIndexOf('}');
+                if (lastClose !== -1) {
+                    s = s.slice(0, lastClose + 1) + ']';
+                }
+                try {
+                    rows = JSON.parse(s);
+                } catch {
+                    // Try progressively shorter slices
+                    for (let i = lastClose - 1; i > 0; i--) {
+                        if (s[i] === '}') {
+                            try {
+                                rows = JSON.parse(s.slice(0, i + 1) + ']');
+                                break;
+                            } catch { /* continue */ }
+                        }
+                    }
+                }
+                console.log(`[rebuild] skip=${skip} string len=${batch.length} parsed=${rows.length}`);
+            }
+            console.log(`[rebuild] skip=${skip} rows=${rows.length}`);
+            if (!rows.length) break;
 
-            for (const p of batch) {
-                if (p.dataset_id !== datasetId) continue;
+            for (const p of rows) {
                 const symbol = normalizeSymbol(p.prediction_symbol);
                 const year = normalizeYear(p.admission_year);
                 const voted = p.voted === true;
@@ -164,12 +132,13 @@ Deno.serve(async (req) => {
                 if (p.prediction_symbol?.trim()) symbolsSet.add(p.prediction_symbol.trim().replace(/\s+/g, ' '));
                 if (p.department) depsSet.add(p.department);
             }
-            if (batch.length < limit) break;
+
+            if (rows.length < limit) break;
             skip += limit;
-            pagesDone++;
+            await sleep(150);  // throttle to avoid rate limit
         }
 
-        console.log(`[rebuild] total_persons=${overallMap.total} symbols=${Object.keys(symbolMap).length} year_symbol_rows=${Object.keys(yearSymbolMap).length}`);
+        console.log(`[rebuild] DONE total=${overallMap.total} symbols=${Object.keys(symbolMap).length} yearSymbol=${Object.keys(yearSymbolMap).length}`);
 
         // Delete old cache rows and recreate
         await Promise.all([
