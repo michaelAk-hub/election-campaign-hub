@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
             u.changes && Object.keys(u.changes).some(f => predictionFields.has(f))
         );
         if (hasPredictionChange) {
-            base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: 'internal_rebuild' }).catch(() => {});
+            base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: Deno.env.get('INTERNAL_REBUILD_SECRET') }).catch(() => {});
         }
 
         return Response.json({ results });

@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
         // Rebuild prediction stats if a prediction-relevant field changed — pass internal_key so auth is bypassed safely
         const predictionFields = new Set(['prediction_symbol', 'admission_year', 'department', 'voted', 'voted_at', 'dataset_id']);
         if (predictionFields.has(field)) {
-            base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: 'internal_rebuild' }).catch(() => {});
+            base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: Deno.env.get('INTERNAL_REBUILD_SECRET') }).catch(() => {});
         }
 
         return Response.json({ data: updated });

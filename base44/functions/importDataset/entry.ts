@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
         });
 
         // Rebuild prediction stats cache after import — pass dataset_id and internal_key so auth is bypassed safely
-        base44.asServiceRole.functions.invoke('rebuildPredictionStats', { dataset_id, internal_key: 'internal_rebuild' }).catch(() => {});
+        base44.asServiceRole.functions.invoke('rebuildPredictionStats', { dataset_id, internal_key: Deno.env.get('INTERNAL_REBUILD_SECRET') }).catch(() => {});
 
         return Response.json({ 
             success: true, 

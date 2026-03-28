@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       });
 
       // Clear prediction stats caches since all data is gone — pass internal_key so auth is bypassed safely
-      base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: 'internal_rebuild' }).catch(() => {});
+      base44.asServiceRole.functions.invoke('rebuildPredictionStats', { internal_key: Deno.env.get('INTERNAL_REBUILD_SECRET') }).catch(() => {});
 
       return Response.json({ success: true, job_id: job.id, done: true, deleted: newDeleted });
     }
