@@ -1,4 +1,23 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function retryOp(fn, maxRetries = 6) {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (e) {
+            const msg = (e.message || '').toLowerCase();
+            const isRateLimit = msg.includes('429') || msg.includes('rate limit') || msg.includes('rate_limit');
+            if (isRateLimit && i < maxRetries - 1) {
+                const delay = 1500 * (i + 1);
+                await sleep(delay);
+            } else {
+                throw e;
+            }
+        }
+    }
+}
 
 async function strictAuth(base44, session_token) {
     if (!session_token) return { error: 'Unauthorized: No session token', status: 401 };
@@ -16,19 +35,27 @@ async function strictAuth(base44, session_token) {
     return { user, session };
 }
 
-async function deleteAllForDataset(base44, entityName, datasetId) {
-    let skip = 0;
-    const limit = 200;
-    while (true) {
-        const rows = await base44.asServiceRole.entities[entityName].filter({ dataset_id: datasetId }, null, limit, skip);
-        if (!rows?.length) break;
-        for (const row of rows) {
-            await base44.asServiceRole.entities[entityName].delete(row.id);
-        }
-        if (rows.length < limit) break;
-        skip += limit;
+// Upsert: update existing row if found, otherwise create
+async function upsertRow(base44, entityName, filterKey, data) {
+    const existing = await retryOp(() => base44.asServiceRole.entities[entityName].filter(filterKey));
+    if (existing?.length) {
+        await retryOp(() => base44.asServiceRole.entities[entityName].update(existing[0].id, data));
+    } else {
+        await retryOp(() => base44.asServiceRole.entities[entityName].create(data));
     }
+    await sleep(120);
 }
+
+const parseBatch = (batch) => {
+    if (Array.isArray(batch)) return batch;
+    if (typeof batch !== 'string' || !batch.length) return [];
+    let s = batch.trim();
+    if (!s.startsWith('[')) s = '[' + s;
+    const lastClose = s.lastIndexOf('}');
+    if (lastClose === -1) return [];
+    s = s.slice(0, lastClose + 1) + ']';
+    try { return JSON.parse(s); } catch { return []; }
+};
 
 Deno.serve(async (req) => {
     try {
@@ -56,7 +83,7 @@ Deno.serve(async (req) => {
         const datasetId = dataset.id;
         const now = new Date().toISOString();
 
-        // Scan all Person rows for this dataset
+        // Scan all Person rows
         const overallMap = { total: 0, voted_yes: 0, voted_no: 0 };
         const symbolMap = {};
         const yearSymbolMap = {};
@@ -72,44 +99,29 @@ Deno.serve(async (req) => {
         const normalizeYear = (year) => year ? String(year) : '(Άγνωστο)';
 
         let skip = 0;
-        const limit = 50;  // ~62KB SDK string limit fits ~73 records; use 50 to be safe
+        const limit = 500;
         const query = { $and: [{ dataset_id: datasetId }] };
-        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-        console.log(`[rebuild] START scanning datasetId=${datasetId} query=${JSON.stringify(query)}`);
+        console.log(`[rebuild] START scanning datasetId=${datasetId}`);
 
         while (true) {
-            console.log(`[rebuild] fetching skip=${skip}...`);
-            const batch = await base44.asServiceRole.entities.Person.filter(query, 'created_date', limit, skip);
-            let rows = [];
-            if (Array.isArray(batch)) {
-                rows = batch;
-            } else if (typeof batch === 'string' && batch.length > 0) {
-                // SDK returns a JSON string for large results — find the last complete object
-                // Truncate to the last complete '},' boundary to get a valid array
-                let s = batch.trim();
-                if (!s.startsWith('[')) s = '[' + s;
-                // Find last complete record by trimming to last '}' before end
-                let lastClose = s.lastIndexOf('}');
-                if (lastClose !== -1) {
-                    s = s.slice(0, lastClose + 1) + ']';
-                }
+            let batch;
+            let retries = 0;
+            while (retries < 6) {
                 try {
-                    rows = JSON.parse(s);
-                } catch {
-                    // Try progressively shorter slices
-                    for (let i = lastClose - 1; i > 0; i--) {
-                        if (s[i] === '}') {
-                            try {
-                                rows = JSON.parse(s.slice(0, i + 1) + ']');
-                                break;
-                            } catch { /* continue */ }
-                        }
-                    }
+                    batch = await base44.asServiceRole.entities.Person.filter(query, 'created_date', limit, skip);
+                    break;
+                } catch (e) {
+                    const msg = (e.message || '').toLowerCase();
+                    if ((msg.includes('429') || msg.includes('rate limit')) && retries < 5) {
+                        retries++;
+                        await sleep(2000 * retries);
+                    } else throw e;
                 }
-                console.log(`[rebuild] skip=${skip} string len=${batch.length} parsed=${rows.length}`);
             }
-            console.log(`[rebuild] skip=${skip} rows=${rows.length}`);
+
+            const rows = parseBatch(batch);
             if (!rows.length) break;
+            console.log(`[rebuild] skip=${skip} got=${rows.length}`);
 
             for (const p of rows) {
                 const symbol = normalizeSymbol(p.prediction_symbol);
@@ -133,67 +145,44 @@ Deno.serve(async (req) => {
                 if (p.department) depsSet.add(p.department);
             }
 
-            if (rows.length < limit) break;
-            skip += limit;
-            await sleep(150);  // throttle to avoid rate limit
+            if (rows.length < 10) break;
+            skip += rows.length;
+            await sleep(200);
         }
 
         console.log(`[rebuild] DONE total=${overallMap.total} symbols=${Object.keys(symbolMap).length} yearSymbol=${Object.keys(yearSymbolMap).length}`);
 
-        // Delete old cache rows and recreate
-        await Promise.all([
-            deleteAllForDataset(base44, 'PredictionStatsOverall', datasetId),
-            deleteAllForDataset(base44, 'PredictionStatsBySymbol', datasetId),
-            deleteAllForDataset(base44, 'PredictionStatsByYearSymbol', datasetId),
-            deleteAllForDataset(base44, 'PredictionFilterCache', datasetId),
-        ]);
+        // Upsert overall stats
+        await upsertRow(base44, 'PredictionStatsOverall',
+            { dataset_id: datasetId },
+            { dataset_id: datasetId, total: overallMap.total, voted_yes: overallMap.voted_yes, voted_no: overallMap.voted_no, updated_at: now }
+        );
 
-        // Write overall
-        await base44.asServiceRole.entities.PredictionStatsOverall.create({
-            dataset_id: datasetId,
-            total: overallMap.total,
-            voted_yes: overallMap.voted_yes,
-            voted_no: overallMap.voted_no,
-            updated_at: now,
-        });
-
-        // Write by symbol
+        // Upsert by symbol
         for (const [symbol, stats] of Object.entries(symbolMap)) {
-            await base44.asServiceRole.entities.PredictionStatsBySymbol.create({
-                dataset_id: datasetId,
-                symbol,
-                total: stats.total,
-                voted_yes: stats.voted_yes,
-                voted_no: stats.voted_no,
-                updated_at: now,
-            });
+            await upsertRow(base44, 'PredictionStatsBySymbol',
+                { dataset_id: datasetId, symbol },
+                { dataset_id: datasetId, symbol, total: stats.total, voted_yes: stats.voted_yes, voted_no: stats.voted_no, updated_at: now }
+            );
         }
 
-        // Write by year+symbol
+        // Upsert by year+symbol
         for (const [, stats] of Object.entries(yearSymbolMap)) {
-            await base44.asServiceRole.entities.PredictionStatsByYearSymbol.create({
-                dataset_id: datasetId,
-                admission_year: stats.admission_year,
-                symbol: stats.symbol,
-                total: stats.total,
-                voted_yes: stats.voted_yes,
-                voted_no: stats.voted_no,
-                updated_at: now,
-            });
+            await upsertRow(base44, 'PredictionStatsByYearSymbol',
+                { dataset_id: datasetId, admission_year: stats.admission_year, symbol: stats.symbol },
+                { dataset_id: datasetId, admission_year: stats.admission_year, symbol: stats.symbol, total: stats.total, voted_yes: stats.voted_yes, voted_no: stats.voted_no, updated_at: now }
+            );
         }
 
-        // Write filter cache
+        // Upsert filter cache
         const sortedYears = [...yearsSet].sort((a, b) => String(b).localeCompare(String(a)));
         const sortedSymbols = [...symbolsSet].sort((a, b) => a.localeCompare(b, 'el'));
         const sortedDeps = [...depsSet].sort((a, b) => a.localeCompare(b, 'el'));
 
-        await base44.asServiceRole.entities.PredictionFilterCache.create({
-            dataset_id: datasetId,
-            years_json: { data: sortedYears },
-            symbols_json: { data: sortedSymbols },
-            departments_json: { data: sortedDeps },
-            updated_at: now,
-        });
+        await upsertRow(base44, 'PredictionFilterCache',
+            { dataset_id: datasetId },
+            { dataset_id: datasetId, years_json: { data: sortedYears }, symbols_json: { data: sortedSymbols }, departments_json: { data: sortedDeps }, updated_at: now }
+        );
 
         return Response.json({
             success: true,
