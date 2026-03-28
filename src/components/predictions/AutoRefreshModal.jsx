@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,14 @@ import { RefreshCw } from 'lucide-react';
 export default function AutoRefreshModal({ open, onClose, settings, onSave, onRefreshNow }) {
     const [enabled, setEnabled] = useState(settings.enabled);
     const [intervalSec, setIntervalSec] = useState(String(settings.intervalSec));
+
+    // Resync local state every time the modal opens or settings change externally
+    useEffect(() => {
+        if (open) {
+            setEnabled(settings.enabled);
+            setIntervalSec(String(settings.intervalSec));
+        }
+    }, [open, settings]);
 
     const handleSave = () => {
         const sec = Math.max(10, parseInt(intervalSec, 10) || 30);

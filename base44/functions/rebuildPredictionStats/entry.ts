@@ -81,10 +81,11 @@ Deno.serve(async (req) => {
         const body = await req.json().catch(() => ({}));
         const { dataset_id: requestedDatasetId, internal_key } = body;
 
-        // Allow internal (service-role) calls via internal_key.
-        // Only backend functions (server-side) can call asServiceRole.functions.invoke,
-        // so this key does not need to be a secret — it just signals an internal trigger.
-        const isInternal = internal_key === 'internal_rebuild';
+        // Internal (service-role) calls pass internal_key which must match
+        // the INTERNAL_REBUILD_SECRET env var — never hardcoded, never client-visible.
+        // External HTTP callers always require normal session auth.
+        const INTERNAL_SECRET = Deno.env.get('INTERNAL_REBUILD_SECRET');
+        const isInternal = INTERNAL_SECRET && internal_key === INTERNAL_SECRET;
 
         if (!isInternal) {
             const auth = await strictAuth(base44, body.session_token);
