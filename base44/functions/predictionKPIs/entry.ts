@@ -5,7 +5,9 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
 
         const body = await req.json();
-        const sessionToken = body.session_token;
+        const queryParams = new URLSearchParams(body.queryParams || '');
+
+        const sessionToken = queryParams.get('session_token');
 
         if (!sessionToken) {
             return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
@@ -25,9 +27,9 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
-        const yearFilter = body.year || null;
-        const symbolFilter = body.symbol || null;
-        const departmentFilter = body.department || null;
+        const yearFilter = queryParams.get('year');
+        const symbolFilter = queryParams.get('symbol');
+        const departmentFilter = queryParams.get('department');
 
         const activeDatasets = await base44.asServiceRole.entities.Dataset.filter({ status: 'active' });
         if (activeDatasets.length === 0) {
