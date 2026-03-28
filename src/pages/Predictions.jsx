@@ -174,7 +174,7 @@ export default function Predictions() {
     return (
         <div className="space-y-6">
             {/* Auto-refresh modal */}
-            <Dialog open={showArModal} onOpenChange={setShowArModal}>
+            <Dialog open={showArModal} onOpenChange={(open) => { if (!open) setShowArModal(false); }}>
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Ρυθμίσεις Αυτόματης Ανανέωσης</DialogTitle>
