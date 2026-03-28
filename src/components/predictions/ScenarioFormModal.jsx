@@ -118,6 +118,7 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
             });
         });
 
+        // Warnings for unassigned symbols
         const warns = [];
         const allDataSymbols = filterOptions.symbols;
         const assignedSymbolsSet = new Set(Object.keys(usedSymbols));
@@ -169,6 +170,7 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
         onClose();
     };
 
+    // Party helpers
     const addParty = () => setParties(prev => [...prev, emptyParty(prev.length)]);
     const removeParty = (id) => setParties(prev => prev.filter(p => p.id !== id));
     const updateParty = (id, field, val) => setParties(prev => prev.map(p => p.id === id ? { ...p, [field]: val } : p));
@@ -181,8 +183,10 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
         return { ...p, symbols: syms };
     }));
 
+    // All assigned symbols
     const assignedSymbols = new Set(parties.flatMap(p => p.symbols.map(s => s.symbol)));
 
+    // Group helpers
     const addGroup = () => setYearGroups(prev => [...prev, emptyGroup()]);
     const removeGroup = (id) => setYearGroups(prev => prev.filter(g => g.id !== id));
     const updateGroup = (id, field, val) => setYearGroups(prev => prev.map(g => g.id === id ? { ...g, [field]: val } : g));
@@ -203,6 +207,7 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
                 </DialogHeader>
 
                 <div className="space-y-6 py-2">
+                    {/* Errors / Warnings */}
                     {errors.length > 0 && (
                         <div className="rounded-lg bg-red-50 border border-red-200 p-3 space-y-1">
                             {errors.map((e, i) => <div key={i} className="text-xs text-red-700 flex gap-1"><AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />{e}</div>)}
@@ -214,6 +219,7 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
                         </div>
                     )}
 
+                    {/* Basic info */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2 sm:col-span-1">
                             <Label className="text-xs mb-1 block">Όνομα Πρόβλεψης *</Label>
@@ -229,6 +235,7 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
                         </div>
                     </div>
 
+                    {/* Parties */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <Label className="text-sm font-semibold">Παρατάξεις</Label>
@@ -261,6 +268,7 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
                                             </Button>
                                         )}
                                     </div>
+                                    {/* Symbol rows */}
                                     <div className="space-y-2 pl-1">
                                         <Label className="text-xs text-slate-500">Σύμβολα & Πολλαπλασιαστές</Label>
                                         {party.symbols.map((sm, si) => (
@@ -300,6 +308,7 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
                         </div>
                     </div>
 
+                    {/* Academic Year Groups */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <Label className="text-sm font-semibold">Ακαδημαϊκές Ομάδες <span className="text-xs font-normal text-slate-400">(προαιρετικά)</span></Label>

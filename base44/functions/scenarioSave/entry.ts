@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 const ALLOWED_FIELDS = ['academic_level', 'admission_year'];
 const ALLOWED_OPERATORS = ['=', 'IN'];

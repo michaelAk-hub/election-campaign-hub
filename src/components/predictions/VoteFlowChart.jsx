@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Play, XCircle, Plus, Trash2, Loader2, TrendingUp, Users } from 'lucide-react';
+import { Play, XCircle, Plus, Trash2, Loader2, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 
@@ -16,75 +16,58 @@ const CHART_COLORS = [
     '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
 ];
 
-export default function VoteFlowChart({ sessionToken, availableSymbols = [], refreshSignal }) {
+export default function VoteFlowChart({ sessionToken, availableSymbols = [] }) {
     const [showConfig, setShowConfig] = useState(false);
-    const [parataksiList, setParataksiList] = useState([]);
-    const [chartData, setChartData] = useState(null);
+    const [parataksiList, setParataksiList] = useState(() => {
+        const saved = localStorage.getItem('voteFlow_parataksiList');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [chartData, setChartData] = useState(() => {
+        const saved = localStorage.getItem('voteFlow_chartData');
+        return saved ? JSON.parse(saved) : null;
+    });
     const [loading, setLoading] = useState(false);
-    const [configLoading, setConfigLoading] = useState(true);
-    const [sharedConfig, setSharedConfig] = useState(null); // loaded from backend
-    const [savingConfig, setSavingConfig] = useState(false);
-    const [updatedByName, setUpdatedByName] = useState(null);
-
-    // Load shared config from backend on mount and on refreshSignal
-    const loadConfig = useCallback(async () => {
-        if (!sessionToken) return;
-        setConfigLoading(true);
-        try {
-            const { data } = await base44.functions.invoke('voteFlowConfigLoad', { session_token: sessionToken });
-            if (data?.config) {
-                setSharedConfig(data.config);
-                const mapping = data.config.mapping || [];
-                if (mapping.length > 0) {
-                    setParataksiList(mapping.map((m, i) => ({
-                        id: i + 1,
-                        name: m.parataxi,
-                        symbols: m.symbols || [],
-                        color: m.color || CHART_COLORS[i % CHART_COLORS.length],
-                    })));
-                }
-                if (data.config.updated_by_name) setUpdatedByName(data.config.updated_by_name);
-            } else {
-                setSharedConfig(null);
-            }
-        } catch (err) {
-            console.error('voteFlowConfigLoad error:', err);
-        } finally {
-            setConfigLoading(false);
-        }
-    }, [sessionToken]);
+    const [autoRefresh, setAutoRefresh] = useState(false);
 
     useEffect(() => {
-        loadConfig();
-    }, [sessionToken]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // On refreshSignal: if chart is already displayed (is_enabled), re-fetch chart data
-    useEffect(() => {
-        if (refreshSignal === 0) return; // skip initial mount signal
-        if (sharedConfig?.is_enabled && parataksiList.length > 0) {
-            fetchChartData(parataksiList, false);
+        if (parataksiList.length > 0) {
+            localStorage.setItem('voteFlow_parataksiList', JSON.stringify(parataksiList));
         }
-    }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [parataksiList]);
 
-    const fetchChartData = useCallback(async (listOverride, closeConfig = true) => {
+    useEffect(() => {
+        if (chartData) {
+            localStorage.setItem('voteFlow_chartData', JSON.stringify(chartData));
+        }
+    }, [chartData]);
+
+    const fetchChartData = useCallback(async (listOverride) => {
         const list = listOverride || parataksiList;
         if (!list.length) return;
+
         setLoading(true);
         try {
             const mapping = list.map(p => ({ parataxi: p.name, symbols: p.symbols, color: p.color }));
             const { data } = await base44.functions.invoke('predictionVoteFlow', {
                 session_token: sessionToken,
-                bucket_minutes: sharedConfig?.bucket_minutes || 5,
+                bucket_minutes: 5,
                 mapping,
             });
             setChartData(data);
-            if (closeConfig) setShowConfig(false);
+            setShowConfig(false);
         } catch (error) {
             alert('Σφάλμα κατά τη φόρτωση δεδομένων: ' + error.message);
         } finally {
             setLoading(false);
         }
-    }, [parataksiList, sessionToken, sharedConfig]);
+    }, [parataksiList, sessionToken]);
+
+    // Auto-refresh
+    useEffect(() => {
+        if (!autoRefresh || !chartData) return;
+        const interval = setInterval(() => fetchChartData(), 30000);
+        return () => clearInterval(interval);
+    }, [autoRefresh, chartData, fetchChartData]);
 
     const handleStart = () => {
         setShowConfig(true);
@@ -125,44 +108,18 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], ref
         return true;
     };
 
-    const handleSubmitConfig = async () => {
+    const handleSubmitConfig = () => {
         if (!validateConfig()) return;
-        setSavingConfig(true);
-        try {
-            const mapping = parataksiList.map(p => ({ parataxi: p.name, symbols: p.symbols, color: p.color }));
-            const { data } = await base44.functions.invoke('voteFlowConfigSave', {
-                session_token: sessionToken,
-                is_enabled: true,
-                mapping,
-                bucket_minutes: sharedConfig?.bucket_minutes || 5,
-            });
-            if (data?.config) {
-                setSharedConfig(data.config);
-                if (data.config.updated_by_name) setUpdatedByName(data.config.updated_by_name);
-            }
-        } catch (err) {
-            alert('Σφάλμα αποθήκευσης ρυθμίσεων: ' + err.message);
-            setSavingConfig(false);
-            return;
-        }
-        setSavingConfig(false);
-        await fetchChartData(parataksiList, true);
+        fetchChartData(parataksiList);
     };
 
-    const handleCancel = async () => {
-        // Save disabled state to backend so all users see it disabled
-        try {
-            await base44.functions.invoke('voteFlowConfigSave', {
-                session_token: sessionToken,
-                is_enabled: false,
-                mapping: [],
-                bucket_minutes: 5,
-            });
-        } catch (_) {}
+    const handleCancel = () => {
         setChartData(null);
         setParataksiList([]);
+        setAutoRefresh(false);
         setShowConfig(false);
-        setSharedConfig(prev => prev ? { ...prev, is_enabled: false } : null);
+        localStorage.removeItem('voteFlow_parataksiList');
+        localStorage.removeItem('voteFlow_chartData');
     };
 
     const transformedData = useMemo(() => {
@@ -192,16 +149,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], ref
         );
     };
 
-    if (configLoading) {
-        return (
-            <Card>
-                <CardContent className="py-12 flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                </CardContent>
-            </Card>
-        );
-    }
-
     if (!chartData && !showConfig) {
         return (
             <Card>
@@ -214,17 +161,10 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], ref
                 <CardContent>
                     <div className="text-center py-12">
                         <TrendingUp className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                        <p className="text-slate-600 mb-2">
+                        <p className="text-slate-600 mb-6">
                             Παρακολουθήστε τη ροή της ψηφοφορίας σε πραγματικό χρόνο<br />
                             με αθροιστικές γραμμές ανά παράταξη
                         </p>
-                        <p className="text-xs text-slate-400 mb-6 flex items-center justify-center gap-1">
-                            <Users className="h-3 w-3" />
-                            Κοινό γράφημα για όλους τους χρήστες του ενεργού dataset
-                        </p>
-                        {updatedByName && (
-                            <p className="text-xs text-slate-400 mb-4">Τελευταία ρύθμιση από: {updatedByName}</p>
-                        )}
                         <Button onClick={handleStart} size="lg">
                             <Play className="h-4 w-4 mr-2" />
                             Έναρξη
@@ -242,10 +182,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], ref
                     <DialogHeader>
                         <DialogTitle>Ρύθμιση Παρατάξεων</DialogTitle>
                     </DialogHeader>
-                    <p className="text-xs text-slate-400 -mt-2 mb-2 flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        Κοινό γράφημα για όλους τους χρήστες του ενεργού dataset
-                    </p>
                     <div className="space-y-6 py-4">
                         {parataksiList.map((parataksi, index) => (
                             <Card key={parataksi.id} className="border-2">
@@ -312,8 +248,8 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], ref
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowConfig(false)}>Ακύρωση</Button>
-                        <Button onClick={handleSubmitConfig} disabled={loading || savingConfig}>
-                            {(loading || savingConfig) ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Φόρτωση...</> : <><Play className="h-4 w-4 mr-2" />Αποθήκευση & Εμφάνιση</>}
+                        <Button onClick={handleSubmitConfig} disabled={loading}>
+                            {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Φόρτωση...</> : <><Play className="h-4 w-4 mr-2" />Εμφάνιση Γραφήματος</>}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -323,24 +259,20 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], ref
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
-                            <div>
-                                <CardTitle className="flex items-center gap-2">
-                                    <TrendingUp className="h-5 w-5" />
-                                    Διάγραμμα Ροής Ψήφων (Αθροιστικό)
-                                </CardTitle>
-                                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                                    <Users className="h-3 w-3" />
-                                    Κοινό γράφημα για όλους τους χρήστες
-                                    {updatedByName && ` · Ρυθμίστηκε από: ${updatedByName}`}
-                                </p>
-                            </div>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5" />
+                                Διάγραμμα Ροής Ψήφων (Αθροιστικό)
+                            </CardTitle>
                             <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setAutoRefresh(r => !r)}>
+                                    {autoRefresh ? 'Παύση Ανανέωσης' : 'Αυτόματη Ανανέωση'}
+                                </Button>
                                 <Button variant="outline" size="sm" onClick={() => setShowConfig(true)}>
                                     Ρυθμίσεις
                                 </Button>
                                 <Button variant="outline" size="sm" onClick={handleCancel}>
                                     <XCircle className="h-4 w-4 mr-2" />
-                                    Απενεργοποίηση
+                                    Ακύρωση
                                 </Button>
                             </div>
                         </div>

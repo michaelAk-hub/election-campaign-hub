@@ -8,31 +8,30 @@ import ScenarioDetailModal from './ScenarioDetailModal';
 
 export default function ScenarioSection({ sessionToken, refreshSignal }) {
     const [scenarios, setScenarios] = useState([]);
-    const [results, setResults] = useState({});
+    const [results, setResults] = useState({}); // keyed by scenario.id
     const [loadingResults, setLoadingResults] = useState({});
-    const [resultErrors, setResultErrors] = useState({});
+    const [resultErrors, setResultErrors] = useState({}); // keyed by scenario.id
     const [showForm, setShowForm] = useState(false);
     const [editScenario, setEditScenario] = useState(null);
     const [detailScenario, setDetailScenario] = useState(null);
     const [detailResult, setDetailResult] = useState(null);
 
     const loadScenarios = useCallback(async () => {
-        if (!sessionToken) return [];
+        if (!sessionToken) return;
         const { data } = await base44.functions.invoke('scenarioList', { session_token: sessionToken });
         const list = data?.scenarios || [];
         setScenarios(list);
         return list;
     }, [sessionToken]);
 
-    // Run scenario calculations SEQUENTIALLY to avoid server bursts
     const calculateAll = useCallback(async (list) => {
         const ids = (list || []).map(s => s.id);
         const loadingMap = {};
-        ids.forEach(id => { loadingMap[id] = true; });
+        ids.forEach(id => loadingMap[id] = true);
         setLoadingResults(loadingMap);
         setResultErrors({});
 
-        for (const id of ids) {
+        await Promise.all(ids.map(async (id) => {
             try {
                 const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
                 if (data?.error) {
@@ -45,7 +44,7 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
             } finally {
                 setLoadingResults(prev => ({ ...prev, [id]: false }));
             }
-        }
+        }));
     }, [sessionToken]);
 
     const refresh = useCallback(async () => {
@@ -53,10 +52,13 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
         if (list?.length) await calculateAll(list);
     }, [loadScenarios, calculateAll]);
 
-    // Refresh on mount, sessionToken change, or parent refreshSignal
+    useEffect(() => { refresh(); }, [refresh, refreshSignal]);
+
+    // Auto-refresh every 5 minutes
     useEffect(() => {
-        refresh();
-    }, [sessionToken, refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+        const interval = setInterval(refresh, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [refresh]);
 
     const removeScenarioFromState = (id) => {
         setScenarios(prev => prev.filter(s => s.id !== id));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,112 +9,62 @@ import {
 import {
     Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, AlertCircle } from 'lucide-react';
+import { RefreshCw, Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
-import AutoRefreshModal from '../components/predictions/AutoRefreshModal';
 
-const AR_KEY = 'predictions_autorefresh';
+const sessionToken = localStorage.getItem('app_session_token');
 
-function loadArSettings() {
-    try {
-        const raw = localStorage.getItem(AR_KEY);
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            return {
-                enabled: !!parsed.enabled,
-                intervalSec: Math.max(10, parseInt(parsed.intervalSec, 10) || 30),
-            };
-        }
-    } catch (_) {}
-    return { enabled: false, intervalSec: 30 };
-}
+const queryParams = (() => {
+    const params = new URLSearchParams();
+    if (sessionToken) params.set('session_token', sessionToken);
+    return params.toString();
+})();
 
 export default function Predictions() {
-    // ── Session token — read fresh, never module-scope ──
-    const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('app_session_token') || '');
-
-    useEffect(() => {
-        const refreshToken = () => {
-            const t = localStorage.getItem('app_session_token') || '';
-            setSessionToken(t);
-        };
-        window.addEventListener('focus', refreshToken);
-        window.addEventListener('storage', refreshToken);
-        return () => {
-            window.removeEventListener('focus', refreshToken);
-            window.removeEventListener('storage', refreshToken);
-        };
-    }, []);
-
-    // ── Auto-refresh state ──
-    const [arSettings, setArSettings] = useState(loadArSettings);
-    const [arModalOpen, setArModalOpen] = useState(false);
-    const [refreshTick, setRefreshTick] = useState(0);
-    const [scenarioRefreshSignal, setScenarioRefreshSignal] = useState(0);
-    const timerRef = useRef(null);
-
+    const [autoRefresh, setAutoRefresh] = useState(false);
     const [availableSymbols, setAvailableSymbols] = useState([]);
+    const [scenarioRefreshSignal, setScenarioRefreshSignal] = useState(0);
 
-    // ── Single page-wide refresh function ──
-    const handleRefresh = useCallback(() => {
-        setRefreshTick(t => t + 1);
-        setScenarioRefreshSignal(s => s + 1);
-    }, []);
-
-    // ── Single page-wide timer ──
-    useEffect(() => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        if (arSettings.enabled) {
-            timerRef.current = setInterval(handleRefresh, arSettings.intervalSec * 1000);
-        }
-        return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }, [arSettings, handleRefresh]);
-
-    const saveArSettings = useCallback((newSettings) => {
-        setArSettings(newSettings);
-        localStorage.setItem(AR_KEY, JSON.stringify(newSettings));
-    }, []);
-
-    // ── Load filter options ──
+    // Load available symbols for VoteFlowChart grouping config
     useEffect(() => {
         if (!sessionToken) return;
         base44.functions.invoke('predictionFilterOptions', { session_token: sessionToken })
             .then(({ data }) => { if (data) setAvailableSymbols(data.symbols || []); })
             .catch(err => console.error('Filter options error:', err));
-    }, [sessionToken, refreshTick]);
+    }, []);
 
-    // ── Data queries — keyed on refreshTick so they refetch on signal ──
-    const { data: kpis, isLoading: kpisLoading } = useQuery({
-        queryKey: ['predictionKPIs', refreshTick],
+    const refetchInterval = autoRefresh ? 8000 : false;
+
+    const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
+        queryKey: ['predictionKPIs'],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionKPIs', { session_token: sessionToken });
+            const { data } = await base44.functions.invoke('predictionKPIs', { queryParams });
             return data;
         },
-        enabled: !!sessionToken,
+        refetchInterval,
     });
 
-    const { data: bySymbol, isLoading: symbolLoading } = useQuery({
-        queryKey: ['predictionBySymbol', refreshTick],
+    const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
+        queryKey: ['predictionBySymbol'],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionBySymbol', { session_token: sessionToken });
+            const { data } = await base44.functions.invoke('predictionBySymbol', { queryParams });
             return data;
         },
-        enabled: !!sessionToken,
+        refetchInterval,
     });
 
-    const { data: byYearSymbol, isLoading: yearSymbolLoading } = useQuery({
-        queryKey: ['predictionByYearSymbol', refreshTick],
+    const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
+        queryKey: ['predictionByYearSymbol'],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionByYearSymbol', { session_token: sessionToken });
+            const { data } = await base44.functions.invoke('predictionByYearSymbol', { queryParams });
             return data;
         },
-        enabled: !!sessionToken,
+        refetchInterval,
     });
 
     const loading = kpisLoading || symbolLoading || yearSymbolLoading;
-    const cacheMissing = !loading && (kpis?.cache_missing || bySymbol?.meta?.cache_missing);
 
     const groupedByYear = useMemo(() => {
         if (!byYearSymbol?.rows) return {};
@@ -130,6 +80,13 @@ export default function Predictions() {
         });
         return grouped;
     }, [byYearSymbol]);
+
+    const handleRefresh = () => {
+        refetchKPIs();
+        refetchBySymbol();
+        refetchByYearSymbol();
+        setScenarioRefreshSignal(s => s + 1);
+    };
 
     const handleExport = () => {
         if (!bySymbol?.rows || !byYearSymbol?.rows) return;
@@ -156,6 +113,7 @@ export default function Predictions() {
 
     return (
         <div className="space-y-6">
+            {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Προβλέψεις</h1>
@@ -164,14 +122,16 @@ export default function Predictions() {
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     <Button
                         variant="outline"
-                        onClick={() => setArModalOpen(true)}
-                        className={cn("h-10 flex-1 sm:flex-initial", arSettings.enabled && "bg-blue-50 border-blue-300 text-blue-700")}
+                        onClick={() => setAutoRefresh(r => !r)}
+                        className={cn("h-10 flex-1 sm:flex-initial", autoRefresh && "bg-blue-50 border-blue-300")}
                     >
-                        <RefreshCw className={cn("h-4 w-4 sm:mr-2", arSettings.enabled && "animate-spin")} />
-                        <span className="hidden sm:inline">
-                            Auto-refresh {arSettings.enabled ? `ON (${arSettings.intervalSec}s)` : 'OFF'}
-                        </span>
-                        <span className="sm:hidden">{arSettings.enabled ? `ON` : 'OFF'}</span>
+                        <RefreshCw className={cn("h-4 w-4 sm:mr-2", autoRefresh && "animate-spin")} />
+                        <span className="hidden sm:inline">Auto-refresh {autoRefresh ? 'ON' : 'OFF'}</span>
+                        <span className="sm:hidden">{autoRefresh ? 'ON' : 'OFF'}</span>
+                    </Button>
+                    <Button variant="outline" onClick={handleRefresh} className="h-10 flex-1 sm:flex-initial">
+                        <RefreshCw className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Ανανέωση</span>
                     </Button>
                     <Button onClick={handleExport} className="h-10 flex-1 sm:flex-initial">
                         <Download className="h-4 w-4 sm:mr-2" />
@@ -180,13 +140,7 @@ export default function Predictions() {
                 </div>
             </div>
 
-            {cacheMissing && (
-                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>Τα στατιστικά δεν έχουν δημιουργηθεί ακόμα. Παρακαλώ πατήστε «Ανανέωση Τώρα» ή ενεργοποιήστε ένα dataset.</span>
-                </div>
-            )}
-
+            {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
                     <CardHeader className="pb-2">
@@ -242,8 +196,10 @@ export default function Predictions() {
                 </Card>
             </div>
 
+            {/* Scenario Predictions */}
             <ScenarioSection sessionToken={sessionToken} refreshSignal={scenarioRefreshSignal} />
 
+            {/* By Symbol Table */}
             <Card>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base sm:text-lg">Ανά Σύμβολο Πρόβλεψης</CardTitle>
@@ -291,6 +247,7 @@ export default function Predictions() {
                 </CardContent>
             </Card>
 
+            {/* By Year Accordion */}
             <Card>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base sm:text-lg">Ανά Έτος Εισδοχής</CardTitle>
@@ -365,18 +322,10 @@ export default function Predictions() {
                 </CardContent>
             </Card>
 
+            {/* Vote Flow Chart — global, no page filters */}
             <VoteFlowChart
                 sessionToken={sessionToken}
                 availableSymbols={availableSymbols}
-                refreshSignal={refreshTick}
-            />
-
-            <AutoRefreshModal
-                open={arModalOpen}
-                onClose={() => setArModalOpen(false)}
-                settings={arSettings}
-                onSave={saveArSettings}
-                onRefreshNow={handleRefresh}
             />
         </div>
     );
