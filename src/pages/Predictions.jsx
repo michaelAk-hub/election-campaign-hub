@@ -9,7 +9,7 @@ import {
 import {
     Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, Settings } from 'lucide-react';
+import { Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, Settings, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
@@ -135,6 +135,31 @@ export default function Predictions() {
     }, [refreshTick]); // eslint-disable-line
 
     const loading = kpisLoading || symbolLoading || yearSymbolLoading;
+
+    // --- Sorting for "Ανά Σύμβολο" table ---
+    const [sortCol, setSortCol] = useState('symbol');
+    const [sortDir, setSortDir] = useState('asc');
+
+    const handleSort = (col) => {
+        if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortCol(col); setSortDir('asc'); }
+    };
+
+    const sortedSymbolRows = useMemo(() => {
+        if (!bySymbol?.rows) return [];
+        return [...bySymbol.rows].sort((a, b) => {
+            let av, bv;
+            if (sortCol === 'symbol') { av = a.symbol ?? ''; bv = b.symbol ?? ''; return sortDir === 'asc' ? av.localeCompare(bv, 'el') : bv.localeCompare(av, 'el'); }
+            if (sortCol === 'pct') { av = a.total > 0 ? a.voted_yes / a.total : 0; bv = b.total > 0 ? b.voted_yes / b.total : 0; }
+            else { av = a[sortCol] ?? 0; bv = b[sortCol] ?? 0; }
+            return sortDir === 'asc' ? av - bv : bv - av;
+        });
+    }, [bySymbol, sortCol, sortDir]);
+
+    const SortIcon = ({ col }) => {
+        if (sortCol !== col) return <ArrowUpDown className="h-3 w-3 ml-1 text-slate-400" />;
+        return sortDir === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-blue-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-blue-600" />;
+    };
 
     const groupedByYear = useMemo(() => {
         if (!byYearSymbol?.rows) return {};
@@ -278,19 +303,29 @@ export default function Predictions() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="text-xs sm:text-sm">Σύμβολο</TableHead>
-                                <TableHead className="text-right text-xs sm:text-sm">Σύνολο</TableHead>
-                                <TableHead className="text-right text-xs sm:text-sm">Ψήφισαν</TableHead>
-                                <TableHead className="text-right text-xs sm:text-sm">Δεν Ψήφισαν</TableHead>
-                                <TableHead className="text-right text-xs sm:text-sm">%</TableHead>
+                                <TableHead className="text-xs sm:text-sm cursor-pointer select-none hover:text-blue-600" onClick={() => handleSort('symbol')}>
+                                    <span className="inline-flex items-center">Σύμβολο<SortIcon col="symbol" /></span>
+                                </TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm cursor-pointer select-none hover:text-blue-600" onClick={() => handleSort('total')}>
+                                    <span className="inline-flex items-center justify-end w-full">Σύνολο<SortIcon col="total" /></span>
+                                </TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm cursor-pointer select-none hover:text-blue-600" onClick={() => handleSort('voted_yes')}>
+                                    <span className="inline-flex items-center justify-end w-full">Ψήφισαν<SortIcon col="voted_yes" /></span>
+                                </TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm cursor-pointer select-none hover:text-blue-600" onClick={() => handleSort('voted_no')}>
+                                    <span className="inline-flex items-center justify-end w-full">Δεν Ψήφισαν<SortIcon col="voted_no" /></span>
+                                </TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm cursor-pointer select-none hover:text-blue-600" onClick={() => handleSort('pct')}>
+                                    <span className="inline-flex items-center justify-end w-full">%<SortIcon col="pct" /></span>
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
                                 <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500">Φόρτωση...</TableCell></TableRow>
-                            ) : bySymbol?.rows?.length > 0 ? (
+                            ) : sortedSymbolRows.length > 0 ? (
                                 <>
-                                    {bySymbol.rows.map((row, idx) => (
+                                    {sortedSymbolRows.map((row, idx) => (
                                         <TableRow key={idx}>
                                             <TableCell className="font-medium text-xs sm:text-sm">{row.symbol}</TableCell>
                                             <TableCell className="text-right font-bold text-xs sm:text-sm">{row.total.toLocaleString('el-GR')}</TableCell>
