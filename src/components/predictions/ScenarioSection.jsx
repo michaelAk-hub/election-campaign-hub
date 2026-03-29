@@ -6,6 +6,25 @@ import ScenarioCard from './ScenarioCard';
 import ScenarioFormModal from './ScenarioFormModal';
 import ScenarioDetailModal from './ScenarioDetailModal';
 
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function invokeWithRetry(fn, maxRetries = 4) {
+    let delay = 1000;
+    for (let i = 0; i <= maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (e) {
+            const status = e?.response?.status;
+            if ((status === 429 || status === 500) && i < maxRetries) {
+                await sleep(delay);
+                delay *= 2;
+            } else {
+                throw e;
+            }
+        }
+    }
+}
+
 export default function ScenarioSection({ sessionToken, refreshSignal }) {
     const [scenarios, setScenarios] = useState([]);
     const [results, setResults] = useState({});
@@ -18,7 +37,9 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
 
     const loadScenarios = useCallback(async () => {
         if (!sessionToken) return [];
-        const { data } = await base44.functions.invoke('scenarioList', { session_token: sessionToken });
+        const { data } = await invokeWithRetry(() =>
+            base44.functions.invoke('scenarioList', { session_token: sessionToken })
+        );
         const list = data?.scenarios || [];
         setScenarios(list);
         return list;
@@ -33,8 +54,11 @@ export default function ScenarioSection({ sessionToken, refreshSignal }) {
         setResultErrors({});
 
         for (const id of ids) {
+            await sleep(300);
             try {
-                const { data } = await base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id });
+                const { data } = await invokeWithRetry(() =>
+                    base44.functions.invoke('scenarioCalculate', { session_token: sessionToken, scenario_id: id })
+                );
                 if (data?.error) {
                     setResultErrors(prev => ({ ...prev, [id]: data.message || data.error }));
                 } else {
