@@ -62,7 +62,7 @@ export default function ScenarioCard({ scenario, result, loading, error, onEdit,
                                     </div>
                                     <div>
                                         <div className="text-[10px] text-slate-400">Έδρες</div>
-                                        <div className="font-bold text-slate-900 dark:text-slate-100">{Math.round(party.seats ?? 0)}</div>
+                                        <div className="font-bold text-slate-900 dark:text-slate-100">{(party.seats ?? 0).toFixed(2)}</div>
                                     </div>
                                 </div>
                                 <div className="pl-4 mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
