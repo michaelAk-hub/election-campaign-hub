@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 const BLANK_SYMBOL = '(Κενό)';
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 Deno.serve(async (req) => {
     try {
@@ -81,6 +82,7 @@ Deno.serve(async (req) => {
 
             if (batch.length < batchSize) break;
             skip += batchSize;
+            await sleep(150);
         }
 
         // Build party results — rawVotes drives %, seats; weightedVotes kept for display
