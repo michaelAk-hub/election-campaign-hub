@@ -251,7 +251,11 @@ export default function ChreosiAccounts() {
 
   const confirmDelete = async () => {
     for (const id of deleteDialog.ids) {
-      await base44.entities.ChreosiAccount.delete(id);
+      try {
+        await base44.entities.ChreosiAccount.delete(id);
+      } catch (e) {
+        // Already deleted or not found — skip silently
+      }
       await new Promise(r => setTimeout(r, 150));
     }
     toast.success('Διαγράφηκαν');
