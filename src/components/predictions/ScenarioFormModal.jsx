@@ -184,9 +184,6 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
         return { ...p, symbols: syms };
     }));
 
-    // Per-party assigned symbols (for same-party duplicate prevention only)
-    // Cross-party reuse of symbols is allowed by design.
-
     // Group helpers
     const addGroup = () => setYearGroups(prev => [...prev, emptyGroup()]);
     const removeGroup = (id) => setYearGroups(prev => prev.filter(g => g.id !== id));

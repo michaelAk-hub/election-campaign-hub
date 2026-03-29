@@ -83,15 +83,6 @@ Deno.serve(async (req) => {
             return Response.json({ bucket_minutes, labels: [], series: [], meta: { dataset_id: activeDatasetId } });
         }
 
-        // Build symbol → parataksi mapping (mapping uses normalized symbols including "(Κενό)")
-        const symbolToParataksi = new Map();
-        mapping.forEach(({ parataxi, symbols }) => {
-            symbols.forEach(sym => {
-                if (!symbolToParataksi.has(sym)) symbolToParataksi.set(sym, []);
-                symbolToParataksi.get(sym).push(parataxi);
-            });
-        });
-
         // Time bucketing
         const voteTimes = filtered.map(p => new Date(p.voted_at).getTime());
         const minTime = Math.min(...voteTimes);
