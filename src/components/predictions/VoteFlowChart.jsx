@@ -333,7 +333,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                                         ) : (
                                             availableSymbols.map(symbol => (
                                                 <Badge
-                                                    key={symbol}
+                                                    key={symbol ?? '__blank__'}
                                                     variant={parataksi.symbols.includes(symbol) ? "default" : "outline"}
                                                     className="cursor-pointer"
                                                     style={parataksi.symbols.includes(symbol) ? {
@@ -341,7 +341,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                                                     } : {}}
                                                     onClick={() => toggleSymbol(parataksi.id, symbol)}
                                                 >
-                                                    {symbol}
+                                                    {symbol === '' || symbol === null || symbol === undefined ? '(Κενό)' : symbol}
                                                 </Badge>
                                             ))
                                         )}
