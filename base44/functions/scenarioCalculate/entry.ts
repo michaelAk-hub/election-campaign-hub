@@ -101,8 +101,8 @@ Deno.serve(async (req) => {
         const totalRawVotes = partyResults.reduce((s, p) => s + p.rawVotes, 0);
         const totalWeightedVotes = partyResults.reduce((s, p) => s + p.weightedVotes, 0);
         const totalSeats = parseFloat(scenario.total_seats) || 1;
-        // quota based on raw votes
-        const quota = totalRawVotes > 0 ? totalRawVotes / totalSeats : 1;
+        // quota and % based on actual_voted_count (all voted persons in dataset)
+        const quota = actualVotedCount > 0 ? actualVotedCount / totalSeats : 1;
 
         const partyResultsFinal = partyResults.map(p => ({
             name: p.name,
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
             weightedVotes: p.weightedVotes,
             // backward compat: predictedVotes = weightedVotes
             predictedVotes: p.weightedVotes,
-            percentage: totalRawVotes > 0 ? (p.rawVotes / totalRawVotes * 100) : 0,
+            percentage: actualVotedCount > 0 ? (p.rawVotes / actualVotedCount * 100) : 0,
             seats: quota > 0 ? p.rawVotes / quota : 0,
             symbolDetails: p.symbolDetails,
         }));
