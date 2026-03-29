@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,36 @@ import {
 import { Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
+import AutoRefreshModal from '../components/predictions/AutoRefreshModal';
+
+const REFRESH_SETTINGS_KEY = 'predictions_refresh_settings';
+const MIN_INTERVAL_SECONDS = 10;
+
+function loadRefreshSettings() {
+    try {
+        const raw = localStorage.getItem(REFRESH_SETTINGS_KEY);
+        if (!raw) return { enabled: false, hours: 0, minutes: 1, seconds: 0 };
+        const parsed = JSON.parse(raw);
+        return {
+            enabled: !!parsed.enabled,
+            hours: Math.max(0, parseInt(parsed.hours, 10) || 0),
+            minutes: Math.max(0, parseInt(parsed.minutes, 10) || 1),
+            seconds: Math.max(0, parseInt(parsed.seconds, 10) || 0),
+        };
+    } catch {
+        return { enabled: false, hours: 0, minutes: 1, seconds: 0 };
+    }
+}
+
+function saveRefreshSettings(settings) {
+    try {
+        localStorage.setItem(REFRESH_SETTINGS_KEY, JSON.stringify(settings));
+    } catch { /* ignore */ }
+}
+
+function settingsToMs(settings) {
+    return (settings.hours * 3600 + settings.minutes * 60 + settings.seconds) * 1000;
+}
 
 
 export default function Predictions() {
@@ -25,9 +55,56 @@ export default function Predictions() {
         return () => { window.removeEventListener('focus', refresh); window.removeEventListener('storage', refresh); };
     }, []);
 
-    // --- Manual refresh tick for all children ---
+    // --- Manual/auto refresh tick for all children ---
     const [refreshTick, setRefreshTick] = useState(0);
     const doRefresh = useCallback(() => setRefreshTick(t => t + 1), []);
+
+    // --- Auto-refresh modal state ---
+    const [showRefreshModal, setShowRefreshModal] = useState(false);
+    const [refreshSettings, setRefreshSettings] = useState(() => loadRefreshSettings());
+    const timerRef = useRef(null);
+
+    // Apply new settings: clear old timer, start new one if enabled
+    const applyRefreshSettings = useCallback((newSettings) => {
+        // Enforce minimum interval
+        const totalMs = settingsToMs(newSettings);
+        const safeSettings = { ...newSettings };
+        if (newSettings.enabled && totalMs < MIN_INTERVAL_SECONDS * 1000) {
+            safeSettings.seconds = MIN_INTERVAL_SECONDS;
+            safeSettings.hours = 0;
+            safeSettings.minutes = 0;
+        }
+        setRefreshSettings(safeSettings);
+        saveRefreshSettings(safeSettings);
+
+        // Clear any existing timer — no duplicate intervals ever
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+
+        if (safeSettings.enabled) {
+            const ms = settingsToMs(safeSettings);
+            timerRef.current = setInterval(() => {
+                setRefreshTick(t => t + 1);
+            }, ms);
+        }
+    }, []);
+
+    // On mount: restore timer if settings say enabled
+    useEffect(() => {
+        const saved = loadRefreshSettings();
+        if (saved.enabled) {
+            applyRefreshSettings(saved);
+        }
+        // Cleanup on unmount
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
+        };
+    }, []); // eslint-disable-line
 
 
 
@@ -172,9 +249,11 @@ export default function Predictions() {
                     <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">Ανάλυση συμβόλων πρόβλεψης και ψηφοφορίας</p>
                 </div>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                    <Button variant="outline" onClick={doRefresh} className="h-10 flex-1 sm:flex-initial">
-                        <RefreshCw className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Ανανέωση</span>
+                    <Button variant="outline" onClick={() => setShowRefreshModal(true)} className="h-10 flex-1 sm:flex-initial">
+                        <RefreshCw className={`h-4 w-4 sm:mr-2 ${refreshSettings.enabled ? 'text-green-600' : ''}`} />
+                        <span className="hidden sm:inline">
+                            Ανανέωση{refreshSettings.enabled ? ' (ΟΝ)' : ''}
+                        </span>
                     </Button>
                     <Button onClick={handleExport} className="h-10 flex-1 sm:flex-initial">
                         <Download className="h-4 w-4 sm:mr-2" />
@@ -382,6 +461,15 @@ export default function Predictions() {
                 filterOptionsLoading={filterOptionsLoading}
                 filterOptionsError={filterOptionsError}
                 refreshSignal={refreshTick}
+            />
+
+            {/* Auto-Refresh Modal — page-level, no timer inside */}
+            <AutoRefreshModal
+                open={showRefreshModal}
+                onClose={() => setShowRefreshModal(false)}
+                settings={refreshSettings}
+                onApply={applyRefreshSettings}
+                onRefreshNow={doRefresh}
             />
         </div>
     );
