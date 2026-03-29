@@ -1,4 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+
+const BLANK_SYMBOL = '(Κενό)';
 
 Deno.serve(async (req) => {
     try {
@@ -30,7 +32,8 @@ Deno.serve(async (req) => {
 
             for (const p of batch) {
                 const sym = p.prediction_symbol?.trim();
-                symbolSet.add(sym && sym !== '' ? sym : '-');
+                // Blank/null/empty → BLANK_SYMBOL; real "-" stays as "-"
+                symbolSet.add((sym && sym !== '') ? sym : BLANK_SYMBOL);
                 if (p.academic_level?.trim()) levelSet.add(p.academic_level.trim());
                 if (p.admission_year?.trim()) yearSet.add(p.admission_year.trim());
             }

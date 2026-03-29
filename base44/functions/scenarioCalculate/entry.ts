@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+const BLANK_SYMBOL = '(Κενό)';
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -34,6 +36,7 @@ Deno.serve(async (req) => {
             return { group, condsByField };
         });
 
+        // symbol → actual voted_count
         const globalSymbolCounts = {};
         let actualVotedCount = 0;
 
@@ -54,8 +57,9 @@ Deno.serve(async (req) => {
             for (const p of batch) {
                 actualVotedCount++;
 
-                const sym = p.prediction_symbol?.trim();
-                const key = sym && sym !== '' ? sym : '-';
+                const rawSym = p.prediction_symbol?.trim();
+                // Use BLANK_SYMBOL for empty/null, keep real "-" as "-"
+                const key = (rawSym && rawSym !== '') ? rawSym : BLANK_SYMBOL;
                 globalSymbolCounts[key] = (globalSymbolCounts[key] || 0) + 1;
 
                 for (let gi = 0; gi < groupMatchers.length; gi++) {
@@ -79,42 +83,57 @@ Deno.serve(async (req) => {
             skip += batchSize;
         }
 
-        let totalPredictedVotes = 0;
+        // Build party results — rawVotes drives %, seats; weightedVotes kept for display
         const partyResults = parties.map(party => {
-            let predictedVotes = 0;
+            let rawVotes = 0;
+            let weightedVotes = 0;
             const symbolDetails = (party.symbols || []).map(sm => {
-                const votedCount = globalSymbolCounts[sm.symbol] || 0;
+                const voted_count = globalSymbolCounts[sm.symbol] || 0;
                 const multiplier = parseFloat(sm.multiplier) || 1;
-                const weighted = votedCount * multiplier;
-                predictedVotes += weighted;
-                return { symbol: sm.symbol, multiplier, voted_count: votedCount, weighted };
+                const weighted = voted_count * multiplier;
+                rawVotes += voted_count;
+                weightedVotes += weighted;
+                return { symbol: sm.symbol, multiplier, voted_count, weighted };
             });
-            return { name: party.name, color: party.color, predictedVotes, symbolDetails };
+            return { name: party.name, color: party.color, rawVotes, weightedVotes, symbolDetails };
         });
 
-        totalPredictedVotes = partyResults.reduce((s, p) => s + p.predictedVotes, 0);
+        const totalRawVotes = partyResults.reduce((s, p) => s + p.rawVotes, 0);
+        const totalWeightedVotes = partyResults.reduce((s, p) => s + p.weightedVotes, 0);
         const totalSeats = parseFloat(scenario.total_seats) || 1;
-        const quota = totalPredictedVotes > 0 ? totalPredictedVotes / totalSeats : 1;
+        // quota based on raw votes
+        const quota = totalRawVotes > 0 ? totalRawVotes / totalSeats : 1;
 
         const partyResultsFinal = partyResults.map(p => ({
-            ...p,
-            percentage: totalPredictedVotes > 0 ? (p.predictedVotes / totalPredictedVotes * 100) : 0,
-            seats: quota > 0 ? p.predictedVotes / quota : 0,
+            name: p.name,
+            color: p.color,
+            rawVotes: p.rawVotes,
+            weightedVotes: p.weightedVotes,
+            // backward compat: predictedVotes = weightedVotes
+            predictedVotes: p.weightedVotes,
+            percentage: totalRawVotes > 0 ? (p.rawVotes / totalRawVotes * 100) : 0,
+            seats: quota > 0 ? p.rawVotes / quota : 0,
+            symbolDetails: p.symbolDetails,
         }));
 
+        // Group breakdown — rawVotes within group drives percentage
         const groupBreakdown = yearGroups.map((group, gi) => {
             const symCounts = groupSymbolCounts[gi];
 
             const groupPartyResults = parties.map(party => {
-                let predictedVotes = 0;
+                let rawVotes = 0;
+                let weightedVotes = 0;
                 (party.symbols || []).forEach(sm => {
-                    predictedVotes += (symCounts[sm.symbol] || 0) * (parseFloat(sm.multiplier) || 1);
+                    const vc = symCounts[sm.symbol] || 0;
+                    rawVotes += vc;
+                    weightedVotes += vc * (parseFloat(sm.multiplier) || 1);
                 });
-                return { name: party.name, predictedVotes };
+                return { name: party.name, rawVotes, weightedVotes, predictedVotes: weightedVotes };
             });
 
-            const groupTotal = groupPartyResults.reduce((s, p) => s + p.predictedVotes, 0);
-            const groupSeatsRatio = totalPredictedVotes > 0 ? groupTotal / totalPredictedVotes : 0;
+            const groupTotalRaw = groupPartyResults.reduce((s, p) => s + p.rawVotes, 0);
+            const groupTotalWeighted = groupPartyResults.reduce((s, p) => s + p.weightedVotes, 0);
+            const groupSeatsRatio = totalRawVotes > 0 ? groupTotalRaw / totalRawVotes : 0;
 
             const condsByField = {};
             for (const cond of (group.conditions || [])) {
@@ -136,8 +155,10 @@ Deno.serve(async (req) => {
                 total_persons: groupPersonCounts[gi],
                 party_results: groupPartyResults.map(p => ({
                     name: p.name,
-                    predictedVotes: p.predictedVotes,
-                    percentage: groupTotal > 0 ? p.predictedVotes / groupTotal * 100 : 0,
+                    rawVotes: p.rawVotes,
+                    weightedVotes: p.weightedVotes,
+                    predictedVotes: p.weightedVotes,
+                    percentage: groupTotalRaw > 0 ? p.rawVotes / groupTotalRaw * 100 : 0,
                 })),
                 global_share_percent: groupSeatsRatio * 100,
             };
@@ -148,7 +169,10 @@ Deno.serve(async (req) => {
             scenario_name: scenario.name,
             total_seats: totalSeats,
             actual_voted_count: actualVotedCount,
-            total_predicted_votes: totalPredictedVotes,
+            total_raw_votes: totalRawVotes,
+            total_weighted_votes: totalWeightedVotes,
+            // backward compat
+            total_predicted_votes: totalWeightedVotes,
             quota,
             parties: partyResultsFinal,
             group_breakdown: groupBreakdown,

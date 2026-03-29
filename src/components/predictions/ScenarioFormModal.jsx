@@ -96,9 +96,10 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
             p.symbols.forEach(sm => {
                 const sym = (sm.symbol || '').trim();
                 if (!sym) { errs.push(`${pLabel} "${pName || '?'}": κενό σύμβολο`); return; }
+                // Duplicate within same party is not allowed
                 if (partySeen.has(sym)) { errs.push(`${pLabel} "${pName || '?'}": διπλό σύμβολο "${sym}"`); }
                 partySeen.add(sym);
-                if (usedSymbols[sym]) errs.push(`Το σύμβολο "${sym}" ανήκει σε 2 παρατάξεις`);
+                // Same symbol across different parties IS allowed — no cross-party check
                 usedSymbols[sym] = true;
                 const mult = Number(sm.multiplier);
                 if (!sm.multiplier || !isFinite(mult) || mult <= 0) errs.push(`${pLabel} "${pName || '?'}", σύμβολο "${sym}": ο πολλαπλασιαστής πρέπει να είναι > 0`);
@@ -183,8 +184,8 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
         return { ...p, symbols: syms };
     }));
 
-    // All assigned symbols
-    const assignedSymbols = new Set(parties.flatMap(p => p.symbols.map(s => s.symbol)));
+    // Per-party assigned symbols (for same-party duplicate prevention only)
+    // Cross-party reuse of symbols is allowed by design.
 
     // Group helpers
     const addGroup = () => setYearGroups(prev => [...prev, emptyGroup()]);
@@ -280,10 +281,12 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
                                                 >
                                                     <option value="">— Σύμβολο —</option>
                                                     {loadingOptions ? (
-                                                        <option disabled>Φόρτωση...</option>
-                                                    ) : filterOptions.symbols.map(s => (
-                                                        <option key={s} value={s} disabled={assignedSymbols.has(s) && s !== sm.symbol}>{s}</option>
-                                                    ))}
+                                                       <option disabled>Φόρτωση...</option>
+                                                    ) : filterOptions.symbols.map(s => {
+                                                       // Only disable if this same symbol already exists elsewhere in THIS party
+                                                       const inThisParty = party.symbols.some((other, oi) => oi !== si && other.symbol === s);
+                                                       return <option key={s} value={s} disabled={inThisParty}>{s}</option>;
+                                                    })}
                                                 </select>
                                                 <span className="text-xs text-slate-400">×</span>
                                                 <Input

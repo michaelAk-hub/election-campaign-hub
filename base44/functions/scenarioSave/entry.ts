@@ -70,9 +70,9 @@ function validateScenarioPayload(scenario) {
                 } else {
                     partySymbols.add(sym);
                 }
-                if (globalSymbols.has(sym)) {
-                    errors.push(`Το σύμβολο "${sym}" ανήκει σε 2 παρατάξεις: "${globalSymbols.get(sym)}" και "${partyName}"`);
-                } else {
+                // Same symbol in multiple parties is allowed by design.
+                // Only track for dedup within this party (handled above by partySymbols Set).
+                if (!globalSymbols.has(sym)) {
                     globalSymbols.set(sym, partyName);
                 }
                 const mult = Number(sm.multiplier);
