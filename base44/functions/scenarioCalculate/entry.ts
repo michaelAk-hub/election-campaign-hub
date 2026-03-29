@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
             return { group, condsByField };
         });
 
-        // symbol → actual voted_count
+        // symbol → actual voted_count (blank normalized to BLANK_SYMBOL)
         const globalSymbolCounts = {};
         let actualVotedCount = 0;
 
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
                 actualVotedCount++;
 
                 const rawSym = p.prediction_symbol?.trim();
-                // Use BLANK_SYMBOL for empty/null, keep real "-" as "-"
+                // null / undefined / empty string / whitespace → BLANK_SYMBOL; real "-" stays "-"
                 const key = (rawSym && rawSym !== '') ? rawSym : BLANK_SYMBOL;
                 globalSymbolCounts[key] = (globalSymbolCounts[key] || 0) + 1;
 
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
             skip += batchSize;
         }
 
-        // Build party results — rawVotes drives %, seats; weightedVotes kept for display
+        // Build party results
         const partyResults = parties.map(party => {
             let rawVotes = 0;
             let weightedVotes = 0;
@@ -101,7 +101,6 @@ Deno.serve(async (req) => {
         const totalRawVotes = partyResults.reduce((s, p) => s + p.rawVotes, 0);
         const totalWeightedVotes = partyResults.reduce((s, p) => s + p.weightedVotes, 0);
         const totalSeats = parseFloat(scenario.total_seats) || 1;
-        // quota, %, seats all based on actual_voted_count and weightedVotes
         const quota = actualVotedCount > 0 ? actualVotedCount / totalSeats : 1;
 
         const partyResultsFinal = partyResults.map(p => ({
@@ -109,14 +108,13 @@ Deno.serve(async (req) => {
             color: p.color,
             rawVotes: p.rawVotes,
             weightedVotes: p.weightedVotes,
-            // backward compat: predictedVotes = weightedVotes
             predictedVotes: p.weightedVotes,
             percentage: actualVotedCount > 0 ? (p.weightedVotes / actualVotedCount * 100) : 0,
             seats: quota > 0 ? p.weightedVotes / quota : 0,
             symbolDetails: p.symbolDetails,
         }));
 
-        // Group breakdown — rawVotes within group drives percentage
+        // Group breakdown — percentages are within-group weighted share
         const groupBreakdown = yearGroups.map((group, gi) => {
             const symCounts = groupSymbolCounts[gi];
 
@@ -128,11 +126,14 @@ Deno.serve(async (req) => {
                     rawVotes += vc;
                     weightedVotes += vc * (parseFloat(sm.multiplier) || 1);
                 });
-                return { name: party.name, rawVotes, weightedVotes, predictedVotes: weightedVotes };
+                return { name: party.name, rawVotes, weightedVotes };
             });
 
-            const groupTotalRaw = groupPartyResults.reduce((s, p) => s + p.rawVotes, 0);
+            // within-group totals for correct % denominator
             const groupTotalWeighted = groupPartyResults.reduce((s, p) => s + p.weightedVotes, 0);
+            const groupTotalRaw = groupPartyResults.reduce((s, p) => s + p.rawVotes, 0);
+
+            // global_share_percent: this group's raw votes as share of all assigned raw votes
             const groupSeatsRatio = totalRawVotes > 0 ? groupTotalRaw / totalRawVotes : 0;
 
             const condsByField = {};
@@ -153,12 +154,15 @@ Deno.serve(async (req) => {
                 group_name: group.name,
                 condition_expression: conditionExpression || null,
                 total_persons: groupPersonCounts[gi],
+                // within-group weighted total for reference
+                group_total_weighted: groupTotalWeighted,
                 party_results: groupPartyResults.map(p => ({
                     name: p.name,
                     rawVotes: p.rawVotes,
                     weightedVotes: p.weightedVotes,
                     predictedVotes: p.weightedVotes,
-                    percentage: actualVotedCount > 0 ? p.weightedVotes / actualVotedCount * 100 : 0,
+                    // percentage = share of this party's weighted votes within this group's total weighted votes
+                    percentage: groupTotalWeighted > 0 ? (p.weightedVotes / groupTotalWeighted * 100) : 0,
                 })),
                 global_share_percent: groupSeatsRatio * 100,
             };
@@ -171,7 +175,7 @@ Deno.serve(async (req) => {
             actual_voted_count: actualVotedCount,
             total_raw_votes: totalRawVotes,
             total_weighted_votes: totalWeightedVotes,
-            // backward compat
+            predictedVotes: totalWeightedVotes,
             total_predicted_votes: totalWeightedVotes,
             quota,
             parties: partyResultsFinal,

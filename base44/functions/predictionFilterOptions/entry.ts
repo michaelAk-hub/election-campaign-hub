@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+const BLANK_SYMBOL = '(Κενό)';
+
 async function strictAuth(base44, session_token) {
     if (!session_token) return { error: 'Unauthorized: No session token', status: 401 };
     const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
@@ -19,7 +21,7 @@ async function strictAuth(base44, session_token) {
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const body = await req.json();
+        const body = await req.json().catch(() => ({}));
         const sessionToken = body.session_token;
 
         const auth = await strictAuth(base44, sessionToken);
@@ -32,16 +34,25 @@ Deno.serve(async (req) => {
 
         const datasetId = activeDatasets[0].id;
 
-        // Read from PredictionFilterCache — no Person scan
         const caches = await base44.asServiceRole.entities.PredictionFilterCache.filter({ dataset_id: datasetId });
         if (!caches?.length) {
             return Response.json({ years: [], symbols: [], departments: [], cache_missing: true });
         }
 
         const cache = caches[0];
+        const rawSymbols = cache.symbols_json?.data || [];
+
+        // Normalize: empty string / null → BLANK_SYMBOL; real "-" stays "-"
+        const normalizedSymbols = rawSymbols.map(s => {
+            const trimmed = (s ?? '').trim();
+            return trimmed !== '' ? trimmed : BLANK_SYMBOL;
+        });
+        // Deduplicate while preserving order
+        const symbolsDeduped = [...new Set(normalizedSymbols)].sort();
+
         return Response.json({
             years: cache.years_json?.data || [],
-            symbols: cache.symbols_json?.data || [],
+            symbols: symbolsDeduped,
             departments: cache.departments_json?.data || [],
         });
     } catch (error) {

@@ -282,7 +282,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
 
     return (
         <>
-            <Dialog open={showConfig} onOpenChange={() => {}}>
+            <Dialog open={showConfig} onOpenChange={(open) => { if (!open) setShowConfig(false); }}>
                 <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Ρύθμιση Παρατάξεων</DialogTitle>

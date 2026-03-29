@@ -4,25 +4,15 @@ Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
 
-        const body = await req.json();
-        const queryParams = new URLSearchParams(body.queryParams || '');
-        const sessionToken = queryParams.get('session_token');
+        const body = await req.json().catch(() => ({}));
+        const sessionToken = body.session_token;
 
-        if (!sessionToken) {
-            return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
-        }
+        if (!sessionToken) return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
 
-        const sessions = await base44.asServiceRole.entities.AppSession.filter({
-            session_token: sessionToken,
-            is_active: true
-        });
-
-        if (sessions.length === 0) {
-            return Response.json({ error: 'Invalid session' }, { status: 401 });
-        }
-
+        const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token: sessionToken, is_active: true });
+        if (!sessions?.length) return Response.json({ error: 'Invalid session' }, { status: 401 });
         const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
-        if (users.length === 0 || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
+        if (!users?.length || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
             return Response.json({ error: 'Unauthorized' }, { status: 403 });
         }
 

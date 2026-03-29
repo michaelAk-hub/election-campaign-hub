@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,23 +9,11 @@ import {
 import {
     Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, Settings, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
-import AutoRefreshModal from '../components/predictions/AutoRefreshModal';
 
-// Auto-refresh settings stored per-browser (preference only, not shared)
-const AR_KEY = 'predictions_autorefresh';
-function loadArSettings() {
-    try {
-        const s = JSON.parse(localStorage.getItem(AR_KEY) || '{}');
-        return {
-            enabled: !!s.enabled,
-            intervalSec: Number(s.intervalSec) >= 10 ? Number(s.intervalSec) : 30,
-        };
-    } catch { return { enabled: false, intervalSec: 30 }; }
-}
 
 export default function Predictions() {
     // --- Session token: read inside component, never at module scope ---
@@ -38,28 +26,11 @@ export default function Predictions() {
         return () => { window.removeEventListener('focus', refresh); window.removeEventListener('storage', refresh); };
     }, []);
 
-    // --- Shared refresh tick for all children ---
+    // --- Manual refresh tick for all children ---
     const [refreshTick, setRefreshTick] = useState(0);
     const doRefresh = useCallback(() => setRefreshTick(t => t + 1), []);
 
-    // --- Auto-refresh settings ---
-    const [arSettings, setArSettings] = useState(loadArSettings);
-    const [showArModal, setShowArModal] = useState(false);
 
-    // Single timer for the whole page
-    const timerRef = useRef(null);
-    useEffect(() => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        if (arSettings.enabled && arSettings.intervalSec >= 10) {
-            timerRef.current = setInterval(doRefresh, arSettings.intervalSec * 1000);
-        }
-        return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }, [arSettings, doRefresh]);
-
-    // Persist settings to localStorage
-    useEffect(() => {
-        localStorage.setItem(AR_KEY, JSON.stringify(arSettings));
-    }, [arSettings]);
 
     // --- Filter options (symbols, years, departments) ---
     const [availableSymbols, setAvailableSymbols] = useState([]);
@@ -91,18 +62,11 @@ export default function Predictions() {
         loadFilterOptions(sessionToken);
     }, [refreshTick]); // eslint-disable-line
 
-    // --- queryParams built fresh from current sessionToken ---
-    const queryParams = useMemo(() => {
-        const p = new URLSearchParams();
-        if (sessionToken) p.set('session_token', sessionToken);
-        return p.toString();
-    }, [sessionToken]);
-
     // --- Queries ---
     const { data: kpis, refetch: refetchKPIs, isLoading: kpisLoading } = useQuery({
         queryKey: ['predictionKPIs', sessionToken],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionKPIs', { queryParams });
+            const { data } = await base44.functions.invoke('predictionKPIs', { session_token: sessionToken });
             return data;
         },
         enabled: !!sessionToken,
@@ -111,7 +75,7 @@ export default function Predictions() {
     const { data: bySymbol, refetch: refetchBySymbol, isLoading: symbolLoading } = useQuery({
         queryKey: ['predictionBySymbol', sessionToken],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionBySymbol', { queryParams });
+            const { data } = await base44.functions.invoke('predictionBySymbol', { session_token: sessionToken });
             return data;
         },
         enabled: !!sessionToken,
@@ -120,7 +84,7 @@ export default function Predictions() {
     const { data: byYearSymbol, refetch: refetchByYearSymbol, isLoading: yearSymbolLoading } = useQuery({
         queryKey: ['predictionByYearSymbol', sessionToken],
         queryFn: async () => {
-            const { data } = await base44.functions.invoke('predictionByYearSymbol', { queryParams });
+            const { data } = await base44.functions.invoke('predictionByYearSymbol', { session_token: sessionToken });
             return data;
         },
         enabled: !!sessionToken,
@@ -162,6 +126,7 @@ export default function Predictions() {
     };
 
     const groupedByYear = useMemo(() => {
+
         if (!byYearSymbol?.rows) return {};
         const grouped = {};
         byYearSymbol.rows.forEach(row => {
@@ -201,15 +166,6 @@ export default function Predictions() {
 
     return (
         <div className="space-y-6">
-            {/* Auto-refresh modal — uses the shared AutoRefreshModal component */}
-            <AutoRefreshModal
-                open={showArModal}
-                onClose={() => setShowArModal(false)}
-                settings={arSettings}
-                onSave={(newSettings) => setArSettings(newSettings)}
-                onRefreshNow={doRefresh}
-            />
-
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
@@ -217,16 +173,9 @@ export default function Predictions() {
                     <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">Ανάλυση συμβόλων πρόβλεψης και ψηφοφορίας</p>
                 </div>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                    <Button
-                        variant="outline"
-                        onClick={() => setShowArModal(true)}
-                        className={cn("h-10 flex-1 sm:flex-initial", arSettings.enabled && "bg-blue-50 border-blue-300 dark:bg-blue-900/30 dark:border-blue-600")}
-                    >
-                        <Settings className={cn("h-4 w-4 sm:mr-2", arSettings.enabled && "text-blue-600")} />
-                        <span className="hidden sm:inline">
-                            Auto-refresh {arSettings.enabled ? `ON (${arSettings.intervalSec}s)` : 'OFF'}
-                        </span>
-                        <span className="sm:hidden">{arSettings.enabled ? 'AR ON' : 'AR OFF'}</span>
+                    <Button variant="outline" onClick={doRefresh} className="h-10 flex-1 sm:flex-initial">
+                        <RefreshCw className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Ανανέωση</span>
                     </Button>
                     <Button onClick={handleExport} className="h-10 flex-1 sm:flex-initial">
                         <Download className="h-4 w-4 sm:mr-2" />

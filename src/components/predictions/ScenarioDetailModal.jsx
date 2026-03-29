@@ -81,12 +81,20 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
                                         )}
                                     </div>
                                     <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="text-xs">Παράταξη</TableHead>
+                                                <TableHead className="text-right text-xs">Ψήφοι</TableHead>
+                                                <TableHead className="text-right text-xs">Σταθμισμένοι</TableHead>
+                                                <TableHead className="text-right text-xs">% εντός ομάδας</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
                                         <TableBody>
                                             {(group.party_results || []).map((pr, pi) => (
                                                 <TableRow key={pi}>
                                                     <TableCell className="text-sm">{pr.name}</TableCell>
-                                                    <TableCell className="text-right text-sm">{(pr.rawVotes ?? 0).toLocaleString('el-GR')} ψ.</TableCell>
-                                                    <TableCell className="text-right text-sm text-slate-400">{(pr.weightedVotes ?? pr.predictedVotes ?? 0).toFixed(1)} σταθμ.</TableCell>
+                                                    <TableCell className="text-right text-sm">{(pr.rawVotes ?? 0).toLocaleString('el-GR')}</TableCell>
+                                                    <TableCell className="text-right text-sm text-slate-500">{Math.round(pr.weightedVotes ?? pr.predictedVotes ?? 0).toLocaleString('el-GR')}</TableCell>
                                                     <TableCell className="text-right text-sm font-bold">{pr.percentage?.toFixed(2)}%</TableCell>
                                                 </TableRow>
                                             ))}

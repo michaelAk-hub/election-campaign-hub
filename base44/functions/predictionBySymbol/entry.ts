@@ -20,9 +20,8 @@ Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
 
-        const body = await req.json();
-        const queryParams = new URLSearchParams(body.queryParams || '');
-        const sessionToken = queryParams.get('session_token');
+        const body = await req.json().catch(() => ({}));
+        const sessionToken = body.session_token;
 
         const auth = await strictAuth(base44, sessionToken);
         if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
