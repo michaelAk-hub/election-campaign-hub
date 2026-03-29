@@ -16,13 +16,36 @@ const CHART_COLORS = [
     '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
 ];
 
-// VoteFlowChart — shared config is stored in backend (PredictionVoteFlowConfig), not localStorage.
-// No internal timer. Refreshes on parent refreshSignal.
+function seedParataksiList(config) {
+    const mapping = config?.mapping || [];
+    if (mapping.length) {
+        return mapping.map((m, i) => ({
+            id: Date.now() + i,
+            name: m.parataxi || '',
+            symbols: m.symbols || [],
+            color: m.color || CHART_COLORS[i % CHART_COLORS.length],
+        }));
+    }
+    return [{ id: Date.now(), name: '', symbols: [], color: CHART_COLORS[0] }];
+}
+
+function configToFetchMapping(config) {
+    return (config?.mapping || []).map((m, i) => ({
+        id: i,
+        name: m.parataxi,
+        symbols: m.symbols || [],
+        color: m.color || CHART_COLORS[i % CHART_COLORS.length],
+    }));
+}
+
+// VoteFlowChart — shared config is stored in backend (PredictionVoteFlowConfig).
+// On manual refresh (refreshSignal): reloads config from backend, then refetches chart.
+// On "Ρυθμίσεις": reloads config from backend first, then seeds dialog from fresh data.
+// No timers. No stale in-memory config used for seeding.
 export default function VoteFlowChart({ sessionToken, availableSymbols = [], filterOptionsLoading = false, filterOptionsError = null, refreshSignal }) {
-    const [sharedConfig, setSharedConfig] = useState(null); // loaded from backend
+    const [sharedConfig, setSharedConfig] = useState(null);
     const [configLoaded, setConfigLoaded] = useState(false);
 
-    // Local working parataksi list (for the config dialog, seeded from sharedConfig)
     const [parataksiList, setParataksiList] = useState([]);
     const [showConfig, setShowConfig] = useState(false);
     const [chartData, setChartData] = useState(null);
@@ -30,34 +53,33 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
     const [loadingConfig, setLoadingConfig] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    // Load shared config from backend
+    // Load shared config from backend and return the fresh config value
     const loadSharedConfig = useCallback(async () => {
-        if (!sessionToken) return;
+        if (!sessionToken) return null;
         setLoadingConfig(true);
         try {
             const { data } = await base44.functions.invoke('voteFlowConfigLoad', { session_token: sessionToken });
-            setSharedConfig(data?.config || null);
+            const fresh = data?.config || null;
+            setSharedConfig(fresh);
+            return fresh;
         } catch (e) {
             console.error('voteFlowConfigLoad error:', e);
+            return null;
         } finally {
             setConfigLoaded(true);
             setLoadingConfig(false);
         }
     }, [sessionToken]);
 
-    // On mount and when sessionToken changes
-    useEffect(() => {
-        loadSharedConfig();
-    }, [loadSharedConfig]);
-
-    // Fetch chart data using the current shared config mapping
-    const fetchChartData = useCallback(async (mapping, bucketMinutes) => {
-        if (!mapping || !mapping.length) return;
+    // Fetch chart data given a config object directly (avoids stale closure over sharedConfig)
+    const fetchChartData = useCallback(async (config) => {
+        const mapping = configToFetchMapping(config);
+        if (!mapping.length) return;
         setLoadingChart(true);
         try {
             const { data } = await base44.functions.invoke('predictionVoteFlow', {
                 session_token: sessionToken,
-                bucket_minutes: bucketMinutes || 5,
+                bucket_minutes: config?.bucket_minutes || 5,
                 mapping: mapping.map(p => ({ parataxi: p.name, symbols: p.symbols, color: p.color })),
             });
             setChartData(data);
@@ -68,51 +90,34 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
         }
     }, [sessionToken]);
 
-    // When shared config is loaded and enabled, fetch chart data
+    // On mount / sessionToken change: load config, then chart if enabled
     useEffect(() => {
-        if (!configLoaded || !sharedConfig?.is_enabled) return;
-        const mapping = (sharedConfig.mapping || []).map((m, i) => ({
-            id: i,
-            name: m.parataxi,
-            symbols: m.symbols || [],
-            color: m.color || CHART_COLORS[i % CHART_COLORS.length],
-        }));
-        fetchChartData(mapping, sharedConfig.bucket_minutes);
-    }, [configLoaded, sharedConfig, fetchChartData]);
+        (async () => {
+            const fresh = await loadSharedConfig();
+            if (fresh?.is_enabled) await fetchChartData(fresh);
+        })();
+    }, [loadSharedConfig]); // fetchChartData intentionally omitted — stable ref
 
-    // On parent refreshSignal, refetch chart data if config is enabled
+    // On parent refreshSignal: reload config from backend first, then chart — no stale closure
     useEffect(() => {
-        if (refreshSignal === 0 || !sharedConfig?.is_enabled) return;
-        const mapping = (sharedConfig.mapping || []).map((m, i) => ({
-            id: i,
-            name: m.parataxi,
-            symbols: m.symbols || [],
-            color: m.color || CHART_COLORS[i % CHART_COLORS.length],
-        }));
-        fetchChartData(mapping, sharedConfig.bucket_minutes);
+        if (refreshSignal === 0) return;
+        (async () => {
+            const fresh = await loadSharedConfig();
+            if (fresh?.is_enabled) await fetchChartData(fresh);
+        })();
     }, [refreshSignal]); // eslint-disable-line
 
-    // Open config dialog — seed parataksiList from sharedConfig
-    const handleStart = () => {
-        if (sharedConfig?.mapping?.length) {
-            setParataksiList(sharedConfig.mapping.map((m, i) => ({
-                id: Date.now() + i,
-                name: m.parataxi || '',
-                symbols: m.symbols || [],
-                color: m.color || CHART_COLORS[i % CHART_COLORS.length],
-            })));
-        } else {
-            setParataksiList([{ id: Date.now(), name: '', symbols: [], color: CHART_COLORS[0] }]);
-        }
+    // Open "Έναρξη" — fetch fresh config before seeding dialog
+    const handleStart = async () => {
+        const fresh = await loadSharedConfig();
+        setParataksiList(seedParataksiList(fresh));
         setShowConfig(true);
     };
 
-    const handleOpenSettings = () => {
-        const mapping = sharedConfig?.mapping || [];
-        setParataksiList(mapping.length
-            ? mapping.map((m, i) => ({ id: Date.now() + i, name: m.parataxi || '', symbols: m.symbols || [], color: m.color || CHART_COLORS[i % CHART_COLORS.length] }))
-            : [{ id: Date.now(), name: '', symbols: [], color: CHART_COLORS[0] }]
-        );
+    // Open "Ρυθμίσεις" — fetch fresh config before seeding dialog
+    const handleOpenSettings = async () => {
+        const fresh = await loadSharedConfig();
+        setParataksiList(seedParataksiList(fresh));
         setShowConfig(true);
     };
 
@@ -146,7 +151,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
         return true;
     };
 
-    // Save config to backend (shared) then fetch chart
+    // Save config to backend (shared) then fetch chart using the saved config
     const handleSubmitConfig = async () => {
         if (!validateConfig()) return;
         setSaving(true);
@@ -161,12 +166,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
             const saved = data?.config || null;
             setSharedConfig(saved);
             setShowConfig(false);
-            if (saved?.mapping?.length) {
-                fetchChartData(
-                    saved.mapping.map((m, i) => ({ id: i, name: m.parataxi, symbols: m.symbols, color: m.color || CHART_COLORS[i % CHART_COLORS.length] })),
-                    saved.bucket_minutes
-                );
-            }
+            if (saved?.is_enabled) await fetchChartData(saved);
         } catch (e) {
             alert('Σφάλμα αποθήκευσης ρυθμίσεων: ' + e.message);
         } finally {
@@ -227,7 +227,6 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
         );
     };
 
-    // Shared indicator badge
     const SharedBadge = () => (
         <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
             <Users className="h-3 w-3" />
@@ -269,7 +268,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                         </p>
                         <SharedBadge />
                         <div className="pt-2">
-                            <Button onClick={handleStart} size="lg">
+                            <Button onClick={handleStart} size="lg" disabled={loadingConfig}>
                                 <Play className="h-4 w-4 mr-2" />
                                 Έναρξη
                             </Button>
@@ -333,7 +332,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                                         ) : (
                                             availableSymbols.map(symbol => (
                                                 <Badge
-                                                    key={symbol ?? '__blank__'}
+                                                    key={symbol}
                                                     variant={parataksi.symbols.includes(symbol) ? "default" : "outline"}
                                                     className="cursor-pointer"
                                                     style={parataksi.symbols.includes(symbol) ? {
@@ -341,7 +340,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                                                     } : {}}
                                                     onClick={() => toggleSymbol(parataksi.id, symbol)}
                                                 >
-                                                    {symbol === '' || symbol === null || symbol === undefined ? '(Κενό)' : symbol}
+                                                    {symbol}
                                                 </Badge>
                                             ))
                                         )}
@@ -382,8 +381,8 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                                 <SharedBadge />
                             </div>
                             <div className="flex gap-2 flex-wrap">
-                                <Button variant="outline" size="sm" onClick={handleOpenSettings}>
-                                    Ρυθμίσεις
+                                <Button variant="outline" size="sm" onClick={handleOpenSettings} disabled={loadingConfig}>
+                                    {loadingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Ρυθμίσεις'}
                                 </Button>
                                 <Button variant="outline" size="sm" onClick={handleCancel} className="text-red-600 hover:bg-red-50">
                                     <XCircle className="h-4 w-4 mr-2" />

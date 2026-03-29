@@ -10,7 +10,6 @@ import {
     Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Download, TrendingUp, Users, CheckCircle, XCircle, ChevronDown, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { cn } from "@/lib/utils";
 import VoteFlowChart from '../components/predictions/VoteFlowChart';
 import ScenarioSection from '../components/predictions/ScenarioSection';
 

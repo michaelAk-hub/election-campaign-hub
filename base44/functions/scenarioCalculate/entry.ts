@@ -2,18 +2,30 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 const BLANK_SYMBOL = '(Κενό)';
 
+async function strictAuth(base44, session_token) {
+    if (!session_token) return { error: 'Unauthorized: No session token', status: 401 };
+    const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
+    if (!sessions?.length) return { error: 'Invalid session', status: 401 };
+    const session = sessions[0];
+    if (session.expires_at && new Date(session.expires_at) < new Date()) return { error: 'Session expired', status: 401 };
+    const users = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+    if (!users?.length) return { error: 'User not found', status: 401 };
+    const user = users[0];
+    if (!user.is_active && user.role !== 'ADMIN') return { error: 'Account inactive', status: 401 };
+    if (session.session_version_at_login !== undefined && user.session_version !== undefined &&
+        session.session_version_at_login !== user.session_version) return { error: 'Session invalidated', status: 401 };
+    if (!['ADMIN', 'ORGANOTIKI'].includes(user.role)) return { error: 'Forbidden', status: 403 };
+    return { user, session };
+}
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         const body = await req.json().catch(() => ({}));
-        const { session_token, scenario_id } = body;
+        const { scenario_id } = body;
 
-        if (!session_token) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
-        if (!sessions?.length) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
-        if (!users?.length) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        if (!['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) return Response.json({ error: 'Forbidden' }, { status: 403 });
+        const auth = await strictAuth(base44, body.session_token);
+        if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
 
         const scenarios = await base44.asServiceRole.entities.PredictionScenario.filter({ id: scenario_id });
         if (!scenarios?.length) return Response.json({ error: 'Not found' }, { status: 404 });
@@ -129,11 +141,8 @@ Deno.serve(async (req) => {
                 return { name: party.name, rawVotes, weightedVotes };
             });
 
-            // within-group totals for correct % denominator
             const groupTotalWeighted = groupPartyResults.reduce((s, p) => s + p.weightedVotes, 0);
             const groupTotalRaw = groupPartyResults.reduce((s, p) => s + p.rawVotes, 0);
-
-            // global_share_percent: this group's raw votes as share of all assigned raw votes
             const groupSeatsRatio = totalRawVotes > 0 ? groupTotalRaw / totalRawVotes : 0;
 
             const condsByField = {};
@@ -154,14 +163,12 @@ Deno.serve(async (req) => {
                 group_name: group.name,
                 condition_expression: conditionExpression || null,
                 total_persons: groupPersonCounts[gi],
-                // within-group weighted total for reference
                 group_total_weighted: groupTotalWeighted,
                 party_results: groupPartyResults.map(p => ({
                     name: p.name,
                     rawVotes: p.rawVotes,
                     weightedVotes: p.weightedVotes,
                     predictedVotes: p.weightedVotes,
-                    // percentage = share of this party's weighted votes within this group's total weighted votes
                     percentage: groupTotalWeighted > 0 ? (p.weightedVotes / groupTotalWeighted * 100) : 0,
                 })),
                 global_share_percent: groupSeatsRatio * 100,

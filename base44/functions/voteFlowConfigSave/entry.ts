@@ -1,5 +1,21 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+const BLANK_SYMBOL = '(Κενό)';
+
+function normalizeSymbol(s) {
+    const trimmed = (s ?? '').trim();
+    return trimmed !== '' ? trimmed : BLANK_SYMBOL;
+}
+
+// Normalize all symbol arrays within a mapping before saving — prevents stale "" from being stored
+function normalizeMappingSymbols(mapping) {
+    if (!Array.isArray(mapping)) return mapping;
+    return mapping.map(entry => ({
+        ...entry,
+        symbols: Array.isArray(entry.symbols) ? entry.symbols.map(normalizeSymbol) : [],
+    }));
+}
+
 async function strictAuth(base44, session_token) {
     if (!session_token) return { error: 'Unauthorized: No session token', status: 401 };
     const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
@@ -39,17 +55,19 @@ Deno.serve(async (req) => {
         const updatedByName = [user.name, user.surname].filter(Boolean).join(' ').trim() || user.email || '';
         const now = new Date().toISOString();
 
+        // Normalize mapping symbols before saving — prevents "" blanks from being stored
+        const normalizedMapping = normalizeMappingSymbols(mapping || []);
+
         const payload = {
             dataset_id: datasetId,
             is_enabled: !!is_enabled,
             bucket_minutes: Number(bucket_minutes) || 5,
-            mapping_json: { data: mapping || [] },
+            mapping_json: { data: normalizedMapping },
             updated_by_user_id: user.id,
             updated_by_name: updatedByName,
             updated_at: now,
         };
 
-        // Check for existing config row for this dataset
         const existing = await base44.asServiceRole.entities.PredictionVoteFlowConfig.filter({ dataset_id: datasetId });
 
         let saved;

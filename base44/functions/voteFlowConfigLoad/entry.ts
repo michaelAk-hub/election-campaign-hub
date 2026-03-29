@@ -1,5 +1,22 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+const BLANK_SYMBOL = '(Κενό)';
+
+// Normalize a symbol value: empty/null/whitespace → BLANK_SYMBOL; real "-" stays "-"
+function normalizeSymbol(s) {
+    const trimmed = (s ?? '').trim();
+    return trimmed !== '' ? trimmed : BLANK_SYMBOL;
+}
+
+// Normalize all symbol arrays within a saved mapping to handle old saved configs with "" blank symbols
+function normalizeMappingSymbols(mapping) {
+    if (!Array.isArray(mapping)) return mapping;
+    return mapping.map(entry => ({
+        ...entry,
+        symbols: Array.isArray(entry.symbols) ? entry.symbols.map(normalizeSymbol) : [],
+    }));
+}
+
 async function strictAuth(base44, session_token) {
     if (!session_token) return { error: 'Unauthorized: No session token', status: 401 };
     const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
@@ -36,13 +53,17 @@ Deno.serve(async (req) => {
             return Response.json({ config: null, dataset_id: datasetId });
         }
 
+        // Normalize mapping symbols on load — handles old saved configs with "" blank symbols
+        const rawMapping = config.mapping_json?.data || [];
+        const normalizedMapping = normalizeMappingSymbols(rawMapping);
+
         return Response.json({
             config: {
                 id: config.id,
                 dataset_id: config.dataset_id,
                 is_enabled: config.is_enabled || false,
                 bucket_minutes: config.bucket_minutes || 5,
-                mapping: config.mapping_json?.data || [],
+                mapping: normalizedMapping,
                 updated_by_name: config.updated_by_name || null,
                 updated_at: config.updated_at || null,
             },

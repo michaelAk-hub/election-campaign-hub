@@ -7,21 +7,31 @@ function normalizeSymbol(raw) {
     return s !== '' ? s : BLANK_SYMBOL;
 }
 
+async function strictAuth(base44, session_token) {
+    if (!session_token) return { error: 'Unauthorized: No session token', status: 401 };
+    const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
+    if (!sessions?.length) return { error: 'Invalid session', status: 401 };
+    const session = sessions[0];
+    if (session.expires_at && new Date(session.expires_at) < new Date()) return { error: 'Session expired', status: 401 };
+    const users = await base44.asServiceRole.entities.AppUser.filter({ id: session.app_user_id });
+    if (!users?.length) return { error: 'User not found', status: 401 };
+    const user = users[0];
+    if (!user.is_active && user.role !== 'ADMIN') return { error: 'Account inactive', status: 401 };
+    if (session.session_version_at_login !== undefined && user.session_version !== undefined &&
+        session.session_version_at_login !== user.session_version) return { error: 'Session invalidated', status: 401 };
+    if (!['ADMIN', 'ORGANOTIKI'].includes(user.role)) return { error: 'Forbidden', status: 403 };
+    return { user, session };
+}
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
 
-        const body = await req.json();
-        const { session_token, bucket_minutes = 5, mapping, year, symbol, department } = body;
+        const body = await req.json().catch(() => ({}));
+        const { bucket_minutes = 5, mapping, year, symbol, department } = body;
 
-        if (!session_token) return Response.json({ error: 'Unauthorized: No session token' }, { status: 401 });
-
-        const sessions = await base44.asServiceRole.entities.AppSession.filter({ session_token, is_active: true });
-        if (!sessions?.length) return Response.json({ error: 'Invalid session' }, { status: 401 });
-        const users = await base44.asServiceRole.entities.AppUser.filter({ id: sessions[0].app_user_id });
-        if (!users?.length || !['ADMIN', 'ORGANOTIKI'].includes(users[0].role)) {
-            return Response.json({ error: 'Unauthorized' }, { status: 403 });
-        }
+        const auth = await strictAuth(base44, body.session_token);
+        if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
 
         if (!mapping || !Array.isArray(mapping) || mapping.length === 0) {
             return Response.json({ error: 'Mapping is required' }, { status: 400 });
