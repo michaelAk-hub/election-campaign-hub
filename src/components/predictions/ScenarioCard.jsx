@@ -49,7 +49,7 @@ export default function ScenarioCard({ scenario, result, loading, error, onEdit,
                                     <div className="flex items-center justify-between gap-1 text-xs font-medium text-slate-800 dark:text-slate-200">
                                         <span className="truncate">{party.name}</span>
                                         <div className="flex gap-2 shrink-0 text-right items-center">
-                                            <span className="text-slate-400">{(party.rawVotes ?? party.predictedVotes ?? 0).toLocaleString('el-GR')} ψ.</span>
+                                            <span className="text-slate-400">{(party.weightedVotes ?? party.rawVotes ?? 0).toLocaleString('el-GR')} σταθμ.</span>
                                             <span className="text-slate-500">{party.percentage?.toFixed(1)}%</span>
                                             <span className="font-bold">{party.seats?.toFixed(2)} έδρ.</span>
                                         </div>
