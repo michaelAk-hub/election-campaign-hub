@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -42,29 +42,42 @@ function normalizeUsername(str) {
   return str?.trim().replace(/\s+/g, ' ') || '';
 }
 
-// Chreosi Portal Component
+// Chreosi Portal Component — backend-driven, no client-side Person table scan
 function ChreosiPortal({ username }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
+  const [votedTab, setVotedTab] = useState('all'); // 'all' | 'not_voted' | 'voted'
   const [editingNotes, setEditingNotes] = useState(null);
   const [notesValue, setNotesValue] = useState('');
   const [personalNote, setPersonalNote] = useState('');
   const [savingPersonalNote, setSavingPersonalNote] = useState(false);
 
-  const normalizedUsername = normalizeUsername(username);
+  const sessionToken = localStorage.getItem('portal_session') || '';
 
-  const { data: account, isLoading: accountLoading } = useQuery({
-    queryKey: ['chreosi-account', normalizedUsername],
+  const { data: portalData, isLoading, refetch } = useQuery({
+    queryKey: ['chreosi-portal-people', username, search, deptFilter, yearFilter, votedTab],
     queryFn: async () => {
-      const accounts = await base44.entities.ChreosiAccount.filter({ username: normalizedUsername });
-      return accounts[0] || null;
+      const res = await base44.functions.invoke('chreosiPortalPeople', {
+        session_token: sessionToken,
+        username,
+        search,
+        dept_filter: deptFilter,
+        year_filter: yearFilter,
+        voted_tab: votedTab,
+      });
+      const d = res.data;
+      if (!d?.ok) throw new Error(d?.error || 'Load failed');
+      return d;
     },
-    onSuccess: (acc) => {
-      setPersonalNote(acc?.personal_note || '');
-    }
+    enabled: !!sessionToken && !!username,
   });
+
+  const people = portalData?.people || [];
+  const account = portalData?.account || null;
+  const availableDepts = portalData?.availableDepts || [];
+  const availableYears = portalData?.availableYears || [];
 
   // Sync personalNote when account loads
   React.useEffect(() => {
@@ -77,55 +90,18 @@ function ChreosiPortal({ username }) {
     await base44.entities.ChreosiAccount.update(account.id, { personal_note: personalNote });
     setSavingPersonalNote(false);
     toast.success('Οι προσωπικές σημειώσεις αποθηκεύτηκαν');
-    queryClient.invalidateQueries(['chreosi-account', normalizedUsername]);
+    refetch();
   };
 
-  const { data: people = [], isLoading } = useQuery({
-    queryKey: ['chreosi-people', normalizedUsername],
-    queryFn: async () => {
-      // Step 1: Load account to get allowed symbols (reuse account data)
-      const accounts = await base44.entities.ChreosiAccount.filter({ username: normalizedUsername });
-      const account = accounts[0] || null;
-      const allowedSymbols = account?.allowed_prediction_symbols;
-
-      console.log("=== PORTAL DEBUG ===");
-      console.log("Username:", normalizedUsername);
-      console.log("Account:", account);
-      console.log("Allowed Symbols:", allowedSymbols);
-
-      if (!allowedSymbols || allowedSymbols.length === 0) return [];
-
-      // Step 2: Fetch all persons
-      let all = [];
-      let page = 0;
-      const pageSize = 1000;
-      while (true) {
-        const batch = await base44.entities.Person.list(null, pageSize, page * pageSize);
-        all = all.concat(batch);
-        if (batch.length < pageSize) break;
-        page++;
-      }
-
-      // Step 3: Filter by assignment + not voted + allowed symbols
-      return all.filter(p => {
-        if (p.voted) return false;
-        const cp1 = normalizeUsername(p.contact_person_1);
-        const cp2 = normalizeUsername(p.contact_person_2);
-        if (cp1 !== normalizedUsername && cp2 !== normalizedUsername) return false;
-        return allowedSymbols.includes(p.prediction_symbol);
-      });
-    }
-  });
-
   const { data: checkmarks = [] } = useQuery({
-    queryKey: ['checkmarks', normalizedUsername],
-    queryFn: () => base44.entities.ChreosiCheckmark.filter({ chreosi_username: normalizedUsername })
+    queryKey: ['checkmarks', username],
+    queryFn: () => base44.entities.ChreosiCheckmark.filter({ chreosi_username: username })
   });
 
   const updateNotesMutation = useMutation({
     mutationFn: ({ id, notes }) => base44.entities.Person.update(id, { notes }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['chreosi-people']);
+      refetch();
       setEditingNotes(null);
       toast.success('Οι σημειώσεις αποθηκεύτηκαν');
     }
@@ -134,56 +110,28 @@ function ChreosiPortal({ username }) {
   const toggleCheckmarkMutation = useMutation({
     mutationFn: async ({ personId, checked }) => {
       const existing = checkmarks.find(c => c.person_record_id === personId);
-      if (existing) {
-        return base44.entities.ChreosiCheckmark.update(existing.id, { checked });
-      } else {
-        return base44.entities.ChreosiCheckmark.create({
-          chreosi_username: normalizedUsername,
-          person_record_id: personId,
-          checked
-        });
-      }
+      if (existing) return base44.entities.ChreosiCheckmark.update(existing.id, { checked });
+      return base44.entities.ChreosiCheckmark.create({ chreosi_username: username, person_record_id: personId, checked });
     },
     onMutate: async ({ personId, checked }) => {
-      await queryClient.cancelQueries(['checkmarks', normalizedUsername]);
-      const previous = queryClient.getQueryData(['checkmarks', normalizedUsername]);
-      queryClient.setQueryData(['checkmarks', normalizedUsername], (old = []) => {
+      await queryClient.cancelQueries(['checkmarks', username]);
+      const previous = queryClient.getQueryData(['checkmarks', username]);
+      queryClient.setQueryData(['checkmarks', username], (old = []) => {
         const existing = old.find(c => c.person_record_id === personId);
-        if (existing) {
-          return old.map(c => c.person_record_id === personId ? { ...c, checked } : c);
-        }
-        return [...old, { chreosi_username: normalizedUsername, person_record_id: personId, checked, id: `temp-${personId}` }];
+        if (existing) return old.map(c => c.person_record_id === personId ? { ...c, checked } : c);
+        return [...old, { chreosi_username: username, person_record_id: personId, checked, id: `temp-${personId}` }];
       });
       return { previous };
     },
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['checkmarks', normalizedUsername], context.previous);
-      }
+      if (context?.previous) queryClient.setQueryData(['checkmarks', username], context.previous);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries(['checkmarks', normalizedUsername]);
-    }
+    onSettled: () => queryClient.invalidateQueries(['checkmarks', username]),
   });
-
-  // assignedPeople is already filtered by the query
-  const assignedPeople = people;
-
-  // Apply filters
-  const filteredPeople = assignedPeople.filter(p => {
-    const matchSearch = !search || 
-      (p.first_name?.toLowerCase().includes(search.toLowerCase())) ||
-      (p.last_name?.toLowerCase().includes(search.toLowerCase())) ||
-      (p.mobile_phone?.includes(search));
-    const matchDept = deptFilter === 'all' || p.department === deptFilter;
-    const matchYear = yearFilter === 'all' || p.admission_year === yearFilter;
-    return matchSearch && matchDept && matchYear;
-  });
-
-  const departments = [...new Set(assignedPeople.map(p => p.department).filter(Boolean))];
-  const years = [...new Set(assignedPeople.map(p => p.admission_year).filter(Boolean))];
 
   const checkmarkMap = new Map(checkmarks.map(c => [c.person_record_id, c.checked]));
+
+  const noAccess = account && (!account.allowed_prediction_symbols?.length || !account.allowed_voted_statuses?.length);
 
   if (isLoading) {
     return (
@@ -195,42 +143,59 @@ function ChreosiPortal({ username }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-4 mb-6">
+
+      {noAccess && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Δεν έχετε πρόσβαση σε εγγραφές. Επικοινωνήστε με τον διαχειριστή.</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Voted tabs */}
+      <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+        {[
+          { value: 'all', label: 'Όλοι' },
+          { value: 'not_voted', label: 'Δεν Ψήφισαν' },
+          { value: 'voted', label: 'Ψήφισαν' },
+        ].map(tab => (
+          <button
+            key={tab.value}
+            onClick={() => setVotedTab(tab.value)}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              votedTab === tab.value
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
-          <Input
-            placeholder="Αναζήτηση..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
+          <Input placeholder="Αναζήτηση..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
         </div>
         <Select value={deptFilter} onValueChange={setDeptFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Τμήμα" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Τμήμα" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Όλα τα τμήματα</SelectItem>
-            {departments.map(d => (
-              <SelectItem key={d} value={d}>{d}</SelectItem>
-            ))}
+            {availableDepts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={yearFilter} onValueChange={setYearFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Έτος" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[130px]"><SelectValue placeholder="Έτος" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Όλα τα έτη</SelectItem>
-            {years.map(y => (
-              <SelectItem key={y} value={y}>{y}</SelectItem>
-            ))}
+            {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Personal Note Section */}
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-4 mb-6">
+      {/* Personal Note */}
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-4">
         <h3 className="font-semibold text-amber-900 dark:text-amber-300 mb-2 flex items-center gap-2">
           <MessageSquare className="h-4 w-4" />
           Προσωπικές Σημειώσεις
@@ -243,33 +208,25 @@ function ChreosiPortal({ username }) {
           className="mb-3 bg-white dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-400 dark:border-slate-600"
         />
         <div className="flex justify-end">
-          <Button
-            onClick={savePersonalNote}
-            disabled={savingPersonalNote}
-            size="sm"
-            className="bg-amber-600 hover:bg-amber-700 text-white"
-          >
+          <Button onClick={savePersonalNote} disabled={savingPersonalNote} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">
             {savingPersonalNote ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
             Αποθήκευση
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 mb-4">
-        <span>{filteredPeople.length} άτομα</span>
-        <span>Σύνολο ανατεθημένων: {assignedPeople.length}</span>
+      <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+        <span>{people.length} άτομα</span>
       </div>
 
       <div className="space-y-3">
-        {filteredPeople.map(person => (
+        {people.map(person => (
           <Card key={person.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <div className="flex items-start gap-4">
                 <Checkbox
                   checked={checkmarkMap.get(person.id) || false}
-                  onCheckedChange={(checked) => 
-                    toggleCheckmarkMutation.mutate({ personId: person.id, checked })
-                  }
+                  onCheckedChange={(checked) => toggleCheckmarkMutation.mutate({ personId: person.id, checked })}
                   className="mt-1 h-7 w-7 rounded-md"
                 />
                 <div className="flex-1 min-w-0">
@@ -281,12 +238,13 @@ function ChreosiPortal({ username }) {
                       <div className="flex flex-wrap gap-2 mt-1">
                         <Badge variant="outline">{person.department}</Badge>
                         <Badge variant="outline">{person.admission_year}</Badge>
+                        {person.voted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Ψήφισε</Badge>}
                       </div>
                     </div>
                     {person.mobile_phone && (
                       <a
                         href={`tel:${person.mobile_phone}`}
-                        className="flex items-center gap-1 px-3 py-2 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors"
+                        className="flex items-center gap-1 px-3 py-2 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors"
                       >
                         <Phone className="h-4 w-4" />
                         <span className="text-sm">{person.mobile_phone}</span>
@@ -294,19 +252,14 @@ function ChreosiPortal({ username }) {
                     )}
                   </div>
                   <div className="mt-3">
-                    <div 
-                       className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg -ml-2"
-                       onClick={() => {
-                         setEditingNotes(person);
-                         setNotesValue(person.notes || '');
-                       }}
-                     >
-                       {person.notes ? (
-                         <p className="dark:text-slate-300">{person.notes}</p>
-                       ) : (
-                         <p className="text-slate-400 dark:text-slate-500 italic">Κλικ για προσθήκη σημειώσεων...</p>
-                       )}
-                     </div>
+                    <div
+                      className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg -ml-2"
+                      onClick={() => { setEditingNotes(person); setNotesValue(person.notes || ''); }}
+                    >
+                      {person.notes
+                        ? <p className="dark:text-slate-300">{person.notes}</p>
+                        : <p className="text-slate-400 dark:text-slate-500 italic">Κλικ για προσθήκη σημειώσεων...</p>}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -314,7 +267,7 @@ function ChreosiPortal({ username }) {
           </Card>
         ))}
 
-        {filteredPeople.length === 0 && (
+        {people.length === 0 && (
           <div className="text-center py-12 text-slate-500 dark:text-slate-400">
             <User className="h-12 w-12 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
             <p>Δεν βρέθηκαν άτομα</p>
@@ -326,31 +279,14 @@ function ChreosiPortal({ username }) {
       <Dialog open={!!editingNotes} onOpenChange={() => setEditingNotes(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              Σημειώσεις - {editingNotes?.last_name} {editingNotes?.first_name}
-            </DialogTitle>
+            <DialogTitle>Σημειώσεις - {editingNotes?.last_name} {editingNotes?.first_name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <Textarea
-              value={notesValue}
-              onChange={(e) => setNotesValue(e.target.value)}
-              placeholder="Γράψτε σημειώσεις..."
-              rows={5}
-            />
+            <Textarea value={notesValue} onChange={(e) => setNotesValue(e.target.value)} placeholder="Γράψτε σημειώσεις..." rows={5} />
           </div>
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setEditingNotes(null)}>
-              Ακύρωση
-            </Button>
-            <Button 
-              onClick={() => updateNotesMutation.mutate({ 
-                id: editingNotes.id, 
-                notes: notesValue 
-              })}
-              disabled={updateNotesMutation.isPending}
-            >
-              Αποθήκευση
-            </Button>
+            <Button variant="outline" onClick={() => setEditingNotes(null)}>Ακύρωση</Button>
+            <Button onClick={() => updateNotesMutation.mutate({ id: editingNotes.id, notes: notesValue })} disabled={updateNotesMutation.isPending}>Αποθήκευση</Button>
           </div>
         </DialogContent>
       </Dialog>

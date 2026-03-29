@@ -1,953 +1,759 @@
-import React, { useState } from 'react';
-import ChreosiPrintDialog from '../components/chreosi/ChreosiPrintDialog';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import PageHeader from '../components/common/PageHeader';
-import DataGrid from '../components/ui/DataGrid';
-import LoadingSpinner from '../components/common/LoadingSpinner';
+import ChreosiPrintDialog from '../components/chreosi/ChreosiPrintDialog';
+import ChreosiCreateDialog from '../components/chreosi/ChreosiCreateDialog';
+import ChreosiDuplicatesDialog from '../components/chreosi/ChreosiDuplicatesDialog';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from "@/components/ui/table";
 import {
-  UserPlus,
-  MoreHorizontal,
-  Pencil,
-  Key,
-  UserX,
-  UserCheck,
-  Download,
-  Copy,
-  CheckCircle2,
-  Trash2,
-  AlertTriangle,
-  MessageSquare,
-  Send,
-  RefreshCw,
-  Printer
+  UserPlus, Pencil, Key, UserX, UserCheck, Copy, Trash2, AlertTriangle,
+  MessageSquare, Send, RefreshCw, Printer, Search, ChevronLeft, ChevronRight,
+  ArrowUpDown, ArrowUp, ArrowDown, GitMerge, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// ──────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────
 function generatePassword(length = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
+  let p = '';
+  for (let i = 0; i < length; i++) p += chars.charAt(Math.floor(Math.random() * chars.length));
+  return p;
 }
 
-function normalizeUsername(str) {
-  return str?.trim().replace(/\s+/g, ' ') || '';
+const VOTED_STATUS_OPTIONS = [
+  { value: 'false', label: 'Δεν Ψήφισαν' },
+  { value: 'true', label: 'Ψήφισαν' },
+];
+
+const PAGE_SIZE = 25;
+
+// ──────────────────────────────────────────────
+// Row Actions — rendered in a portal-like fixed div
+// to avoid table clipping issues
+// ──────────────────────────────────────────────
+function RowActionsMenu({ row, onEdit, onResetPassword, onDelete, onSendSms, availableSymbols }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e) {
+      if (!menuRef.current?.contains(e.target) && !btnRef.current?.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const handleOpen = () => {
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) setPos({ top: rect.bottom + window.scrollY + 4, left: rect.right + window.scrollX - 160 });
+    setOpen(v => !v);
+  };
+
+  return (
+    <>
+      <button ref={btnRef} onClick={handleOpen} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+        <svg className="h-4 w-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <circle cx="10" cy="4" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="10" cy="16" r="1.5" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+          className="w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1"
+        >
+          {[
+            { icon: Pencil, label: 'Επεξεργασία', action: () => { onEdit(row); setOpen(false); } },
+            { icon: Key, label: 'Επαναφορά Κωδικού', action: () => { onResetPassword(row); setOpen(false); } },
+            { icon: MessageSquare, label: 'Αποστολή SMS', action: () => { onSendSms(row); setOpen(false); } },
+            { icon: Trash2, label: 'Διαγραφή', action: () => { onDelete(row); setOpen(false); }, danger: true },
+          ].map((item, i) => (
+            <button
+              key={i}
+              className={`w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 text-left ${item.danger ? 'text-red-600' : 'text-slate-700 dark:text-slate-200'}`}
+              onClick={item.action}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
 }
 
+// ──────────────────────────────────────────────
+// Main Page
+// ──────────────────────────────────────────────
 export default function ChreosiAccounts() {
-  const queryClient = useQueryClient();
-  const [editDialog, setEditDialog] = useState({ open: false, account: null });
-  const [createDialog, setCreateDialog] = useState(false);
-  const [createdAccounts, setCreatedAccounts] = useState([]);
-  const [formData, setFormData] = useState({});
+  const sessionToken = localStorage.getItem('app_session_token') || '';
+
+  // ── Data state ──
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(0);
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState('username');
+  const [sortDir, setSortDir] = useState('asc');
+  const [availableSymbols, setAvailableSymbols] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // ── Selection ──
   const [selectedIds, setSelectedIds] = useState([]);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, ids: [], single: false, username: '' });
+  // allFilteredIds: IDs across ALL pages matching current search (for true select-all)
+  const [allFilteredIds, setAllFilteredIds] = useState([]);
+
+  // ── Dialog state ──
+  const [editDialog, setEditDialog] = useState({ open: false, account: null });
+  const [formData, setFormData] = useState({});
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, ids: [], label: '' });
+  const [createDialog, setCreateDialog] = useState(false);
+  const [duplicatesDialog, setDuplicatesDialog] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState([]);
+  const [printDialog, setPrintDialog] = useState(false);
   const [bulkSymbolDialog, setBulkSymbolDialog] = useState(false);
   const [bulkSymbols, setBulkSymbols] = useState([]);
+  const [bulkVoted, setBulkVoted] = useState([]);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
-  const [smsDialog, setSmsDialog] = useState({ open: false, mode: 'selected', username: null });
-  const [smsTitle, setSmsTitle] = useState("Στοιχεία πρόσβασης");
-  const [smsPortalUrl, setSmsPortalUrl] = useState("https://votecontrol.info/PortalLogin");
-  const [smsTemplate, setSmsTemplate] = useState("Σύνδεση: {PORTAL_URL}\nUsername: {USERNAME}\nPassword: {PASSWORD}");
+  const [smsDialog, setSmsDialog] = useState({ open: false, username: null });
+  const [smsTitle, setSmsTitle] = useState('Στοιχεία πρόσβασης');
+  const [smsPortalUrl, setSmsPortalUrl] = useState('https://votecontrol.info/PortalLogin');
+  const [smsTemplate, setSmsTemplate] = useState('Σύνδεση: {PORTAL_URL}\nUsername: {USERNAME}\nPassword: {PASSWORD}');
   const [smsIncludeTitleLine, setSmsIncludeTitleLine] = useState(false);
   const [smsSending, setSmsSending] = useState(false);
   const [smsResult, setSmsResult] = useState(null);
-  const [smsSearch, setSmsSearch] = useState("");
-  const [printDialog, setPrintDialog] = useState(false);
 
-  const { data: accounts = [], isLoading } = useQuery({
-    queryKey: ['chreosi-accounts'],
-    queryFn: async () => {
-      let allRecords = [];
-      let skip = 0;
-      const limit = 5000;
-      let hasMore = true;
+  // People cache for print only (loaded on demand)
+  const [peopleForPrint, setPeopleForPrint] = useState([]);
+  const [loadingPrint, setLoadingPrint] = useState(false);
 
-      while (hasMore) {
-        const batch = await base44.entities.ChreosiAccount.list('-created_date', limit, skip);
-        allRecords = allRecords.concat(batch);
-        skip += limit;
-        hasMore = batch.length === limit;
-      }
-      return allRecords;
+  // ──────────────────────────────────────────────
+  // Load accounts from backend
+  // ──────────────────────────────────────────────
+  const loadAccounts = useCallback(async (overridePage) => {
+    const p = overridePage ?? page;
+    setLoading(true);
+    try {
+      const res = await base44.functions.invoke('chreosiListAccounts', {
+        session_token: sessionToken,
+        search,
+        page: p,
+        pageSize: PAGE_SIZE,
+        sortField,
+        sortDir,
+      });
+      const d = res.data;
+      if (!d?.ok) throw new Error(d?.error || 'Load failed');
+      setRows(d.rows || []);
+      setTotal(d.total || 0);
+      setTotalPages(d.totalPages || 1);
+      setAvailableSymbols(d.availableSymbols || []);
+      // Build allFilteredIds from full filtered list (total), but we can only do select-all on current page without another call
+      setAllFilteredIds(d.rows?.map(r => r.id) || []);
+    } catch (err) {
+      toast.error(err.message || 'Σφάλμα φόρτωσης');
+    } finally {
+      setLoading(false);
     }
-  });
+  }, [sessionToken, search, page, sortField, sortDir]);
 
-  const { data: people = [] } = useQuery({
-    queryKey: ['people'],
-    queryFn: async () => {
-      let allRecords = [];
-      let skip = 0;
-      const limit = 5000;
-      let hasMore = true;
+  useEffect(() => {
+    loadAccounts();
+  }, [page, sortField, sortDir]);
 
-      while (hasMore) {
-        const batch = await base44.entities.Person.list('-created_date', limit, skip);
-        allRecords = allRecords.concat(batch);
-        skip += limit;
-        hasMore = batch.length === limit;
-      }
-      return allRecords;
-    }
-  });
+  // On search change, reset to page 0
+  useEffect(() => {
+    setPage(0);
+    setSelectedIds([]);
+    loadAccounts(0);
+  }, [search]);
 
-  const availableSymbols = React.useMemo(() => {
-    const symbols = new Set(people.map(p => p.prediction_symbol).filter(Boolean));
-    return [...symbols].sort();
-  }, [people]);
+  const handleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
 
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.ChreosiAccount.create(data),
-    onSuccess: () => queryClient.invalidateQueries(['chreosi-accounts'])
-  });
+  const SortIcon = ({ col }) => {
+    if (sortField !== col) return <ArrowUpDown className="h-3 w-3 ml-1 text-slate-400" />;
+    return sortDir === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-blue-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-blue-600" />;
+  };
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ChreosiAccount.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['chreosi-accounts']);
-      setEditDialog({ open: false, account: null });
-      toast.success('Ο λογαριασμός ενημερώθηκε');
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.ChreosiAccount.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['chreosi-accounts']);
-      setSelectedIds([]);
-      toast.success('Ο λογαριασμός διαγράφηκε');
-    }
-  });
-
-  const bulkDeleteMutation = useMutation({
-    mutationFn: async (ids) => {
-      for (const id of ids) {
-        await base44.entities.ChreosiAccount.delete(id);
-        await new Promise(r => setTimeout(r, 150));
-      }
-    },
-    onSuccess: (_, ids) => {
-      queryClient.invalidateQueries(['chreosi-accounts']);
-      setSelectedIds([]);
-      toast.success(`Διαγράφηκαν ${ids.length} λογαριασμοί`);
-    }
-  });
-
-  const bulkActivateMutation = useMutation({
-    mutationFn: async ({ ids, active }) => {
-      for (const id of ids) {
-        const account = accounts.find(a => a.id === id);
-        await base44.entities.ChreosiAccount.update(id, { ...account, is_active: active });
-        await new Promise(r => setTimeout(r, 150));
-      }
-    },
-    onSuccess: (_, { ids, active }) => {
-      queryClient.invalidateQueries(['chreosi-accounts']);
-      setSelectedIds([]);
-      toast.success(`${ids.length} λογαριασμοί ${active ? 'ενεργοποιήθηκαν' : 'απενεργοποιήθηκαν'}`);
-    }
-  });
-
-  // SMS popup helpers
-  const smsNormalize = (s) => (s || "").toString().trim().toLowerCase();
-
-  const visibleSmsAccounts = React.useMemo(() => {
-    const q = smsNormalize(smsSearch);
-    if (!q) return accounts;
-    return accounts.filter(a =>
-      smsNormalize(a.username).includes(q) ||
-      smsNormalize(a.display_name).includes(q) ||
-      smsNormalize(a.phone).includes(q)
-    );
-  }, [accounts, smsSearch]);
-
+  // ──────────────────────────────────────────────
+  // Selection helpers
+  // ──────────────────────────────────────────────
   const selectedSet = new Set(selectedIds);
-  const selectedAccounts = accounts.filter(a => selectedSet.has(a.id));
-  const smsNoPhoneCount = selectedAccounts.filter(a => !(a.phone || "").trim()).length;
+  const selectedAccounts = rows.filter(r => selectedSet.has(r.id));
+  const allPageSelected = rows.length > 0 && rows.every(r => selectedSet.has(r.id));
+  const somePageSelected = rows.some(r => selectedSet.has(r.id));
 
-  const toggleSmsOne = (id, checked) => {
-    setSelectedIds(prev => {
-      const s = new Set(prev);
-      if (checked) s.add(id); else s.delete(id);
-      return Array.from(s);
-    });
+  const toggleSelectAll = () => {
+    if (allPageSelected) setSelectedIds(prev => prev.filter(id => !rows.find(r => r.id === id)));
+    else setSelectedIds(prev => [...new Set([...prev, ...rows.map(r => r.id)])]);
   };
 
-  const selectAllVisible = () => {
-    setSelectedIds(prev => {
-      const s = new Set(prev);
-      visibleSmsAccounts.forEach(a => s.add(a.id));
-      return Array.from(s);
-    });
+  // ──────────────────────────────────────────────
+  // Edit / Reset / Delete
+  // ──────────────────────────────────────────────
+  const handleEdit = (account) => {
+    setFormData({ ...account });
+    setEditDialog({ open: true, account });
   };
 
-  const clearVisible = () => {
-    setSelectedIds(prev => {
-      const s = new Set(prev);
-      visibleSmsAccounts.forEach(a => s.delete(a.id));
-      return Array.from(s);
-    });
+  const handleSaveEdit = async () => {
+    try {
+      await base44.entities.ChreosiAccount.update(editDialog.account.id, {
+        display_name: formData.display_name,
+        phone: formData.phone,
+        is_active: formData.is_active,
+        allowed_prediction_symbols: formData.allowed_prediction_symbols || [],
+        allowed_voted_statuses: formData.allowed_voted_statuses || [],
+        personal_note: formData.personal_note,
+      });
+      toast.success('Ο λογαριασμός ενημερώθηκε');
+      setEditDialog({ open: false, account: null });
+      loadAccounts();
+    } catch (err) {
+      toast.error(err.message || 'Σφάλμα ενημέρωσης');
+    }
   };
 
-  const getSelectedUsernames = () => {
-    return [...new Set(
-      selectedAccounts.map(a => (a.username || '').trim().replace(/\s+/g, ' ')).filter(Boolean)
-    )];
+  const handleResetPassword = async (row) => {
+    const newPw = generatePassword();
+    await base44.entities.ChreosiAccount.update(row.id, { password_hash: newPw, plain_password: newPw });
+    toast.success(`Νέος κωδικός: ${newPw}`);
+    navigator.clipboard.writeText(newPw).catch(() => {});
+    loadAccounts();
   };
 
+  const handleDelete = (row) => setDeleteDialog({ open: true, ids: [row.id], label: row.username });
+  const handleBulkDelete = () => setDeleteDialog({ open: true, ids: selectedIds, label: `${selectedIds.length} λογαριασμοί` });
+
+  const confirmDelete = async () => {
+    for (const id of deleteDialog.ids) {
+      await base44.entities.ChreosiAccount.delete(id);
+      await new Promise(r => setTimeout(r, 150));
+    }
+    toast.success('Διαγράφηκαν');
+    setDeleteDialog({ open: false, ids: [], label: '' });
+    setSelectedIds([]);
+    loadAccounts();
+  };
+
+  const handleBulkActivate = async (active) => {
+    for (const id of selectedIds) {
+      const acc = rows.find(a => a.id === id);
+      if (acc) await base44.entities.ChreosiAccount.update(id, { is_active: active });
+      await new Promise(r => setTimeout(r, 150));
+    }
+    toast.success(`${selectedIds.length} λογαριασμοί ${active ? 'ενεργοποιήθηκαν' : 'απενεργοποιήθηκαν'}`);
+    setSelectedIds([]);
+    loadAccounts();
+  };
+
+  // ──────────────────────────────────────────────
+  // Bulk symbol/voted update
+  // ──────────────────────────────────────────────
+  const handleBulkSettingsApply = async () => {
+    setIsBulkUpdating(true);
+    try {
+      let start = 0;
+      let totalUpdated = 0;
+      let allFailed = [];
+      while (start < selectedIds.length) {
+        const res = await base44.functions.invoke('bulkUpdateChreosiSymbols', {
+          accountIds: selectedIds,
+          symbolsToAssign: bulkSymbols,
+          start, max: 80, delayMs: 350
+        });
+        if (!res?.data?.ok) throw new Error(res?.data?.error || 'Bulk update failed');
+        totalUpdated += res.data.updated || 0;
+        if (res.data.failed?.length) allFailed = allFailed.concat(res.data.failed);
+        start = res.data.nextStart ?? selectedIds.length;
+      }
+      // Also update voted statuses one by one
+      for (const id of selectedIds) {
+        await base44.entities.ChreosiAccount.update(id, { allowed_voted_statuses: bulkVoted });
+        await new Promise(r => setTimeout(r, 200));
+      }
+      setBulkSymbolDialog(false);
+      setSelectedIds([]);
+      loadAccounts();
+      if (allFailed.length > 0) toast.warning(`Ολοκληρώθηκε με σφάλματα: ${allFailed.length}`);
+      else toast.success(`Ενημερώθηκαν ${totalUpdated} λογαριασμοί`);
+    } catch (err) {
+      toast.error(err.message || 'Σφάλμα');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  // ──────────────────────────────────────────────
+  // SMS send
+  // ──────────────────────────────────────────────
   const handleSendSms = async () => {
-    const { mode, username } = smsDialog;
-    if (mode === 'selected' && selectedIds.length === 0 && !username) {
-      toast.error("Επίλεξε τουλάχιστον 1 Χρεωστικό ή βάλε 'Όλοι οι ενεργοί'.");
-      return;
-    }
-
-    setSmsSending(true);
-    setSmsResult(null);
-
-    const usernames = username ? [username] : getSelectedUsernames();
-
-    const payload = {
-      session_token: localStorage.getItem('app_session_token'),
-      mode: mode === 'all_active' ? 'all_active' : 'selected',
-      usernames,
-      onlyActive: true,
-      title: smsTitle,
-      portalUrl: smsPortalUrl,
-      template: smsTemplate,
-      includeTitleLine: smsIncludeTitleLine,
-      throttleMs: 150,
-    };
-
-    const resp = await base44.functions.invoke("sendChreosiCredentialsSms", payload);
-    const data = resp.data;
-    setSmsResult(data);
-
-    if (data?.ok) {
-      toast.success(`SMS: ${data.sent} εστάλησαν, ${data.failed} απέτυχαν, ${data.skipped} παραλείφθηκαν`);
-      queryClient.invalidateQueries(['chreosi-accounts']);
-    } else {
-      toast.error(data?.error || "Αποτυχία αποστολής");
-    }
+    const { username } = smsDialog;
+    const usernames = username ? [username] : selectedAccounts.map(a => a.username);
+    if (!usernames.length) { toast.error('Επίλεξε τουλάχιστον 1 λογαριασμό'); return; }
+    setSmsSending(true); setSmsResult(null);
+    const resp = await base44.functions.invoke('sendChreosiCredentialsSms', {
+      session_token: sessionToken,
+      mode: 'selected', usernames, onlyActive: true,
+      title: smsTitle, portalUrl: smsPortalUrl, template: smsTemplate,
+      includeTitleLine: smsIncludeTitleLine, throttleMs: 150,
+    });
+    setSmsResult(resp.data);
+    if (resp.data?.ok) toast.success(`SMS: ${resp.data.sent} εστάλησαν`);
+    else toast.error(resp.data?.error || 'Αποτυχία');
     setSmsSending(false);
   };
 
-  const handleCreateAccounts = async () => {
-    // Get unique contact persons
-    const contactPersons = new Set();
-    people.forEach(p => {
-      if (p.contact_person_1) contactPersons.add(normalizeUsername(p.contact_person_1));
-      if (p.contact_person_2) contactPersons.add(normalizeUsername(p.contact_person_2));
-    });
-
-    // Filter out existing usernames
-    const existingUsernames = new Set(accounts.map(a => normalizeUsername(a.username)));
-    const newUsernames = [...contactPersons].filter(u => u && !existingUsernames.has(u));
-
-    if (newUsernames.length === 0) {
-      toast.info('Δεν βρέθηκαν νέα άτομα για δημιουργία λογαριασμών');
-      return;
+  // ──────────────────────────────────────────────
+  // Print: load people on demand
+  // ──────────────────────────────────────────────
+  const handleOpenPrint = async () => {
+    setLoadingPrint(true);
+    try {
+      let all = [];
+      let skip = 0;
+      while (true) {
+        const batch = await base44.entities.Person.list(null, 1000, skip);
+        all = all.concat(batch);
+        if (batch.length < 1000) break;
+        skip += 1000;
+      }
+      setPeopleForPrint(all);
+      setPrintDialog(true);
+    } catch (err) {
+      toast.error('Αποτυχία φόρτωσης εγγραφών για εκτύπωση');
+    } finally {
+      setLoadingPrint(false);
     }
+  };
 
-    const newAccounts = [];
-    for (const username of newUsernames) {
-      const password = generatePassword();
-      await createMutation.mutateAsync({
-        username,
-        password_hash: password,
-        plain_password: password,
-        display_name: username,
-        is_active: true
-      });
-      newAccounts.push({ username, password });
-      await new Promise(r => setTimeout(r, 600));
+  // ──────────────────────────────────────────────
+  // Duplicates
+  // ──────────────────────────────────────────────
+  const handleCheckDuplicates = async () => {
+    try {
+      const res = await base44.functions.invoke('chreosiAnalyze', { session_token: sessionToken });
+      const d = res.data;
+      if (!d?.ok) throw new Error(d?.error);
+      if (!d.hasDuplicates) { toast.success('Δεν βρέθηκαν διπλά'); return; }
+      setDuplicateGroups(d.duplicateGroups || []);
+      setDuplicatesDialog(true);
+    } catch (err) {
+      toast.error(err.message);
     }
-
-    setCreatedAccounts(newAccounts);
-    toast.success(`Δημιουργήθηκαν ${newAccounts.length} νέοι λογαριασμοί`);
   };
 
-  const handleExportCreated = () => {
-    const csv = '\uFEFF' + 'Όνομα Χρήστη,Κωδικός\n' + 
-      createdAccounts.map(a => `"${a.username}","${a.password}"`).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `χρεωστικοί_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
+  const noRecordsWarning = (arr, voted) => arr.length === 0 || voted.length === 0;
 
-  const copyCredentials = () => {
-    const text = createdAccounts.map(a => `${a.username}: ${a.password}`).join('\n');
-    navigator.clipboard.writeText(text);
-    toast.success('Αντιγράφηκαν στο πρόχειρο');
-  };
-
-  const columns = [
-    { key: 'username', label: 'Όνομα Χρήστη' },
-    { key: 'plain_password', label: 'Κωδικός', render: (val, row) => {
-      const display = val || (row?.password_hash?.startsWith('$2') ? '(χρειάζεται σύνδεση)' : row?.password_hash) || '-';
-      const copyVal = val || (row?.password_hash?.startsWith('$2') ? null : row?.password_hash);
-      return (
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm">{display}</span>
-          {copyVal && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(copyVal);
-                toast.success('Αντιγράφηκε');
-              }}
-            >
-              <Copy className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
-      );
-    }},
-    { key: 'display_name', label: 'Εμφανιζόμενο Όνομα' },
-    { key: 'phone', label: 'Τηλέφωνο' },
-    { key: 'allowed_prediction_symbols', label: 'Σύμβολα', render: (val) => (
-      <div className="flex flex-wrap gap-1">
-        {(val && val.length > 0) ? val.map(s => (
-          <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
-        )) : <span className="text-xs text-slate-400">Όλα</span>}
-      </div>
-    )},
-    { key: 'personal_note', label: 'Προσωπικές Σημειώσεις', render: (val) => (
-      <span className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 max-w-xs">
-        {val || <span className="italic text-slate-400 dark:text-slate-500">—</span>}
-      </span>
-    )},
-    { key: 'is_active', label: 'Κατάσταση', render: (val) => (
-    <Badge variant={val ? 'default' : 'secondary'} className={val ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'dark:bg-slate-700 dark:text-slate-300'}>
-      {val ? 'Ενεργός' : 'Ανενεργός'}
-    </Badge>
-    )}
-    ];
-
-    const rowActions = (row) => (
-    <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button variant="ghost" size="icon">
-        <MoreHorizontal className="h-4 w-4" />
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      <DropdownMenuItem onClick={async () => {
-        const newPassword = generatePassword();
-        await updateMutation.mutateAsync({
-          id: row.id,
-          data: { ...row, password_hash: newPassword, plain_password: newPassword }
-        });
-        toast.success(`Νέος κωδικός: ${newPassword}`);
-        navigator.clipboard.writeText(newPassword);
-      }}>
-        <Key className="h-4 w-4 mr-2" />
-        Επαναφορά Κωδικού
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => {
-        setFormData({ ...row });
-        setEditDialog({ open: true, account: row });
-      }}>
-        <Pencil className="h-4 w-4 mr-2" />
-        Επεξεργασία
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() => setDeleteDialog({ open: true, ids: [row.id], single: true, username: row.username })}
-        className="text-red-600"
-      >
-        <Trash2 className="h-4 w-4 mr-2" />
-        Διαγραφή
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-    </DropdownMenu>
-    );
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
+  // ──────────────────────────────────────────────
+  // Render
+  // ──────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <PageHeader
         title="Χρεωστικοί"
-        subtitle={`${accounts.length} λογαριασμοί`}
+        subtitle={`${total} λογαριασμοί`}
         icon={UserPlus}
         actions={
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => { setSmsResult(null); setSmsDialog({ open: true, mode: 'selected', username: null }); }}
-              disabled={selectedIds.length === 0}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              SMS ({selectedIds.length})
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => { setSmsResult(null); setSmsDialog({ open: true, mode: 'all_active', username: null }); }}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              SMS σε όλους
+          <div className="flex flex-wrap gap-2">
+            {selectedIds.length > 0 && (
+              <Button variant="outline" onClick={() => { setSmsResult(null); setSmsDialog({ open: true, username: null }); }}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                SMS ({selectedIds.length})
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleCheckDuplicates}>
+              <GitMerge className="h-4 w-4 mr-2" />
+              Διπλά
             </Button>
             <Button onClick={() => setCreateDialog(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
-              Δημιουργία Χρεωστικών
+              Δημιουργία
             </Button>
           </div>
         }
       />
 
-      <DataGrid
-        data={accounts}
-        columns={columns}
-        pageSize={20}
-        selectable={true}
-        selectedIds={selectedIds}
-        onSelectionChange={setSelectedIds}
-        actions={rowActions}
-        bulkActions={
-          <>
+      {/* Search + bulk bar */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Αναζήτηση..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {selectedIds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 ml-auto">
+            <span className="text-sm text-slate-600">{selectedIds.length} επιλεγμένα</span>
             {selectedIds.length === 1 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const account = accounts.find(a => a.id === selectedIds[0]);
-                  if (account) {
-                    setFormData({ ...account });
-                    setEditDialog({ open: true, account });
-                  }
-                }}
-              >
-                <Pencil className="h-4 w-4 mr-2" />
-                Επεξεργασία
+              <Button variant="outline" size="sm" onClick={() => handleEdit(rows.find(r => r.id === selectedIds[0]))}>
+                <Pencil className="h-4 w-4 mr-2" />Επεξεργασία
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPrintDialog(true)}
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Εκτύπωση ({selectedIds.length})
+            <Button variant="outline" size="sm" onClick={handleOpenPrint} disabled={loadingPrint}>
+              {loadingPrint ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Printer className="h-4 w-4 mr-2" />}
+              Εκτύπωση
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => bulkActivateMutation.mutate({ ids: selectedIds, active: true })}
-            >
-              <UserCheck className="h-4 w-4 mr-2" />
-              Ενεργοποίηση
+            <Button variant="outline" size="sm" onClick={() => handleBulkActivate(true)}>
+              <UserCheck className="h-4 w-4 mr-2" />Ενεργ.
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => bulkActivateMutation.mutate({ ids: selectedIds, active: false })}
-            >
-              <UserX className="h-4 w-4 mr-2" />
-              Απενεργοποίηση
+            <Button variant="outline" size="sm" onClick={() => handleBulkActivate(false)}>
+              <UserX className="h-4 w-4 mr-2" />Απενεργ.
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setBulkSymbols([]); setBulkSymbolDialog(true); }}
-            >
-              <Pencil className="h-4 w-4 mr-2" />
-              Ορισμός Συμβόλων
+            <Button variant="outline" size="sm" onClick={() => { setBulkSymbols([]); setBulkVoted([]); setBulkSymbolDialog(true); }}>
+              <Pencil className="h-4 w-4 mr-2" />Ρυθμίσεις
             </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setDeleteDialog({ open: true, ids: selectedIds, single: false, username: '' })}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Διαγραφή
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+              <Trash2 className="h-4 w-4 mr-2" />Διαγραφή
             </Button>
-          </>
-        }
+          </div>
+        )}
+        {selectedIds.length === 0 && (
+          <span className="text-sm text-slate-500 ml-auto">{total} εγγραφές</span>
+        )}
+      </div>
 
-      />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, ids: [], single: false, username: '' })}>
-        <DialogContent className="flex flex-col max-h-[95vh]">
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-              <DialogTitle className="text-xl">Επιβεβαίωση Διαγραφής</DialogTitle>
-            </div>
-            <DialogDescription className="text-base pt-2">
-              {deleteDialog.single ? (
-                <>
-                  Είστε σίγουροι ότι θέλετε να διαγράψετε τον λογαριασμό <strong>{deleteDialog.username}</strong>;
-                </>
+      {/* Table */}
+      <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-950 dark:border-slate-700">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50 dark:bg-slate-900">
+                <TableHead className="w-12">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    ref={el => { if (el) el.indeterminate = somePageSelected && !allPageSelected; }}
+                    onChange={toggleSelectAll}
+                    className="rounded"
+                  />
+                </TableHead>
+                {[
+                  { key: 'username', label: 'Όνομα Χρήστη' },
+                  { key: 'plain_password', label: 'Κωδικός' },
+                  { key: 'display_name', label: 'Εμφανιζόμενο Όνομα' },
+                  { key: 'phone', label: 'Τηλέφωνο' },
+                  { key: 'allowed_prediction_symbols', label: 'Σύμβολα', sortable: false },
+                  { key: 'allowed_voted_statuses', label: 'Ψήφος', sortable: false },
+                  { key: 'is_active', label: 'Κατάσταση' },
+                ].map(col => (
+                  <TableHead
+                    key={col.key}
+                    className={`font-semibold text-slate-700 dark:text-slate-200 ${col.sortable !== false ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 select-none' : ''}`}
+                    onClick={() => col.sortable !== false && handleSort(col.key)}
+                  >
+                    <span className="inline-flex items-center">
+                      {col.label}
+                      {col.sortable !== false && <SortIcon col={col.key} />}
+                    </span>
+                  </TableHead>
+                ))}
+                <TableHead className="w-16">Ενέργ.</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></TableCell></TableRow>
+              ) : rows.length === 0 ? (
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500">Δεν βρέθηκαν εγγραφές</TableCell></TableRow>
               ) : (
-                deleteDialog.ids.length === 1 
-                  ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε 1 λογαριασμό;'
-                  : `Είστε σίγουροι ότι θέλετε να διαγράψετε ${deleteDialog.ids.length} λογαριασμούς;`
-              )}
-              <br />
-              <span className="text-red-600 font-medium">Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.</span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialog({ open: false, ids: [], single: false, username: '' })}
-            >
-              Ακύρωση
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (deleteDialog.single) {
-                  deleteMutation.mutate(deleteDialog.ids[0]);
-                } else {
-                  bulkDeleteMutation.mutate(deleteDialog.ids);
-                }
-                setDeleteDialog({ open: false, ids: [], single: false, username: '' });
-              }}
-              disabled={deleteMutation.isPending || bulkDeleteMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Διαγραφή
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Accounts Dialog */}
-      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
-        <DialogContent className="flex flex-col max-h-[95vh]">
-          <DialogHeader>
-            <DialogTitle>Δημιουργία Χρεωστικών</DialogTitle>
-            <DialogDescription>
-              Θα δημιουργηθούν λογαριασμοί για όλα τα μοναδικά άτομα επικοινωνίας που δεν έχουν ήδη λογαριασμό.
-            </DialogDescription>
-            </DialogHeader>
-
-            <div className="overflow-y-auto flex-1">
-            {createdAccounts.length > 0 ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 className="h-5 w-5" />
-                <span className="font-medium">Δημιουργήθηκαν {createdAccounts.length} λογαριασμοί!</span>
-              </div>
-              <Card>
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm">Διαπιστευτήρια</CardTitle>
-                </CardHeader>
-                <CardContent className="max-h-60 overflow-y-auto">
-                  <div className="space-y-2 text-sm font-mono">
-                    {createdAccounts.map((a, i) => (
-                      <div key={i} className="p-2 bg-slate-50 dark:bg-slate-800 rounded flex justify-between">
-                        <span>{a.username}</span>
-                        <span className="text-slate-500">{a.password}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={copyCredentials}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Αντιγραφή
-                </Button>
-                <Button variant="outline" onClick={handleExportCreated}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Εξαγωγή CSV
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <p className="text-slate-600 mb-4">
-                Βρέθηκαν {new Set([...people.flatMap(p => 
-                  [p.contact_person_1, p.contact_person_2].filter(Boolean).map(normalizeUsername)
-                )]).size} μοναδικά άτομα επικοινωνίας.
-              </p>
-              <p className="text-slate-500 text-sm">
-                {accounts.length} λογαριασμοί υπάρχουν ήδη.
-              </p>
-            </div>
-            )}
-            </div>
-
-            <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setCreateDialog(false);
-              setCreatedAccounts([]);
-            }}>
-              Κλείσιμο
-            </Button>
-            {createdAccounts.length === 0 && (
-              <Button onClick={handleCreateAccounts} disabled={createMutation.isPending}>
-                Δημιουργία
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk Symbol Assignment Dialog */}
-      <Dialog open={bulkSymbolDialog} onOpenChange={setBulkSymbolDialog}>
-        <DialogContent className="flex flex-col max-h-[95vh]">
-          <DialogHeader>
-            <DialogTitle>Ορισμός Συμβόλων σε {selectedIds.length} Χρήστες</DialogTitle>
-            <DialogDescription>
-              Επιλέξτε τα σύμβολα που θα ανατεθούν σε όλους τους επιλεγμένους χρήστες.
-            </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-2 overflow-y-auto flex-1">
-            <div className="border rounded-md p-3 space-y-2 max-h-60 overflow-y-auto">
-              {availableSymbols.length === 0 ? (
-                <p className="text-sm text-slate-500">Δεν βρέθηκαν σύμβολα</p>
-              ) : (
-                availableSymbols.map(symbol => {
-                  const selected = bulkSymbols.includes(symbol);
+                rows.map(row => {
+                  const selected = selectedSet.has(row.id);
+                  const noVis = (!row.allowed_prediction_symbols?.length || !row.allowed_voted_statuses?.length);
                   return (
-                    <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={(e) => {
-                          setBulkSymbols(e.target.checked
-                            ? [...bulkSymbols, symbol]
-                            : bulkSymbols.filter(s => s !== symbol));
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm font-medium">{symbol}</span>
-                    </label>
+                    <TableRow key={row.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800 ${selected ? 'bg-blue-50 dark:bg-blue-900/40' : ''}`}>
+                      <TableCell onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={e => {
+                            if (e.target.checked) setSelectedIds(p => [...p, row.id]);
+                            else setSelectedIds(p => p.filter(id => id !== row.id));
+                          }}
+                          className="rounded"
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium text-sm">
+                        <div className="flex items-center gap-1">
+                          {row.username}
+                          {noVis && <span title="Δεν βλέπει εγγραφές" className="text-amber-500 text-xs">⚠</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm">{row.plain_password || '—'}</span>
+                          {row.plain_password && (
+                            <button className="text-slate-400 hover:text-slate-600" onClick={() => { navigator.clipboard.writeText(row.plain_password); toast.success('Αντιγράφηκε'); }}>
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{row.display_name || '—'}</TableCell>
+                      <TableCell className="text-sm">{row.phone || '—'}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {row.allowed_prediction_symbols?.length > 0
+                            ? row.allowed_prediction_symbols.map(s => <Badge key={s} variant="outline" className="text-xs">{s}</Badge>)
+                            : <span className="text-xs text-red-400">Κανένα</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {row.allowed_voted_statuses?.length > 0
+                            ? row.allowed_voted_statuses.map(v => <Badge key={v} variant="outline" className="text-xs">{v === 'false' ? 'Δεν Ψήφ.' : 'Ψήφ.'}</Badge>)
+                            : <span className="text-xs text-red-400">Κανένα</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={row.is_active ? 'default' : 'secondary'} className={row.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : ''}>
+                          {row.is_active ? 'Ενεργός' : 'Ανενεργός'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="relative overflow-visible" onClick={e => e.stopPropagation()}>
+                        <RowActionsMenu
+                          row={row}
+                          onEdit={handleEdit}
+                          onResetPassword={handleResetPassword}
+                          onDelete={handleDelete}
+                          onSendSms={(r) => { setSmsResult(null); setSmsDialog({ open: true, username: r.username }); }}
+                          availableSymbols={availableSymbols}
+                        />
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-500">Σελίδα {page + 1} από {totalPages}</span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dialogs ── */}
+
+      {/* Create */}
+      <ChreosiCreateDialog
+        open={createDialog}
+        onClose={() => setCreateDialog(false)}
+        onDone={() => { setCreateDialog(false); loadAccounts(); }}
+        sessionToken={sessionToken}
+      />
+
+      {/* Duplicates */}
+      <ChreosiDuplicatesDialog
+        open={duplicatesDialog}
+        onClose={() => setDuplicatesDialog(false)}
+        duplicateGroups={duplicateGroups}
+        sessionToken={sessionToken}
+        onDone={() => { setDuplicatesDialog(false); loadAccounts(); }}
+      />
+
+      {/* Delete confirm */}
+      <Dialog open={deleteDialog.open} onOpenChange={o => !o && setDeleteDialog({ open: false, ids: [], label: '' })}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center"><AlertTriangle className="h-6 w-6 text-red-600" /></div>
+              <DialogTitle>Επιβεβαίωση Διαγραφής</DialogTitle>
             </div>
-            {bulkSymbols.length === 0 && (
-              <p className="text-xs text-amber-600">⚠️ Κανένα σύμβολο — οι χρήστες θα βλέπουν όλες τις εγγραφές.</p>
+            <DialogDescription>
+              Διαγραφή: <strong>{deleteDialog.label}</strong>
+              <br /><span className="text-red-600 font-medium">Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, ids: [], label: '' })}>Ακύρωση</Button>
+            <Button variant="destructive" onClick={confirmDelete}><Trash2 className="h-4 w-4 mr-2" />Διαγραφή</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk settings */}
+      <Dialog open={bulkSymbolDialog} onOpenChange={setBulkSymbolDialog}>
+        <DialogContent className="flex flex-col max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Ρυθμίσεις σε {selectedIds.length} Χρήστες</DialogTitle>
+            <DialogDescription>Θα αντικαταστήσουν τις τρέχουσες ρυθμίσεις</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 overflow-y-auto flex-1 py-2">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Σύμβολα Πρόβλεψης</Label>
+              <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                {availableSymbols.map(symbol => (
+                  <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 p-1 rounded">
+                    <input type="checkbox" checked={bulkSymbols.includes(symbol)} onChange={e => setBulkSymbols(e.target.checked ? [...bulkSymbols, symbol] : bulkSymbols.filter(s => s !== symbol))} />
+                    <span className="text-sm">{symbol}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Κατάσταση Ψήφου</Label>
+              <div className="flex gap-3">
+                {VOTED_STATUS_OPTIONS.map(opt => (
+                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 hover:bg-slate-50">
+                    <input type="checkbox" checked={bulkVoted.includes(opt.value)} onChange={e => setBulkVoted(e.target.checked ? [...bulkVoted, opt.value] : bulkVoted.filter(v => v !== opt.value))} />
+                    <span className="text-sm">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {noRecordsWarning(bulkSymbols, bulkVoted) && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>Ο χρήστης δεν θα βλέπει καμία εγγραφή.</AlertDescription>
+              </Alert>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkSymbolDialog(false)}>Ακύρωση</Button>
-            <Button
-              disabled={isBulkUpdating}
-              onClick={async () => {
-                if (selectedIds.length === 0) return;
-                setIsBulkUpdating(true);
-                try {
-                  let start = 0;
-                  let totalUpdated = 0;
-                  let allFailed = [];
-
-                  while (start < selectedIds.length) {
-                    const resp = await base44.functions.invoke('bulkUpdateChreosiSymbols', {
-                      accountIds: selectedIds,
-                      symbolsToAssign: bulkSymbols,
-                      start,
-                      max: 80,
-                      delayMs: 350
-                    });
-
-                    if (!resp?.data?.ok) {
-                      throw new Error(resp?.data?.error || 'Bulk update failed');
-                    }
-
-                    totalUpdated += resp.data.updated || 0;
-                    if (resp.data.failed?.length) allFailed = allFailed.concat(resp.data.failed);
-                    start = resp.data.nextStart ?? selectedIds.length;
-                  }
-
-                  queryClient.invalidateQueries(['chreosi-accounts']);
-                  setBulkSymbolDialog(false);
-                  setSelectedIds([]);
-
-                  if (allFailed.length > 0) {
-                    toast.warning(`Ολοκληρώθηκε με σφάλματα: ${allFailed.length} λογαριασμοί δεν ενημερώθηκαν`);
-                  } else {
-                    toast.success(`Ενημερώθηκαν ${totalUpdated} λογαριασμοί`);
-                  }
-                } catch (e) {
-                  toast.error(e?.message || 'Σφάλμα στην ομαδική ενημέρωση');
-                } finally {
-                  setIsBulkUpdating(false);
-                }
-              }}
-            >
+            <Button disabled={isBulkUpdating} onClick={handleBulkSettingsApply}>
               {isBulkUpdating ? 'Αποθήκευση...' : 'Εφαρμογή'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* SMS Credentials Dialog */}
-      <Dialog open={smsDialog.open} onOpenChange={(open) => { if (!open) { setSmsDialog({ open: false, mode: 'selected', username: null }); setSmsSearch(""); } }}>
-        <DialogContent className="max-w-2xl max-h-[95vh] flex flex-col">
+      {/* Edit dialog */}
+      <Dialog open={editDialog.open} onOpenChange={o => !o && setEditDialog({ open: false, account: null })}>
+        <DialogContent className="flex flex-col max-h-[90vh]">
+          <DialogHeader><DialogTitle>Επεξεργασία Λογαριασμού</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4 overflow-y-auto flex-1">
+            <div className="space-y-2"><Label>Όνομα Χρήστη</Label><Input value={formData.username || ''} disabled /></div>
+            <div className="space-y-2"><Label>Εμφανιζόμενο Όνομα</Label><Input value={formData.display_name || ''} onChange={e => setFormData({...formData, display_name: e.target.value})} /></div>
+            <div className="space-y-2"><Label>Τηλέφωνο</Label><Input value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
+            <div className="flex items-center gap-3"><Switch checked={formData.is_active || false} onCheckedChange={v => setFormData({...formData, is_active: v})} /><Label>Ενεργός</Label></div>
+            <div className="space-y-2">
+              <Label>Σύμβολα Πρόβλεψης</Label>
+              <div className="border dark:border-slate-700 rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                {availableSymbols.map(symbol => {
+                  const sel = (formData.allowed_prediction_symbols || []).includes(symbol);
+                  return (
+                    <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 p-1 rounded">
+                      <input type="checkbox" checked={sel} onChange={e => {
+                        const cur = formData.allowed_prediction_symbols || [];
+                        setFormData({...formData, allowed_prediction_symbols: e.target.checked ? [...cur, symbol] : cur.filter(s => s !== symbol)});
+                      }} className="rounded" />
+                      <span className="text-sm">{symbol}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Κατάσταση Ψήφου</Label>
+              <div className="flex gap-3">
+                {VOTED_STATUS_OPTIONS.map(opt => {
+                  const sel = (formData.allowed_voted_statuses || []).includes(opt.value);
+                  return (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 hover:bg-slate-50">
+                      <input type="checkbox" checked={sel} onChange={e => {
+                        const cur = formData.allowed_voted_statuses || [];
+                        setFormData({...formData, allowed_voted_statuses: e.target.checked ? [...cur, opt.value] : cur.filter(v => v !== opt.value)});
+                      }} />
+                      <span className="text-sm">{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {noRecordsWarning(formData.allowed_prediction_symbols || [], formData.allowed_voted_statuses || []) && (
+                <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>Ο χρήστης δεν θα βλέπει καμία εγγραφή.</AlertDescription></Alert>
+              )}
+            </div>
+            <div className="space-y-2"><Label>Προσωπικές Σημειώσεις</Label><Textarea value={formData.personal_note || ''} onChange={e => setFormData({...formData, personal_note: e.target.value})} rows={4} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialog({ open: false, account: null })}>Ακύρωση</Button>
+            <Button onClick={handleSaveEdit}>Αποθήκευση</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SMS Dialog */}
+      <Dialog open={smsDialog.open} onOpenChange={o => !o && setSmsDialog({ open: false, username: null })}>
+        <DialogContent className="max-w-xl flex flex-col max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Αποστολή SMS Credentials</DialogTitle>
+            <DialogTitle>Αποστολή SMS</DialogTitle>
             <DialogDescription>
-              {smsDialog.username
-                ? `Αποστολή σε: ${smsDialog.username}`
-                : smsDialog.mode === 'all_active'
-                  ? 'Αποστολή σε όλους τους ενεργούς χρήστες'
-                  : `Αποστολή σε ${selectedIds.length} επιλεγμένους χρήστες`}
+              {smsDialog.username ? `Αποστολή σε: ${smsDialog.username}` : `Αποστολή σε ${selectedIds.length} επιλεγμένους`}
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-3 py-2 overflow-y-auto flex-1">
-            {/* Audience info */}
-            {!smsDialog.username && (
-              <div className="rounded-md bg-slate-50 dark:bg-slate-800 dark:border-slate-700 border px-3 py-2 text-sm flex gap-4">
-                {smsDialog.mode === 'all_active' ? (
-                  <span className="text-slate-700">Κοινό: <strong>Όλοι οι ενεργοί</strong></span>
-                ) : (
-                  <>
-                    <span className="text-slate-700">Επιλεγμένοι: <strong>{selectedIds.length}</strong></span>
-                    <span className="text-amber-600">
-                      Χωρίς τηλ.: <strong>
-                        {accounts.filter(a => selectedIds.includes(a.id) && !a.phone).length}
-                      </strong> (θα παραλειφθούν)
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-
+          <div className="space-y-3 overflow-y-auto flex-1 py-2">
+            <div className="space-y-1"><Label>Τίτλος</Label><Input value={smsTitle} onChange={e => setSmsTitle(e.target.value)} /></div>
+            <div className="flex items-center gap-2"><Switch checked={smsIncludeTitleLine} onCheckedChange={setSmsIncludeTitleLine} /><Label>Βάλε τίτλο στο SMS</Label></div>
+            <div className="space-y-1"><Label>Portal URL</Label><Input value={smsPortalUrl} onChange={e => setSmsPortalUrl(e.target.value)} /></div>
             <div className="space-y-1">
-              <Label>Τίτλος (UI/Logs)</Label>
-              <Input value={smsTitle} onChange={(e) => setSmsTitle(e.target.value)} />
+              <Label>Template <span className="text-xs text-slate-400">(&#123;USERNAME&#125; &#123;PASSWORD&#125; &#123;PORTAL_URL&#125; &#123;NAME&#125;)</span></Label>
+              <Textarea value={smsTemplate} onChange={e => setSmsTemplate(e.target.value)} rows={4} className="font-mono text-sm" />
             </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={smsIncludeTitleLine} onCheckedChange={setSmsIncludeTitleLine} id="include-title" />
-              <Label htmlFor="include-title" className="cursor-pointer">Βάλε τον τίτλο ως 1η γραμμή στο SMS</Label>
-            </div>
-            <div className="space-y-1">
-              <Label>Portal Login URL</Label>
-              <Input value={smsPortalUrl} onChange={(e) => setSmsPortalUrl(e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>Template <span className="text-xs text-slate-400">({"{USERNAME} {PASSWORD} {PORTAL_URL} {NAME}"})</span></Label>
-              <Textarea
-                value={smsTemplate}
-                onChange={(e) => setSmsTemplate(e.target.value)}
-                rows={4}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-slate-500">Το SMS θα περιέχει τον ήδη υπάρχοντα κωδικό του χρήστη (δεν γίνεται αλλαγή κωδικού).</p>
-            </div>
-
-            {/* Account selection (shown when not single-user mode) */}
-            {!smsDialog.username && smsDialog.mode === 'selected' && (
-              <div className="border rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-sm">Επιλογή Χρεωστικών</p>
-                    <p className="text-xs text-slate-500">
-                      Επιλεγμένοι: <b>{selectedIds.length}</b> • Χωρίς τηλέφωνο: <b>{smsNoPhoneCount}</b> (θα γίνουν skipped)
-                    </p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button type="button" variant="outline" size="sm" onClick={selectAllVisible}>Επιλογή όλων</Button>
-                    <Button type="button" variant="outline" size="sm" onClick={clearVisible}>Καθαρισμός</Button>
-                  </div>
-                </div>
-                <Input
-                  placeholder="Αναζήτηση (username / όνομα / τηλέφωνο)"
-                  value={smsSearch}
-                  onChange={(e) => setSmsSearch(e.target.value)}
-                />
-                <div className="max-h-56 overflow-auto border dark:border-slate-700 rounded p-1 space-y-0.5">
-                  {visibleSmsAccounts.length === 0 ? (
-                    <div className="text-sm text-slate-500 dark:text-slate-400 p-2">Δεν βρέθηκαν χρήστες.</div>
-                  ) : (
-                    visibleSmsAccounts.map((a) => {
-                      const checked = selectedSet.has(a.id);
-                      const hasPhone = !!(a.phone || "").trim();
-                      return (
-                        <label key={a.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) => toggleSmsOne(a.id, e.target.checked)}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-sm truncate">{a.username}</span>
-                              {!a.is_active && <span className="text-xs text-red-500">(inactive)</span>}
-                              {!hasPhone && <span className="text-xs text-amber-500">(no phone)</span>}
-                            </div>
-                            <div className="text-xs text-slate-400 truncate">{a.display_name || '—'} • {a.phone || '—'}</div>
-                          </div>
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-                <p className="text-xs text-slate-400">Χρήστες χωρίς τηλέφωνο δεν θα λάβουν SMS (skipped).</p>
-              </div>
-            )}
-
             {smsResult && (
-              <div className="rounded-lg border dark:border-slate-700 p-3 text-sm space-y-1">
-                <div className="flex gap-4 font-medium">
-                  <span className="text-green-600">✓ Εστάλησαν: {smsResult.sent}</span>
-                  <span className="text-red-600">✗ Απέτυχαν: {smsResult.failed}</span>
-                  <span className="text-amber-600">⊘ Παραλείφθηκαν: {smsResult.skipped}</span>
+              <div className="rounded-lg border p-3 text-sm space-y-1">
+                <div className="flex gap-4">
+                  <span className="text-green-600">✓ {smsResult.sent}</span>
+                  <span className="text-red-600">✗ {smsResult.failed}</span>
+                  <span className="text-amber-600">⊘ {smsResult.skipped}</span>
                 </div>
-                {smsResult.results?.filter(r => r.status !== 'sent').map((r, i) => (
-                  <div key={i} className="text-xs text-slate-500">{r.username}: {r.error || r.reason}</div>
-                ))}
               </div>
             )}
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSmsDialog({ open: false, mode: 'selected', username: null })}>
-              Κλείσιμο
-            </Button>
+            <Button variant="outline" onClick={() => setSmsDialog({ open: false, username: null })}>Κλείσιμο</Button>
             <Button onClick={handleSendSms} disabled={smsSending}>
-              {smsSending ? (
-                <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Αποστολή...</>
-              ) : (
-                <><Send className="h-4 w-4 mr-2" />Αποστολή SMS</>
-              )}
+              {smsSending ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Αποστολή...</> : <><Send className="h-4 w-4 mr-2" />Αποστολή</>}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Print Dialog */}
+      {/* Print */}
       <ChreosiPrintDialog
         open={printDialog}
         onClose={() => setPrintDialog(false)}
-        accounts={selectedIds.map(id => accounts.find(a => a.id === id)).filter(Boolean)}
-        people={people}
+        accounts={selectedIds.map(id => rows.find(r => r.id === id)).filter(Boolean)}
+        people={peopleForPrint}
       />
-
-      {/* Edit Dialog */}
-      <Dialog open={editDialog.open} onOpenChange={(open) => {
-        if (!open) setEditDialog({ open: false, account: null });
-      }}>
-        <DialogContent className="flex flex-col max-h-[95vh]">
-          <DialogHeader>
-            <DialogTitle>Επεξεργασία Λογαριασμού</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4 overflow-y-auto flex-1">
-            <div className="space-y-2">
-              <Label>Όνομα Χρήστη</Label>
-              <Input value={formData.username || ''} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label>Εμφανιζόμενο Όνομα</Label>
-              <Input
-                value={formData.display_name || ''}
-                onChange={(e) => setFormData({...formData, display_name: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Τηλέφωνο</Label>
-              <Input
-                value={formData.phone || ''}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={formData.is_active || false}
-                onCheckedChange={(v) => setFormData({...formData, is_active: v})}
-              />
-              <Label>Ενεργός</Label>
-            </div>
-            <div className="space-y-2">
-              <Label>Επιτρεπόμενα Σύμβολα Πρόβλεψης</Label>
-              <div className="border dark:border-slate-700 rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
-                {availableSymbols.length === 0 ? (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Δεν βρέθηκαν σύμβολα</p>
-                ) : (
-                  availableSymbols.map(symbol => {
-                    const selected = (formData.allowed_prediction_symbols || []).includes(symbol);
-                    return (
-                      <label key={symbol} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded">
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={(e) => {
-                            const current = formData.allowed_prediction_symbols || [];
-                            const updated = e.target.checked
-                              ? [...current, symbol]
-                              : current.filter(s => s !== symbol);
-                            setFormData({...formData, allowed_prediction_symbols: updated});
-                          }}
-                          className="rounded"
-                        />
-                        <span className="text-sm font-medium">{symbol}</span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-              {(formData.allowed_prediction_symbols || []).length === 0 && (
-                <p className="text-xs text-amber-600">⚠️ Κανένα σύμβολο δεν επιλέχθηκε — ο χρήστης θα βλέπει όλες τις εγγραφές.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Προσωπικές Σημειώσεις</Label>
-              <Textarea
-                value={formData.personal_note || ''}
-                onChange={(e) => setFormData({...formData, personal_note: e.target.value})}
-                rows={4}
-                placeholder="Δεν υπάρχουν σημειώσεις..."
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialog({ open: false, account: null })}>
-              Ακύρωση
-            </Button>
-            <Button 
-              onClick={() => updateMutation.mutate({ id: editDialog.account.id, data: formData })}
-              disabled={updateMutation.isPending}
-            >
-              Αποθήκευση
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

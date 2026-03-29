@@ -1,0 +1,59 @@
+{
+  "name": "ChreosiAccount",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "description": "Username (equals contact person name in Greek)"
+    },
+    "password_hash": {
+      "type": "string",
+      "description": "Hashed password"
+    },
+    "plain_password": {
+      "type": "string",
+      "description": "Plain text password (for admin visibility)"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "allowed_prediction_symbols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Prediction symbols this Chreosi user is allowed to see. Empty = sees NO records.",
+      "default": []
+    },
+    "allowed_voted_statuses": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "false",
+          "true"
+        ]
+      },
+      "description": "Voted statuses this user can see. 'false' = not voted, 'true' = voted. Empty = sees NO records.",
+      "default": []
+    },
+    "personal_note": {
+      "type": "string",
+      "default": "",
+      "description": "Personal note for the Chreosi user, visible only to them"
+    }
+  },
+  "required": [
+    "username",
+    "password_hash"
+  ]
+}
