@@ -327,6 +327,20 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
                 <div><div className="text-lg font-bold text-blue-600">{jobProgress.updated}</div><div className="text-xs text-slate-500">Ενημερ.</div></div>
                 <div><div className="text-lg font-bold text-red-600">{jobProgress.failed}</div><div className="text-xs text-slate-500">Αποτυχ.</div></div>
               </div>
+              {/* Live failed rows */}
+              {jobProgress.results?.filter(r => r.action === 'failed')?.length > 0 && (
+                <div className="border border-red-200 rounded-lg p-3 bg-red-50">
+                  <p className="text-xs font-semibold text-red-700 mb-2">Αποτυχημένες εγγραφές:</p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {jobProgress.results.filter(r => r.action === 'failed').map((r, i) => (
+                      <div key={i} className="text-xs text-red-600 flex gap-2">
+                        <span className="font-medium">{r.username}</span>
+                        <span className="text-red-500">— {r.error || 'Άγνωστο σφάλμα'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { createPageUrl } from '@/utils';
 import PageHeader from '../components/common/PageHeader';
 import ChreosiPrintDialog from '../components/chreosi/ChreosiPrintDialog';
 import ChreosiCreateDialog from '../components/chreosi/ChreosiCreateDialog';
@@ -22,19 +21,9 @@ import {
 import {
   UserPlus, Pencil, Key, UserX, UserCheck, Copy, Trash2, AlertTriangle,
   MessageSquare, Send, RefreshCw, Printer, Search, ChevronLeft, ChevronRight,
-  ArrowUpDown, ArrowUp, ArrowDown, GitMerge, Loader2
+  ArrowUpDown, ArrowUp, ArrowDown, GitMerge, Loader2, CheckSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-// ──────────────────────────────────────────────
-// Helpers
-// ──────────────────────────────────────────────
-function generatePassword(length = 8) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let p = '';
-  for (let i = 0; i < length; i++) p += chars.charAt(Math.floor(Math.random() * chars.length));
-  return p;
-}
 
 const VOTED_STATUS_OPTIONS = [
   { value: 'false', label: 'Δεν Ψήφισαν' },
@@ -44,10 +33,37 @@ const VOTED_STATUS_OPTIONS = [
 const PAGE_SIZE = 25;
 
 // ──────────────────────────────────────────────
-// Row Actions — rendered in a portal-like fixed div
-// to avoid table clipping issues
+// Mobile action sheet modal
 // ──────────────────────────────────────────────
-function RowActionsMenu({ row, onEdit, onResetPassword, onDelete, onSendSms, availableSymbols }) {
+function MobileActionSheet({ row, open, onClose, onEdit, onResetPassword, onDelete, onSendSms }) {
+  if (!open || !row) return null;
+  const actions = [
+    { icon: Pencil, label: 'Επεξεργασία', action: () => { onEdit(row); onClose(); } },
+    { icon: Key, label: 'Επαναφορά Κωδικού', action: () => { onResetPassword(row); onClose(); } },
+    { icon: MessageSquare, label: 'Αποστολή SMS', action: () => { onSendSms(row); onClose(); } },
+    { icon: Trash2, label: 'Διαγραφή', action: () => { onDelete(row); onClose(); }, danger: true },
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 rounded-t-2xl w-full max-w-sm p-4 space-y-2" onClick={e => e.stopPropagation()}>
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 px-2 pb-1 border-b border-slate-100 dark:border-slate-700 truncate">{row.username}</p>
+        {actions.map((item, i) => (
+          <button key={i} onClick={item.action}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+            <item.icon className="h-5 w-5" />
+            {item.label}
+          </button>
+        ))}
+        <button onClick={onClose} className="w-full text-center text-sm text-slate-400 py-2">Κλείσιμο</button>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Desktop row actions dropdown
+// ──────────────────────────────────────────────
+function RowActionsMenu({ row, onEdit, onResetPassword, onDelete, onSendSms, onMobileOpen }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef(null);
   const menuRef = useRef(null);
@@ -62,7 +78,12 @@ function RowActionsMenu({ row, onEdit, onResetPassword, onDelete, onSendSms, ava
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const handleOpen = () => {
+  const handleOpen = (e) => {
+    // On touch devices, show mobile sheet instead
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      onMobileOpen(row);
+      return;
+    }
     const rect = btnRef.current?.getBoundingClientRect();
     if (rect) setPos({ top: rect.bottom + window.scrollY + 4, left: rect.right + window.scrollX - 160 });
     setOpen(v => !v);
@@ -121,8 +142,11 @@ export default function ChreosiAccounts() {
 
   // ── Selection ──
   const [selectedIds, setSelectedIds] = useState([]);
-  // allFilteredIds: IDs across ALL pages matching current search (for true select-all)
-  const [allFilteredIds, setAllFilteredIds] = useState([]);
+  const [allFilteredIds, setAllFilteredIds] = useState(null); // null = not loaded, array = loaded
+  const [loadingAllIds, setLoadingAllIds] = useState(false);
+
+  // ── Mobile action sheet ──
+  const [mobileActionRow, setMobileActionRow] = useState(null);
 
   // ── Dialog state ──
   const [editDialog, setEditDialog] = useState({ open: false, account: null });
@@ -132,6 +156,8 @@ export default function ChreosiAccounts() {
   const [duplicatesDialog, setDuplicatesDialog] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState([]);
   const [printDialog, setPrintDialog] = useState(false);
+  const [printAccounts, setPrintAccounts] = useState([]);
+  const [printPeople, setPrintPeople] = useState([]);
   const [bulkSymbolDialog, setBulkSymbolDialog] = useState(false);
   const [bulkSymbols, setBulkSymbols] = useState([]);
   const [bulkVoted, setBulkVoted] = useState([]);
@@ -143,9 +169,6 @@ export default function ChreosiAccounts() {
   const [smsIncludeTitleLine, setSmsIncludeTitleLine] = useState(false);
   const [smsSending, setSmsSending] = useState(false);
   const [smsResult, setSmsResult] = useState(null);
-
-  // People cache for print only (loaded on demand)
-  const [peopleForPrint, setPeopleForPrint] = useState([]);
   const [loadingPrint, setLoadingPrint] = useState(false);
 
   // ──────────────────────────────────────────────
@@ -154,6 +177,7 @@ export default function ChreosiAccounts() {
   const loadAccounts = useCallback(async (overridePage) => {
     const p = overridePage ?? page;
     setLoading(true);
+    setAllFilteredIds(null); // reset select-all cache on any load
     try {
       const res = await base44.functions.invoke('chreosiListAccounts', {
         session_token: sessionToken,
@@ -169,8 +193,6 @@ export default function ChreosiAccounts() {
       setTotal(d.total || 0);
       setTotalPages(d.totalPages || 1);
       setAvailableSymbols(d.availableSymbols || []);
-      // Build allFilteredIds from full filtered list (total), but we can only do select-all on current page without another call
-      setAllFilteredIds(d.rows?.map(r => r.id) || []);
     } catch (err) {
       toast.error(err.message || 'Σφάλμα φόρτωσης');
     } finally {
@@ -182,10 +204,10 @@ export default function ChreosiAccounts() {
     loadAccounts();
   }, [page, sortField, sortDir]);
 
-  // On search change, reset to page 0
   useEffect(() => {
     setPage(0);
     setSelectedIds([]);
+    setAllFilteredIds(null);
     loadAccounts(0);
   }, [search]);
 
@@ -206,14 +228,45 @@ export default function ChreosiAccounts() {
   const selectedAccounts = rows.filter(r => selectedSet.has(r.id));
   const allPageSelected = rows.length > 0 && rows.every(r => selectedSet.has(r.id));
   const somePageSelected = rows.some(r => selectedSet.has(r.id));
+  const allFilteredSelected = allFilteredIds !== null && allFilteredIds.length > 0 && allFilteredIds.every(id => selectedSet.has(id));
 
   const toggleSelectAll = () => {
     if (allPageSelected) setSelectedIds(prev => prev.filter(id => !rows.find(r => r.id === id)));
     else setSelectedIds(prev => [...new Set([...prev, ...rows.map(r => r.id)])]);
   };
 
+  const handleSelectAllFiltered = async () => {
+    if (allFilteredSelected) {
+      // Deselect all filtered
+      setSelectedIds([]);
+      setAllFilteredIds(null);
+      return;
+    }
+    if (allFilteredIds !== null) {
+      // Already loaded — select them all
+      setSelectedIds(allFilteredIds);
+      return;
+    }
+    setLoadingAllIds(true);
+    try {
+      const res = await base44.functions.invoke('chreosiAccountActions', {
+        session_token: sessionToken,
+        action: 'get_all_filtered_ids',
+        data: { search },
+      });
+      if (!res.data?.ok) throw new Error('Failed to load IDs');
+      const ids = res.data.ids;
+      setAllFilteredIds(ids);
+      setSelectedIds(ids);
+    } catch (err) {
+      toast.error('Σφάλμα φόρτωσης');
+    } finally {
+      setLoadingAllIds(false);
+    }
+  };
+
   // ──────────────────────────────────────────────
-  // Edit / Reset / Delete
+  // Edit / Reset / Delete — all go through backend
   // ──────────────────────────────────────────────
   const handleEdit = (account) => {
     setFormData({ ...account });
@@ -222,14 +275,20 @@ export default function ChreosiAccounts() {
 
   const handleSaveEdit = async () => {
     try {
-      await base44.entities.ChreosiAccount.update(editDialog.account.id, {
-        display_name: formData.display_name,
-        phone: formData.phone,
-        is_active: formData.is_active,
-        allowed_prediction_symbols: formData.allowed_prediction_symbols || [],
-        allowed_voted_statuses: formData.allowed_voted_statuses || [],
-        personal_note: formData.personal_note,
+      const res = await base44.functions.invoke('chreosiAccountActions', {
+        session_token: sessionToken,
+        action: 'update',
+        accountId: editDialog.account.id,
+        data: {
+          display_name: formData.display_name,
+          phone: formData.phone,
+          is_active: formData.is_active,
+          allowed_prediction_symbols: formData.allowed_prediction_symbols || [],
+          allowed_voted_statuses: formData.allowed_voted_statuses || [],
+          personal_note: formData.personal_note,
+        },
       });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Update failed');
       toast.success('Ο λογαριασμός ενημερώθηκε');
       setEditDialog({ open: false, account: null });
       loadAccounts();
@@ -239,72 +298,84 @@ export default function ChreosiAccounts() {
   };
 
   const handleResetPassword = async (row) => {
-    const newPw = generatePassword();
-    await base44.entities.ChreosiAccount.update(row.id, { password_hash: newPw, plain_password: newPw });
-    toast.success(`Νέος κωδικός: ${newPw}`);
-    navigator.clipboard.writeText(newPw).catch(() => {});
-    loadAccounts();
+    try {
+      const res = await base44.functions.invoke('chreosiAccountActions', {
+        session_token: sessionToken,
+        action: 'reset_password',
+        accountId: row.id,
+      });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Reset failed');
+      const newPw = res.data.newPassword;
+      toast.success(`Νέος κωδικός: ${newPw}`);
+      navigator.clipboard.writeText(newPw).catch(() => {});
+      loadAccounts();
+    } catch (err) {
+      toast.error(err.message || 'Σφάλμα επαναφοράς');
+    }
   };
 
   const handleDelete = (row) => setDeleteDialog({ open: true, ids: [row.id], label: row.username });
   const handleBulkDelete = () => setDeleteDialog({ open: true, ids: selectedIds, label: `${selectedIds.length} λογαριασμοί` });
 
   const confirmDelete = async () => {
-    for (const id of deleteDialog.ids) {
-      try {
-        await base44.entities.ChreosiAccount.delete(id);
-      } catch (e) {
-        // Already deleted or not found — skip silently
-      }
-      await new Promise(r => setTimeout(r, 150));
+    try {
+      const res = await base44.functions.invoke('chreosiAccountActions', {
+        session_token: sessionToken,
+        action: 'bulk_delete',
+        accountIds: deleteDialog.ids,
+      });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Delete failed');
+      toast.success('Διαγράφηκαν');
+    } catch (err) {
+      toast.error(err.message || 'Σφάλμα διαγραφής');
     }
-    toast.success('Διαγράφηκαν');
     setDeleteDialog({ open: false, ids: [], label: '' });
     setSelectedIds([]);
+    setAllFilteredIds(null);
     loadAccounts();
   };
 
   const handleBulkActivate = async (active) => {
-    for (const id of selectedIds) {
-      const acc = rows.find(a => a.id === id);
-      if (acc) await base44.entities.ChreosiAccount.update(id, { is_active: active });
-      await new Promise(r => setTimeout(r, 150));
+    try {
+      const res = await base44.functions.invoke('chreosiAccountActions', {
+        session_token: sessionToken,
+        action: 'bulk_set_active',
+        accountIds: selectedIds,
+        data: { is_active: active },
+      });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Failed');
+      toast.success(`${selectedIds.length} λογαριασμοί ${active ? 'ενεργοποιήθηκαν' : 'απενεργοποιήθηκαν'}`);
+    } catch (err) {
+      toast.error(err.message || 'Σφάλμα');
     }
-    toast.success(`${selectedIds.length} λογαριασμοί ${active ? 'ενεργοποιήθηκαν' : 'απενεργοποιήθηκαν'}`);
     setSelectedIds([]);
+    setAllFilteredIds(null);
     loadAccounts();
   };
 
   // ──────────────────────────────────────────────
-  // Bulk symbol/voted update
+  // Bulk symbol/voted update — backend only
   // ──────────────────────────────────────────────
   const handleBulkSettingsApply = async () => {
     setIsBulkUpdating(true);
     try {
-      let start = 0;
-      let totalUpdated = 0;
-      let allFailed = [];
-      while (start < selectedIds.length) {
-        const res = await base44.functions.invoke('bulkUpdateChreosiSymbols', {
-          accountIds: selectedIds,
-          symbolsToAssign: bulkSymbols,
-          start, max: 80, delayMs: 350
-        });
-        if (!res?.data?.ok) throw new Error(res?.data?.error || 'Bulk update failed');
-        totalUpdated += res.data.updated || 0;
-        if (res.data.failed?.length) allFailed = allFailed.concat(res.data.failed);
-        start = res.data.nextStart ?? selectedIds.length;
-      }
-      // Also update voted statuses one by one
-      for (const id of selectedIds) {
-        await base44.entities.ChreosiAccount.update(id, { allowed_voted_statuses: bulkVoted });
-        await new Promise(r => setTimeout(r, 200));
-      }
+      const res = await base44.functions.invoke('chreosiAccountActions', {
+        session_token: sessionToken,
+        action: 'bulk_settings',
+        accountIds: selectedIds,
+        data: {
+          allowed_prediction_symbols: bulkSymbols,
+          allowed_voted_statuses: bulkVoted,
+        },
+      });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Bulk update failed');
+      const { updated, failed } = res.data;
       setBulkSymbolDialog(false);
       setSelectedIds([]);
+      setAllFilteredIds(null);
       loadAccounts();
-      if (allFailed.length > 0) toast.warning(`Ολοκληρώθηκε με σφάλματα: ${allFailed.length}`);
-      else toast.success(`Ενημερώθηκαν ${totalUpdated} λογαριασμοί`);
+      if (failed?.length > 0) toast.warning(`Ολοκληρώθηκε με σφάλματα: ${failed.length}`);
+      else toast.success(`Ενημερώθηκαν ${updated} λογαριασμοί`);
     } catch (err) {
       toast.error(err.message || 'Σφάλμα');
     } finally {
@@ -333,23 +404,21 @@ export default function ChreosiAccounts() {
   };
 
   // ──────────────────────────────────────────────
-  // Print: load people on demand
+  // Print: load people via backend (no client-side Person loading)
   // ──────────────────────────────────────────────
   const handleOpenPrint = async () => {
     setLoadingPrint(true);
     try {
-      let all = [];
-      let skip = 0;
-      while (true) {
-        const batch = await base44.entities.Person.list(null, 1000, skip);
-        all = all.concat(batch);
-        if (batch.length < 1000) break;
-        skip += 1000;
-      }
-      setPeopleForPrint(all);
+      const res = await base44.functions.invoke('chreosiPrintData', {
+        session_token: sessionToken,
+        accountIds: selectedIds,
+      });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Failed to load print data');
+      setPrintAccounts(res.data.accounts || []);
+      setPrintPeople(res.data.people || []);
       setPrintDialog(true);
     } catch (err) {
-      toast.error('Αποτυχία φόρτωσης εγγραφών για εκτύπωση');
+      toast.error('Αποτυχία φόρτωσης δεδομένων εκτύπωσης');
     } finally {
       setLoadingPrint(false);
     }
@@ -416,8 +485,17 @@ export default function ChreosiAccounts() {
         {selectedIds.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 ml-auto">
             <span className="text-sm text-slate-600">{selectedIds.length} επιλεγμένα</span>
+            {/* Select all across pages */}
+            {total > PAGE_SIZE && (
+              <Button variant="outline" size="sm" onClick={handleSelectAllFiltered} disabled={loadingAllIds}>
+                {loadingAllIds
+                  ? <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  : <CheckSquare className="h-4 w-4 mr-2" />}
+                {allFilteredSelected ? 'Αποεπιλογή Όλων' : `Επιλογή Όλων (${total})`}
+              </Button>
+            )}
             {selectedIds.length === 1 && (
-              <Button variant="outline" size="sm" onClick={() => handleEdit(rows.find(r => r.id === selectedIds[0]))}>
+              <Button variant="outline" size="sm" onClick={() => handleEdit(rows.find(r => r.id === selectedIds[0]) || { id: selectedIds[0] })}>
                 <Pencil className="h-4 w-4 mr-2" />Επεξεργασία
               </Button>
             )}
@@ -548,7 +626,7 @@ export default function ChreosiAccounts() {
                           onResetPassword={handleResetPassword}
                           onDelete={handleDelete}
                           onSendSms={(r) => { setSmsResult(null); setSmsDialog({ open: true, username: r.username }); }}
-                          availableSymbols={availableSymbols}
+                          onMobileOpen={setMobileActionRow}
                         />
                       </TableCell>
                     </TableRow>
@@ -574,6 +652,17 @@ export default function ChreosiAccounts() {
           </div>
         </div>
       )}
+
+      {/* ── Mobile action sheet ── */}
+      <MobileActionSheet
+        row={mobileActionRow}
+        open={!!mobileActionRow}
+        onClose={() => setMobileActionRow(null)}
+        onEdit={handleEdit}
+        onResetPassword={handleResetPassword}
+        onDelete={handleDelete}
+        onSendSms={(r) => { setSmsResult(null); setSmsDialog({ open: true, username: r.username }); }}
+      />
 
       {/* ── Dialogs ── */}
 
@@ -755,8 +844,8 @@ export default function ChreosiAccounts() {
       <ChreosiPrintDialog
         open={printDialog}
         onClose={() => setPrintDialog(false)}
-        accounts={selectedIds.map(id => rows.find(r => r.id === id)).filter(Boolean)}
-        people={peopleForPrint}
+        accounts={printAccounts}
+        people={printPeople}
       />
     </div>
   );

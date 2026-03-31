@@ -2,7 +2,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import bcrypt from 'npm:bcryptjs@2.4.3';
 
 function normalizeUsername(str) {
-    return (str || '').trim().replace(/\s+/g, ' ');
+    if (!str) return '';
+    return str.trim().replace(/\s+/g, ' ').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC');
 }
 
 function generateToken() {
@@ -42,8 +44,18 @@ Deno.serve(async (req) => {
 
         const normalizedUsername = normalizeUsername(username);
 
-        // Try Chreosi accounts first
-        const chreosiAccounts = await base44.asServiceRole.entities.ChreosiAccount.filter({ username: normalizedUsername });
+        // Try Chreosi accounts — fetch all and match by normalized username
+        // (exact filter won't work for normalized keys since DB stores original casing)
+        let chreosiAccountsAll = [];
+        let cSkip = 0;
+        while (true) {
+            const batch = await base44.asServiceRole.entities.ChreosiAccount.list(null, 500, cSkip);
+            if (!batch || batch.length === 0) break;
+            chreosiAccountsAll = chreosiAccountsAll.concat(batch);
+            cSkip += 500;
+            if (batch.length < 500) break;
+        }
+        const chreosiAccounts = chreosiAccountsAll.filter(a => normalizeUsername(a.username) === normalizedUsername);
         if (chreosiAccounts.length > 0) {
             const account = chreosiAccounts[0];
             if (!account.is_active) {
@@ -70,8 +82,17 @@ Deno.serve(async (req) => {
             return Response.json({ success: true, token, portalType: 'chreosi', username: normalizedUsername });
         }
 
-        // Try Kanali accounts
-        const kanaliAccounts = await base44.asServiceRole.entities.KanaliAccount.filter({ username: normalizedUsername });
+        // Try Kanali accounts — same normalized lookup
+        let kanaliAccountsAll = [];
+        let kSkip = 0;
+        while (true) {
+            const batch = await base44.asServiceRole.entities.KanaliAccount.list(null, 500, kSkip);
+            if (!batch || batch.length === 0) break;
+            kanaliAccountsAll = kanaliAccountsAll.concat(batch);
+            kSkip += 500;
+            if (batch.length < 500) break;
+        }
+        const kanaliAccounts = kanaliAccountsAll.filter(a => normalizeUsername(a.username) === normalizedUsername);
         if (kanaliAccounts.length > 0) {
             const account = kanaliAccounts[0];
             if (!account.is_active) {

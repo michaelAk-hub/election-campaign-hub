@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
       try {
         if (contact.existingId) {
           // Update existing — do NOT overwrite display_name or password
+          const existingAcc = await base44.asServiceRole.entities.ChreosiAccount.get(contact.existingId);
           await base44.asServiceRole.entities.ChreosiAccount.update(contact.existingId, {
             allowed_prediction_symbols,
             allowed_voted_statuses,
@@ -57,7 +58,7 @@ Deno.serve(async (req) => {
           results.push({
             username: contact.existingUsername || contact.original,
             display_name: contact.original,
-            plain_password: '', // not changed
+            plain_password: existingAcc?.plain_password || '',
             action: 'updated',
             symbols: allowed_prediction_symbols.join(', '),
             voted_statuses: allowed_voted_statuses.join(', '),

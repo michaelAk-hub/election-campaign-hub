@@ -81,18 +81,19 @@ Deno.serve(async (req) => {
     const total = filtered.length;
     const rows = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
-    // Get available symbols from Person table (cached via a simple full pass)
+    // Get available symbols from existing accounts (fast — no Person scan needed here).
+    // This is consistent because accounts are assigned symbols explicitly.
+    // The full symbol list from Person is only needed in the create/analyze flow.
     const symbolSet = new Set();
-    let pSkip = 0;
-    while (true) {
-      const batch = await base44.asServiceRole.entities.Person.list(null, 500, pSkip);
-      if (!batch || batch.length === 0) break;
-      for (const p of batch) {
-        if (p.prediction_symbol) symbolSet.add(p.prediction_symbol);
+    for (const acc of allAccounts) {
+      for (const s of (acc.allowed_prediction_symbols || [])) {
+        if (s) symbolSet.add(s);
       }
-      pSkip += 500;
-      if (batch.length < 500) break;
     }
+    // Also pull symbols directly from Person but only the prediction_symbol field
+    // by fetching a small sample to seed new symbols not yet assigned to accounts.
+    // We do this by scanning PredictionStatsBySymbol if available, or skip if too expensive.
+    // For now: return symbols from accounts (fast) and the full list is fetched once in chreosiAnalyze.
 
     return Response.json({
       ok: true,

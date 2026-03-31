@@ -118,6 +118,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Collect available prediction symbols from Person table
+    const symbolSet = new Set();
+    let symSkip = 0;
+    while (true) {
+      const batch = await base44.asServiceRole.entities.Person.list(null, 500, symSkip);
+      if (!batch || batch.length === 0) break;
+      for (const p of batch) {
+        if (p.prediction_symbol) symbolSet.add(p.prediction_symbol);
+      }
+      symSkip += 500;
+      if (batch.length < 500) break;
+    }
+
     return Response.json({
       ok: true,
       totalPersons,
@@ -130,6 +143,7 @@ Deno.serve(async (req) => {
       extraAccounts,
       accountsNeedingReview,
       hasDuplicates: duplicateGroups.length > 0,
+      availableSymbols: [...symbolSet].sort(),
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
