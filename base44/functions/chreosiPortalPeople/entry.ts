@@ -105,9 +105,18 @@ Deno.serve(async (req) => {
       if (batch.length < 500) break;
     }
 
-    // Compute available filter options from result set (before search/tab filter for dept/year combos)
+    // Compute available filter options from result set
     const depts = [...new Set(result.map(p => p.department).filter(Boolean))].sort();
     const years = [...new Set(result.map(p => p.admission_year).filter(Boolean))].sort();
+
+    // Load checkmarks for this user (normalized match)
+    const allChecks = await base44.asServiceRole.entities.ChreosiCheckmark.filter({ chreosi_username: normalizedUsername });
+    // Also try exact match if normalized differs
+    let checkmarks = allChecks;
+    if (!checkmarks.length) {
+      const byNorm = await base44.asServiceRole.entities.ChreosiCheckmark.list(null, 1000, 0);
+      checkmarks = byNorm.filter(c => normalizeUsername(c.chreosi_username) === normalizedUsername);
+    }
 
     return Response.json({
       ok: true,
@@ -116,6 +125,7 @@ Deno.serve(async (req) => {
       account,
       availableDepts: depts,
       availableYears: years,
+      checkmarks,
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

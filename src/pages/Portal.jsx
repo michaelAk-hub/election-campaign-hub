@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { Button } from "@/components/ui/button";
@@ -28,9 +28,7 @@ import {
   User,
   CheckCircle2,
   AlertCircle,
-  Filter,
   MessageSquare,
-  X,
   Loader2,
   Trash2
 } from 'lucide-react';
@@ -44,7 +42,6 @@ function normalizeUsername(str) {
 
 // Chreosi Portal Component — backend-driven, no client-side Person table scan
 function ChreosiPortal({ username }) {
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
@@ -85,51 +82,79 @@ function ChreosiPortal({ username }) {
   }, [account?.id]);
 
   const savePersonalNote = async () => {
-    if (!account) return;
     setSavingPersonalNote(true);
-    await base44.entities.ChreosiAccount.update(account.id, { personal_note: personalNote });
-    setSavingPersonalNote(false);
-    toast.success('Οι προσωπικές σημειώσεις αποθηκεύτηκαν');
-    refetch();
+    try {
+      const res = await base44.functions.invoke('chreosiPortalActions', {
+        action: 'save_personal_note',
+        session_token: sessionToken,
+        note: personalNote,
+      });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Save failed');
+      toast.success('Οι προσωπικές σημειώσεις αποθηκεύτηκαν');
+      refetch();
+    } catch (err) {
+      toast.error(err.message || 'Σφάλμα αποθήκευσης');
+    } finally {
+      setSavingPersonalNote(false);
+    }
   };
 
-  const { data: checkmarks = [] } = useQuery({
-    queryKey: ['checkmarks', username],
-    queryFn: () => base44.entities.ChreosiCheckmark.filter({ chreosi_username: username })
-  });
+  // Checkmark state managed locally for optimistic UI
+  const [checkmarkMap, setCheckmarkMap] = React.useState(new Map());
+
+  React.useEffect(() => {
+    // Build checkmark map from portalData if included, or keep local state
+    if (portalData?.checkmarks) {
+      setCheckmarkMap(new Map(portalData.checkmarks.map(c => [c.person_record_id, c.checked])));
+    }
+  }, [portalData?.checkmarks]);
 
   const updateNotesMutation = useMutation({
-    mutationFn: ({ id, notes }) => base44.entities.Person.update(id, { notes }),
+    mutationFn: async ({ id, notes }) => {
+      const res = await base44.functions.invoke('chreosiPortalActions', {
+        action: 'update_person_note',
+        session_token: sessionToken,
+        person_id: id,
+        notes,
+      });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Save failed');
+    },
     onSuccess: () => {
       refetch();
       setEditingNotes(null);
       toast.success('Οι σημειώσεις αποθηκεύτηκαν');
-    }
+    },
+    onError: (err) => toast.error(err.message || 'Σφάλμα αποθήκευσης'),
   });
 
   const toggleCheckmarkMutation = useMutation({
     mutationFn: async ({ personId, checked }) => {
-      const existing = checkmarks.find(c => c.person_record_id === personId);
-      if (existing) return base44.entities.ChreosiCheckmark.update(existing.id, { checked });
-      return base44.entities.ChreosiCheckmark.create({ chreosi_username: username, person_record_id: personId, checked });
+      const res = await base44.functions.invoke('chreosiPortalActions', {
+        action: 'toggle_checkmark',
+        session_token: sessionToken,
+        person_id: personId,
+        checked,
+      });
+      if (!res.data?.ok) throw new Error(res.data?.error || 'Toggle failed');
     },
     onMutate: async ({ personId, checked }) => {
-      await queryClient.cancelQueries(['checkmarks', username]);
-      const previous = queryClient.getQueryData(['checkmarks', username]);
-      queryClient.setQueryData(['checkmarks', username], (old = []) => {
-        const existing = old.find(c => c.person_record_id === personId);
-        if (existing) return old.map(c => c.person_record_id === personId ? { ...c, checked } : c);
-        return [...old, { chreosi_username: username, person_record_id: personId, checked, id: `temp-${personId}` }];
+      // Optimistic update
+      setCheckmarkMap(prev => {
+        const next = new Map(prev);
+        next.set(personId, checked);
+        return next;
       });
-      return { previous };
     },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(['checkmarks', username], context.previous);
+    onError: (_err, { personId, checked }) => {
+      // Revert on error
+      setCheckmarkMap(prev => {
+        const next = new Map(prev);
+        next.set(personId, !checked);
+        return next;
+      });
+      toast.error('Σφάλμα ενημέρωσης');
     },
-    onSettled: () => queryClient.invalidateQueries(['checkmarks', username]),
   });
-
-  const checkmarkMap = new Map(checkmarks.map(c => [c.person_record_id, c.checked]));
 
   const noAccess = account && (!account.allowed_prediction_symbols?.length || !account.allowed_voted_statuses?.length);
 
@@ -296,7 +321,6 @@ function ChreosiPortal({ username }) {
 
 // Kanali Type A Portal Component
 function KanaliTypeAPortal({ username }) {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [inputId, setInputId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -553,21 +577,14 @@ export default function Portal() {
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
     try {
-      if (session.portalType === 'chreosi') {
-        const accounts = await base44.entities.ChreosiAccount.filter({ username: session.username });
-        if (accounts[0]) await base44.entities.ChreosiAccount.update(accounts[0].id, { is_active: false });
-      } else {
-        const accounts = await base44.entities.KanaliAccount.filter({ username: session.username });
-        if (accounts[0]) await base44.entities.KanaliAccount.update(accounts[0].id, { is_active: false });
-      }
-      // Delete portal session
-      const sessions = await base44.entities.PortalSession.filter({ session_token: session.token });
-      if (sessions[0]) await base44.entities.PortalSession.update(sessions[0].id, { is_active: false });
+      await base44.functions.invoke('chreosiPortalActions', {
+        action: 'deactivate_self',
+        session_token: session.token,
+      });
+    } catch (err) {
+      console.error('Deactivate self error:', err);
     } finally {
-      localStorage.removeItem('portal_session');
-      localStorage.removeItem('portal_type');
-      localStorage.removeItem('portal_username');
-      localStorage.removeItem('kanali_type');
+      ['portal_session', 'portal_type', 'portal_username', 'kanali_type'].forEach(k => localStorage.removeItem(k));
       navigate(createPageUrl('PortalLogin'));
     }
   };

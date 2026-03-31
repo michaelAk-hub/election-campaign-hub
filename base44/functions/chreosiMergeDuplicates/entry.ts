@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     const symbolUnion = [...new Set(allAccounts.flatMap(a => a.allowed_prediction_symbols || []))];
     const votedUnion = [...new Set(allAccounts.flatMap(a => a.allowed_voted_statuses || []))];
     const notesParts = allAccounts.map(a => a.personal_note).filter(Boolean);
-    const mergedNote = notesParts.join('\n---\n');
+    const mergedNote = notesParts.join('\nΕποπροσθετες σημείωσης\n');
 
     // Update keeper
     await base44.asServiceRole.entities.ChreosiAccount.update(keeperId, {
