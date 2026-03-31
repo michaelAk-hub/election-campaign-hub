@@ -76,7 +76,7 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
         setJobId(d.jobId);
         setJobProgress(d);
         setStep('running');
-        startPolling(d.jobId);
+        // driveJob is triggered by the step='running' useEffect below
       }
     } catch {}
   };
