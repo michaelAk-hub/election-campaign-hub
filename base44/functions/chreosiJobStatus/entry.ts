@@ -40,7 +40,11 @@ Deno.serve(async (req) => {
     if (jobId) {
       const job = await base44.asServiceRole.entities.ChreosiCreateJob.get(jobId);
       if (!job) return Response.json({ found: false });
-      const results = job.status === 'done' ? JSON.parse(job.results_json || '[]') : [];
+      // Return recent failed rows while running; full results when done
+      const allResults = JSON.parse(job.results_json || '[]');
+      const results = job.status === 'done'
+        ? allResults
+        : allResults.filter(r => r.action === 'failed').slice(-20);
       return Response.json({
         found: true,
         jobId: job.id,

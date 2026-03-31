@@ -97,49 +97,89 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
     }
   };
 
-  const startPolling = useCallback((jId) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await base44.functions.invoke('chreosiJobStatus', { session_token: sessionToken, jobId: jId });
+  // Drive the job: repeatedly call continueJob until done, with status updates in between
+  const driveRef = useRef(false);
+
+  const driveJob = useCallback(async (jId) => {
+    if (driveRef.current) return; // prevent concurrent drives
+    driveRef.current = true;
+    try {
+      while (true) {
+        // Call continueJob — it processes batches until time budget or completion
+        const res = await base44.functions.invoke('chreosiContinueCreateJob', {
+          session_token: sessionToken,
+          jobId: jId,
+        });
         const d = res.data;
-        if (!d?.found) { clearInterval(pollRef.current); return; }
-        setJobProgress(d);
-        if (d.status === 'done' || d.status === 'error') {
-          clearInterval(pollRef.current);
+
+        if (d?.error) {
+          setStep('error');
+          driveRef.current = false;
+          return;
+        }
+
+        // Update progress UI from the continue response
+        if (d) {
+          setJobProgress({
+            found: true,
+            jobId: jId,
+            status: d.status,
+            total: d.total,
+            processed: d.processed,
+            created: d.created,
+            updated: d.updated,
+            skipped: d.skipped,
+            failed: d.failed,
+            results: d.results || [],
+          });
+        }
+
+        if (d?.done || d?.status === 'done' || d?.status === 'error') {
           setStep(d.status === 'done' ? 'done' : 'error');
           if (d.status === 'done') {
             onDone?.();
             toast.success(`Ολοκληρώθηκε: ${d.created} δημιουργήθηκαν, ${d.updated} ενημερώθηκαν`);
           }
+          driveRef.current = false;
+          return;
         }
-      } catch {}
-    }, 3000);
+
+        // Not done yet — short pause then continue
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (err) {
+      console.error('Drive job error:', err);
+      driveRef.current = false;
+      // On network error, fall back to status polling
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await base44.functions.invoke('chreosiJobStatus', { session_token: sessionToken, jobId: jId });
+          const d = res.data;
+          if (!d?.found) { clearInterval(pollRef.current); return; }
+          setJobProgress(d);
+          if (d.status === 'done' || d.status === 'error') {
+            clearInterval(pollRef.current);
+            setStep(d.status === 'done' ? 'done' : 'error');
+            if (d.status === 'done') { onDone?.(); toast.success(`Ολοκληρώθηκε: ${d.created} δημιουργήθηκαν, ${d.updated} ενημερώθηκαν`); }
+          }
+          if ((d.status === 'pending' || d.status === 'running') && !driveRef.current) {
+            clearInterval(pollRef.current);
+            driveJob(jId);
+          }
+        } catch {}
+      }, 5000);
+    }
   }, [sessionToken, onDone]);
 
-  const continueJob = useCallback(async (jId) => {
-    try {
-      await base44.functions.invoke('chreosiContinueCreateJob', { jobId: jId });
-    } catch (err) {
-      console.error('Continue job error:', err);
-    }
-  }, []);
-
-  // Drive the job forward: poll + continue
+  // When step becomes 'running', start driving the job
   useEffect(() => {
     if (step !== 'running' || !jobId) return;
-    const drive = async () => {
-      const res = await base44.functions.invoke('chreosiJobStatus', { session_token: sessionToken, jobId });
-      const d = res.data;
-      if (!d?.found) return;
-      setJobProgress(d);
-      if (d.status === 'pending' || (d.status === 'running' && d.processed < d.total)) {
-        await continueJob(jobId);
-      }
+    driveRef.current = false;
+    driveJob(jobId);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
     };
-    drive();
-    startPolling(jobId);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [step, jobId]);
 
   const handleStartJob = async () => {

@@ -111,14 +111,25 @@ Deno.serve(async (req) => {
       if (batch.length < 500) break;
     }
 
-    // Invalidate portal sessions for merged-away usernames
+    // Invalidate portal sessions for merged-away usernames (match by normalized username)
+    // portalLogin stores the normalized username in the session, so we must match normalized
     for (const acc of mergeAccounts) {
-      const sessions = await base44.asServiceRole.entities.PortalSession.filter({
-        username: acc.username, portal_type: 'chreosi', is_active: true
-      });
-      for (const s of sessions) {
-        await base44.asServiceRole.entities.PortalSession.update(s.id, { is_active: false });
-        await sleep(50);
+      const normAcc = normalizeUsername(acc.username);
+      // Fetch all chreosi sessions and match by normalized username
+      let sesSkip = 0;
+      while (true) {
+        const sesBatch = await base44.asServiceRole.entities.PortalSession.filter(
+          { portal_type: 'chreosi', is_active: true }, null, 200, sesSkip
+        );
+        if (!sesBatch || sesBatch.length === 0) break;
+        for (const s of sesBatch) {
+          if (normalizeUsername(s.username) === normAcc) {
+            await base44.asServiceRole.entities.PortalSession.update(s.id, { is_active: false });
+            await sleep(50);
+          }
+        }
+        sesSkip += 200;
+        if (sesBatch.length < 200) break;
       }
     }
 
