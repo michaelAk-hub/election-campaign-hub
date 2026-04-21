@@ -1,0 +1,20 @@
+{
+  "name": "PredictionRebuildLock",
+  "type": "object",
+  "properties": {
+    "lock_key": {
+      "type": "string"
+    },
+    "locked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "lock_version": {
+      "type": "number",
+      "default": 1
+    }
+  },
+  "required": [
+    "lock_key"
+  ]
+}

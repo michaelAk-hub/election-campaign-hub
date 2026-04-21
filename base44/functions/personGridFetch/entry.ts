@@ -1,8 +1,11 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.6";
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.23";
 
 const POSTGRAD = ["Δ", "Μ", "Μεταπτυχιακός Εράσμους"];
 const UNDERGRAD = ["Π", "Προπτυχιακός Εράσμους"];
 const IDLE_TIMEOUT_SECONDS = 15 * 60;
+const HEARTBEAT_WRITE_INTERVAL_MS = 60000;
+const SEARCH_MIN_CHARS = 2;
+const MAX_OFFSET = 500000;
 
 function buildPartitionCondition(partition) {
   if (partition === "postgrad") return { academic_level: { $in: POSTGRAD } };
@@ -70,8 +73,11 @@ async function validateSession(base44, session_token) {
     }
   }
 
-  // Update last_seen_at
-  await base44.asServiceRole.entities.AppSession.update(session.id, { last_seen_at: new Date().toISOString() });
+  // Throttled heartbeat — fire-and-forget, only write if enough time has passed
+  const lastSeen = session.last_seen_at ? new Date(session.last_seen_at).getTime() : 0;
+  if (Date.now() - lastSeen >= HEARTBEAT_WRITE_INTERVAL_MS) {
+    base44.asServiceRole.entities.AppSession.update(session.id, { last_seen_at: new Date().toISOString() }).catch(() => {});
+  }
 
   return { user, session };
 }
@@ -92,16 +98,19 @@ Deno.serve(async (req) => {
       return Response.json({ error: auth.error, ...(auth.force_logout ? { force_logout: true } : {}), ...(auth.reason ? { reason: auth.reason } : {}) }, { status: auth.status });
     }
 
-    const startRow = Number(getAny("startRow", 0));
+    const exportAll = Boolean(getAny("exportAll", false));
+    const startRow = Math.min(Number(getAny("startRow", 0)), MAX_OFFSET);
     const endRow   = Number(getAny("endRow", 100));
     const sortField = String(getAny("sortField", "created_date"));
     const sortDirection = String(getAny("sortDirection", "desc"));
-    const search = String(getAny("search", "")).trim();
+    const rawSearch = String(getAny("search", "")).trim();
+    const search = rawSearch.length >= SEARCH_MIN_CHARS ? rawSearch : "";
     const partition = String(getAny("partition", "postgrad"));
     const filters = normalizeFilters(getAny("filters", null));
     const datasetId = getAny("datasetId", null);
 
-    const limit = Math.max(1, Math.min((endRow - startRow) || 100, 1000));
+    const requestedLimit = Math.max(1, (endRow - startRow) || 100);
+    const limit = exportAll ? requestedLimit : Math.min(requestedLimit, 1000);
     const sort = sortDirection === "asc" ? sortField : `-${sortField}`;
 
     let resolvedDatasetId = datasetId;
@@ -190,8 +199,6 @@ Deno.serve(async (req) => {
 
     let lastRow = -1;
     if (rows.length < limit) lastRow = startRow + rows.length;
-
-    console.log(`[personGridFetch] partition=${partition} startRow=${startRow} rows=${rows.length} lastRow=${lastRow} sort=${sort}`);
 
     return Response.json({ rows, lastRow });
   } catch (err) {
