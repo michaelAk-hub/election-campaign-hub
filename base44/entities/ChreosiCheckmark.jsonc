@@ -1,0 +1,22 @@
+{
+  "name": "ChreosiCheckmark",
+  "type": "object",
+  "properties": {
+    "chreosi_username": {
+      "type": "string",
+      "description": "Chreosi user who made the checkmark"
+    },
+    "person_record_id": {
+      "type": "string",
+      "description": "ID of the person record"
+    },
+    "checked": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "chreosi_username",
+    "person_record_id"
+  ]
+}

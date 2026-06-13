@@ -1,0 +1,36 @@
+{
+  "name": "AppSession",
+  "type": "object",
+  "properties": {
+    "session_token": {
+      "type": "string",
+      "description": "Unique session token"
+    },
+    "app_user_id": {
+      "type": "string",
+      "description": "Reference to AppUser"
+    },
+    "session_version_at_login": {
+      "type": "number",
+      "description": "Session version when logged in"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last heartbeat timestamp for online status"
+    }
+  },
+  "required": [
+    "session_token",
+    "app_user_id",
+    "session_version_at_login"
+  ]
+}

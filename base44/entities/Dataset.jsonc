@@ -1,0 +1,46 @@
+{
+  "name": "Dataset",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Dataset name"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "mapping",
+        "active",
+        "archived"
+      ],
+      "default": "pending"
+    },
+    "source_file_url": {
+      "type": "string",
+      "description": "Original uploaded file URL"
+    },
+    "field_mappings": {
+      "type": "object",
+      "description": "Mapping of canonical fields to source columns"
+    },
+    "custom_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of custom field names from source"
+    },
+    "total_records": {
+      "type": "number",
+      "default": 0
+    },
+    "activated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

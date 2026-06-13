@@ -1,0 +1,119 @@
+{
+  "name": "SavedQuery",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Query name"
+    },
+    "description": {
+      "type": "string"
+    },
+    "filters": {
+      "type": "object",
+      "description": "Legacy filter configuration"
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Selected columns"
+    },
+    "sort_field": {
+      "type": "string"
+    },
+    "sort_direction": {
+      "type": "string",
+      "enum": [
+        "asc",
+        "desc"
+      ]
+    },
+    "logicalExpression": {
+      "type": "string",
+      "description": "Manual/preview expression"
+    },
+    "conditions": {
+      "type": "array",
+      "description": "Legacy visual builder (flat list) - kept for backwards compatibility",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "=",
+              "!=",
+              "contains"
+            ]
+          },
+          "value": {
+            "type": "string"
+          },
+          "connector": {
+            "type": "string",
+            "enum": [
+              "AND",
+              "OR"
+            ],
+            "default": "AND"
+          }
+        },
+        "required": [
+          "field",
+          "operator",
+          "value"
+        ]
+      },
+      "default": []
+    },
+    "rule_tree": {
+      "type": "object",
+      "description": "Nested rule tree for Visual Builder groups/parentheses",
+      "default": {
+        "type": "group",
+        "op": "AND",
+        "children": []
+      }
+    },
+    "print_settings": {
+      "type": "object",
+      "description": "Per-query print defaults",
+      "default": {
+        "columns": [],
+        "rowsPerPage": 35,
+        "orientation": "landscape"
+      },
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Column order for printing",
+          "default": []
+        },
+        "rowsPerPage": {
+          "type": "number",
+          "description": "Rows per printed page",
+          "default": 35
+        },
+        "orientation": {
+          "type": "string",
+          "enum": [
+            "portrait",
+            "landscape"
+          ],
+          "default": "landscape"
+        }
+      }
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

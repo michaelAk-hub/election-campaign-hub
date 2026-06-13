@@ -1,0 +1,37 @@
+{
+  "name": "MonitorSetting",
+  "type": "object",
+  "title": "Monitor Setting",
+  "description": "Single-record monitoring configuration. Keep exactly one record here.",
+  "properties": {
+    "telegram_chat_id": {
+      "type": "string",
+      "description": "Your Telegram chat ID (numeric) or channel @username. The bot token is stored separately as a secret."
+    },
+    "default_check_interval": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 15,
+      "description": "Default minutes between checks for new sources"
+    },
+    "notifications_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "verbose_logging": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, write a log row for every check (noisy). If false, only log updates, notifications, and errors."
+    },
+    "notification_template": {
+      "type": "string",
+      "default": "New update detected\n\nSource: {name}\nType: {type}\nTitle: {title}\nLink: {link}\nChecked at: {time}",
+      "description": "Placeholders: {name} {type} {title} {link} {description} {time}"
+    },
+    "lock_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Internal: prevents two checker runs overlapping. Leave blank."
+    }
+  }
+}

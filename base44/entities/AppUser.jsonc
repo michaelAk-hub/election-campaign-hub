@@ -1,0 +1,61 @@
+{
+  "name": "AppUser",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "ADMIN",
+        "ORGANOTIKI"
+      ],
+      "description": "User role"
+    },
+    "email": {
+      "type": "string",
+      "description": "Email for login (unique, case-insensitive)"
+    },
+    "password_hash": {
+      "type": "string",
+      "description": "Hashed password"
+    },
+    "name": {
+      "type": "string",
+      "description": "Given name"
+    },
+    "surname": {
+      "type": "string",
+      "description": "Family name"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": false,
+      "description": "Active status (applies to ORGANOTIKI only)"
+    },
+    "password_changed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last password change timestamp"
+    },
+    "session_version": {
+      "type": "number",
+      "default": 1,
+      "description": "Session version for forced logout"
+    },
+    "created_by_admin_id": {
+      "type": "string",
+      "description": "Admin who created this user"
+    }
+  },
+  "required": [
+    "role",
+    "email",
+    "password_hash",
+    "name",
+    "surname",
+    "phone"
+  ]
+}

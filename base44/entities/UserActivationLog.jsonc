@@ -1,0 +1,59 @@
+{
+  "name": "UserActivationLog",
+  "type": "object",
+  "properties": {
+    "actor_user_id": {
+      "type": "string",
+      "description": "ID of the user who performed the action"
+    },
+    "actor_role": {
+      "type": "string",
+      "description": "Role of the actor (ADMIN/ORGANOTIKI)"
+    },
+    "target_user_id": {
+      "type": "string",
+      "description": "ID of the target user"
+    },
+    "target_role": {
+      "type": "string",
+      "enum": [
+        "ADMIN",
+        "ORGANOTIKI",
+        "KANALI",
+        "CHREOSI"
+      ],
+      "description": "Role of the target user"
+    },
+    "old_status": {
+      "type": "boolean",
+      "description": "Previous active status"
+    },
+    "new_status": {
+      "type": "boolean",
+      "description": "New active status"
+    },
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "activate",
+        "deactivate"
+      ],
+      "description": "Type of action performed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the action was performed"
+    }
+  },
+  "required": [
+    "actor_user_id",
+    "actor_role",
+    "target_user_id",
+    "target_role",
+    "old_status",
+    "new_status",
+    "action_type",
+    "timestamp"
+  ]
+}

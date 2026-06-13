@@ -1,0 +1,37 @@
+{
+  "name": "KanaliSubmission",
+  "type": "object",
+  "properties": {
+    "kanali_username": {
+      "type": "string",
+      "description": "Kanali user who submitted"
+    },
+    "submitted_id": {
+      "type": "string",
+      "description": "The ID that was submitted"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "MARKED_VOTED",
+        "ALREADY_VOTED",
+        "NOT_FOUND",
+        "ERROR"
+      ],
+      "description": "Result status of submission"
+    },
+    "reason_text": {
+      "type": "string",
+      "description": "Greek reason message"
+    },
+    "person_record_id": {
+      "type": "string",
+      "description": "Matched person record ID if found"
+    }
+  },
+  "required": [
+    "kanali_username",
+    "submitted_id",
+    "status"
+  ]
+}

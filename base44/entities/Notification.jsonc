@@ -1,0 +1,88 @@
+{
+  "name": "Notification",
+  "type": "object",
+  "properties": {
+    "recipient_type": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "organotikos",
+        "chreosi",
+        "kanali",
+        "all"
+      ],
+      "description": "Target user type"
+    },
+    "recipient_username": {
+      "type": "string",
+      "description": "Specific username (optional)"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "info"
+      ],
+      "default": "info",
+      "description": "Notification type"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "password_change",
+        "account_update",
+        "system_message",
+        "data_change",
+        "general"
+      ],
+      "default": "general"
+    },
+    "title": {
+      "type": "string",
+      "description": "Notification title"
+    },
+    "message": {
+      "type": "string",
+      "description": "Notification message"
+    },
+    "read": {
+      "type": "boolean",
+      "default": false
+    },
+    "read_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sender_email": {
+      "type": "string",
+      "description": "Email of the sender"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the notification is active"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional expiry datetime (null = never expires)"
+    },
+    "disabled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this notification was manually disabled"
+    },
+    "disabled_by": {
+      "type": "string",
+      "description": "Email of the user who disabled this notification"
+    },
+    "send_batch_id": {
+      "type": "string",
+      "description": "Groups all Notification rows created in the same send action"
+    }
+  },
+  "required": [
+    "recipient_type",
+    "title",
+    "message"
+  ]
+}

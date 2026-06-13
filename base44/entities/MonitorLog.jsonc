@@ -1,0 +1,54 @@
+{
+  "name": "MonitorLog",
+  "type": "object",
+  "title": "Monitor Log",
+  "description": "Audit trail of checks, detected updates, sent/failed notifications, and errors.",
+  "properties": {
+    "source_id": {
+      "type": "string"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "check",
+        "update_found",
+        "notification_sent",
+        "notification_failed",
+        "fetch_error",
+        "parse_error",
+        "timeout",
+        "blocked",
+        "skipped"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "item_title": {
+      "type": "string"
+    },
+    "item_url": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "info",
+        "warning",
+        "error"
+      ],
+      "default": "info"
+    },
+    "error_message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_type",
+    "status"
+  ]
+}

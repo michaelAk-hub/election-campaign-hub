@@ -1,0 +1,22 @@
+{
+  "name": "GridPreference",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "User email"
+    },
+    "grid_key": {
+      "type": "string",
+      "description": "Grid identifier (e.g. data_grid_person)"
+    },
+    "state_json": {
+      "type": "object",
+      "description": "JSON with column order, widths, hidden columns, filters, sorts"
+    }
+  },
+  "required": [
+    "user_email",
+    "grid_key"
+  ]
+}

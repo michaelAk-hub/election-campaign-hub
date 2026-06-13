@@ -1,0 +1,42 @@
+{
+  "name": "PortalSession",
+  "type": "object",
+  "properties": {
+    "session_token": {
+      "type": "string",
+      "description": "Unique session token"
+    },
+    "username": {
+      "type": "string"
+    },
+    "portal_type": {
+      "type": "string",
+      "enum": [
+        "chreosi",
+        "kanali"
+      ],
+      "description": "Type of portal user"
+    },
+    "kanali_type": {
+      "type": "string",
+      "enum": [
+        "A",
+        "B"
+      ],
+      "description": "For Kanali users, their type"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "session_token",
+    "username",
+    "portal_type"
+  ]
+}

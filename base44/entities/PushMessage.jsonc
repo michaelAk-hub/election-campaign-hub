@@ -1,0 +1,79 @@
+{
+  "name": "PushMessage",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Message title"
+    },
+    "body": {
+      "type": "string",
+      "description": "Message body"
+    },
+    "target_group": {
+      "type": "string",
+      "enum": [
+        "chreosi",
+        "kanali",
+        "both"
+      ],
+      "description": "Target recipient group (used for delivery_mode=group or legacy records)"
+    },
+    "delivery_mode": {
+      "type": "string",
+      "enum": [
+        "group",
+        "specific"
+      ],
+      "default": "group",
+      "description": "group = broadcast to target_group, specific = only target_user_keys recipients"
+    },
+    "target_user_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "For specific delivery: list of recipient keys like chreosi:username or kanali:username"
+    },
+    "sender_email": {
+      "type": "string",
+      "description": "Email of sender"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "total_recipients": {
+      "type": "number",
+      "default": 0,
+      "description": "Snapshot of total recipients at send time"
+    },
+    "acknowledged_count": {
+      "type": "number",
+      "default": 0
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional expiry datetime (null = never expires)"
+    },
+    "disabled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this push message was manually disabled"
+    },
+    "disabled_by": {
+      "type": "string",
+      "description": "Email of the user who disabled this push message"
+    },
+    "send_batch_id": {
+      "type": "string",
+      "description": "Links PushMessage to the same send action as its Notification rows"
+    }
+  },
+  "required": [
+    "title",
+    "body"
+  ]
+}

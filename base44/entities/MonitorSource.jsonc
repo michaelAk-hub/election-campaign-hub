@@ -1,0 +1,88 @@
+{
+  "name": "MonitorSource",
+  "type": "object",
+  "title": "Monitored Source",
+  "description": "A website, RSS feed, Facebook RSS, or Instagram RSS source to monitor for new content.",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Friendly name, e.g. 'Protoporia UCY Instagram'"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "website",
+        "rss",
+        "facebook_rss",
+        "instagram_rss"
+      ],
+      "default": "rss",
+      "description": "How this source is monitored"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "maxLength": 2000,
+      "description": "Page URL (website) or feed URL (rss / facebook_rss / instagram_rss)"
+    },
+    "css_selector": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Optional. For 'website' type only: CSS selector of the section to watch (e.g. '.announcements')"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "check_interval": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1440,
+      "default": 15,
+      "description": "Minutes between checks for this source"
+    },
+    "last_hash": {
+      "type": "string",
+      "description": "SHA-256 fingerprint of the last seen website content (website type)"
+    },
+    "last_item_title": {
+      "type": "string"
+    },
+    "last_item_url": {
+      "type": "string",
+      "description": "Link of the last seen feed item (rss types) - used for duplicate protection"
+    },
+    "last_checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_changed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_status": {
+      "type": "string",
+      "enum": [
+        "never",
+        "no_change",
+        "changed",
+        "error"
+      ],
+      "default": "never"
+    },
+    "last_error": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "name",
+    "type",
+    "url"
+  ]
+}
