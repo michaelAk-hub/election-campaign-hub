@@ -57,7 +57,6 @@ import Dashboard from './pages/Dashboard';
 import KanaliAccounts from './pages/KanaliAccounts';
 import KanaliPortal from './pages/KanaliPortal';
 import MfaVerify from './pages/MfaVerify';
-import Monitoring from './pages/Monitoring';
 import NotFoundVoters from './pages/NotFoundVoters';
 import NotificationPreferences from './pages/NotificationPreferences';
 import Portal from './pages/Portal';
@@ -82,7 +81,6 @@ export const PAGES = {
     "KanaliAccounts": KanaliAccounts,
     "KanaliPortal": KanaliPortal,
     "MfaVerify": MfaVerify,
-    "Monitoring": Monitoring,
     "NotFoundVoters": NotFoundVoters,
     "NotificationPreferences": NotificationPreferences,
     "Portal": Portal,

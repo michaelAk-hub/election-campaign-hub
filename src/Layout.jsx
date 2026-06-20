@@ -21,8 +21,7 @@ import {
     Search as SearchIcon,
     AlertTriangle,
     ChevronLeft,
-    Trash2,
-    Radar
+    Trash2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -41,12 +40,11 @@ const adminNavItems = [
   { name: 'Στείλε SMS', icon: MessageSquare, page: 'ChreosiSmsCredentials' },
   { name: 'Οργανωτικοί (χρήστες)', icon: UserCog, page: 'UserManagement' },
   { name: 'Προτιμήσεις Ειδοποιήσεων', icon: Settings, page: 'NotificationPreferences' },
-  { name: 'Παρακολούθηση', icon: Radar, page: 'Monitoring' },
   { name: '🔐 Πύλη Χρηστών', icon: Users, page: 'PortalLogin', divider: true },
 ];
 
 const portalPages = ['Portal', 'PortalLogin', 'AdminLogin', 'MfaVerify'];
-const TAB_ROOT_PAGES = ['Dashboard', 'Records', 'NotificationPreferences', 'Monitoring'];
+const TAB_ROOT_PAGES = ['Dashboard', 'Records', 'NotificationPreferences'];
 
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 const WARNING_AT_MS = 13 * 60 * 1000;
