@@ -1,6 +1,7 @@
 const COLUMN_LABELS = {
   admission_year: 'Έτος Εισδοχής',
   department: 'Τμήμα',
+  ElectoralTown: 'ElectoralTown',
   last_name: 'Επίθετο',
   first_name: 'Όνομα',
   mobile_phone: 'Κινητό',
@@ -10,6 +11,7 @@ const COLUMN_LABELS = {
 const COLUMN_WIDTHS = {
   admission_year: '10%',
   department: '8%',
+  ElectoralTown: '12%',
   mobile_phone: '10%',
   last_name: '20%',
   first_name: '20%',

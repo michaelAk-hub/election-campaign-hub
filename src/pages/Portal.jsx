@@ -263,6 +263,7 @@ function ChreosiPortal({ username }) {
                       <div className="flex flex-wrap gap-2 mt-1">
                         <Badge variant="outline">{person.department}</Badge>
                         <Badge variant="outline">{person.admission_year}</Badge>
+                        {person.ElectoralTown && <Badge variant="outline">{person.ElectoralTown}</Badge>}
                         {person.voted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Ψήφισε</Badge>}
                       </div>
                     </div>
