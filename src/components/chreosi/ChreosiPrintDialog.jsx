@@ -15,13 +15,14 @@ const STORAGE_KEY = 'chreosi_print_settings';
 const DEFAULT_SETTINGS = {
   orientation: 'landscape',
   rowsPerPage: 25,
-  orderedColumns: ['admission_year', 'department', 'last_name', 'first_name', 'mobile_phone', 'notes'],
+  orderedColumns: ['admission_year', 'department', 'ElectoralTown', 'last_name', 'first_name', 'mobile_phone', 'notes'],
   orderedSortFields: ['admission_year', 'department', 'last_name', 'first_name'],
 };
 
 const COLUMN_LABELS = {
   admission_year: 'Έτος Εισδοχής',
   department: 'Τμήμα',
+  ElectoralTown: 'ElectoralTown',
   last_name: 'Επίθετο',
   first_name: 'Όνομα',
   mobile_phone: 'Κινητό',
@@ -247,7 +248,7 @@ export default function ChreosiPrintDialog({ open, onClose, accounts, people }) 
           <div>
             <Label className="text-sm font-semibold mb-1 block">Σειρά Στηλών</Label>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-              Σύρετε για αναδιάταξη. Και οι 6 στήλες εκτυπώνονται πάντα.
+              Σύρετε για αναδιάταξη. Και οι 7 στήλες εκτυπώνονται πάντα.
             </p>
             <DragList
               items={settings.orderedColumns}
