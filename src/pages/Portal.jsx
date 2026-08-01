@@ -264,6 +264,7 @@ function ChreosiPortal({ username }) {
                         <Badge variant="outline">{person.department}</Badge>
                         <Badge variant="outline">{person.admission_year}</Badge>
                         {person.ElectoralTown && <Badge variant="outline">{person.ElectoralTown}</Badge>}
+                        {person.ElectoralDistrict && <Badge variant="outline">{person.ElectoralDistrict}</Badge>}
                         {person.voted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Ψήφισε</Badge>}
                       </div>
                     </div>
