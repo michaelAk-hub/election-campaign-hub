@@ -2,6 +2,7 @@ const COLUMN_LABELS = {
   admission_year: 'Έτος Εισδοχής',
   department: 'Τμήμα',
   ElectoralTown: 'ElectoralTown',
+  ElectoralDistrict: 'ElectoralDistrict',
   last_name: 'Επίθετο',
   first_name: 'Όνομα',
   mobile_phone: 'Κινητό',
@@ -9,12 +10,13 @@ const COLUMN_LABELS = {
 };
 
 const COLUMN_WIDTHS = {
-  admission_year: '10%',
+  admission_year: '9%',
   department: '8%',
-  ElectoralTown: '12%',
+  ElectoralTown: '11%',
+  ElectoralDistrict: '11%',
   mobile_phone: '10%',
-  last_name: '20%',
-  first_name: '20%',
+  last_name: '17%',
+  first_name: '17%',
 };
 
 function escHtml(str) {
