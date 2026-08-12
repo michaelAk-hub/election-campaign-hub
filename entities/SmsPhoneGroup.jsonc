@@ -1,0 +1,27 @@
+{
+  "name": "SmsPhoneGroup",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Custom name for the phone group"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description for the group"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the group is active"
+    },
+    "member_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of phone numbers in the group"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

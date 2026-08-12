@@ -1,0 +1,35 @@
+{
+  "name": "PredictionVoteFlowConfig",
+  "type": "object",
+  "properties": {
+    "dataset_id": {
+      "type": "string",
+      "description": "Active dataset this config belongs to"
+    },
+    "is_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "bucket_minutes": {
+      "type": "number",
+      "default": 5
+    },
+    "mapping_json": {
+      "type": "object",
+      "description": "Array of parataksi mappings [{parataxi, symbols, color}]"
+    },
+    "updated_by_user_id": {
+      "type": "string"
+    },
+    "updated_by_name": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "dataset_id"
+  ]
+}

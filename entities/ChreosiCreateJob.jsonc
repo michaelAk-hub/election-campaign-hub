@@ -1,0 +1,62 @@
+{
+  "name": "ChreosiCreateJob",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "done",
+        "error"
+      ],
+      "default": "pending"
+    },
+    "total": {
+      "type": "number",
+      "default": 0,
+      "description": "Total unique contacts to process"
+    },
+    "processed": {
+      "type": "number",
+      "default": 0,
+      "description": "How many have been processed so far"
+    },
+    "created_count": {
+      "type": "number",
+      "default": 0
+    },
+    "updated_count": {
+      "type": "number",
+      "default": 0
+    },
+    "skipped_count": {
+      "type": "number",
+      "default": 0
+    },
+    "failed_count": {
+      "type": "number",
+      "default": 0
+    },
+    "contacts_json": {
+      "type": "string",
+      "description": "JSON array of all contacts to process (stored as string)"
+    },
+    "results_json": {
+      "type": "string",
+      "description": "JSON array of per-username result objects accumulated so far"
+    },
+    "settings_json": {
+      "type": "string",
+      "description": "JSON of job settings: symbols, voted_statuses, etc."
+    },
+    "error": {
+      "type": "string"
+    },
+    "started_by": {
+      "type": "string",
+      "description": "AppUser id who started the job"
+    }
+  },
+  "required": []
+}

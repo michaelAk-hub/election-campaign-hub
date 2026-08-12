@@ -1,0 +1,148 @@
+{
+  "name": "Person",
+  "type": "object",
+  "properties": {
+    "dataset_id": {
+      "type": "string",
+      "description": "Reference to parent dataset"
+    },
+    "department": {
+      "type": "string",
+      "description": "TMHMA - Department"
+    },
+    "admission_year": {
+      "type": "string",
+      "description": "EISDOXI - Admission year"
+    },
+    "academic_level": {
+      "type": "string",
+      "description": "\u0395\u03a0\u0399\u03a0\u0395\u0394\u039f - Academic level"
+    },
+    "person_id": {
+      "type": "string",
+      "description": "\u0391\u03a4 (ID) - Unique person identifier"
+    },
+    "ucid": {
+      "type": "string",
+      "description": "UCID"
+    },
+    "mobile_phone": {
+      "type": "string",
+      "description": "\u039a\u0399\u039d\u0397\u03a4\u039f - Mobile phone"
+    },
+    "first_name": {
+      "type": "string",
+      "description": "\u039f\u039d\u039f\u039c\u0391 - First name"
+    },
+    "last_name": {
+      "type": "string",
+      "description": "\u0395\u03a0\u0399\u0398\u0395\u03a4\u039f - Last name"
+    },
+    "contact_person_1": {
+      "type": "string",
+      "description": "ATOMO_1 - Contact person 1 (Chreosi assignment)"
+    },
+    "contact_person_2": {
+      "type": "string",
+      "description": "ATOMO_2 - Contact person 2 (Chreosi assignment)"
+    },
+    "member": {
+      "type": "string",
+      "description": "\u039c\u0395\u039b\u039f\u03a3 - Member status"
+    },
+    "prediction_symbol": {
+      "type": "string",
+      "description": "\u03a3\u03cd\u03bc\u03b2\u03bf\u03bb\u03bf \u03c0\u03c1\u03cc\u03b2\u03bb\u03b5\u03c8\u03b7\u03c2 - Prediction symbol"
+    },
+    "voted": {
+      "type": "boolean",
+      "default": false,
+      "description": "psifise - Has voted"
+    },
+    "voted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when voted status changed to YES (UTC)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "notes - Notes field"
+    },
+    "monadikos_kanali": {
+      "type": "string",
+      "description": "\u039c\u03bf\u03bd\u03b1\u03b4\u03b9\u03ba\u03cc\u03c2 \u039a\u03b1\u03bd\u03ac\u03bb\u03b9 - Unique Kanali identifier"
+    },
+    "direction": {
+      "type": "string",
+      "description": "\u039a\u0391\u03a4 - Direction"
+    },
+    "X": {
+      "type": "string",
+      "description": "X"
+    },
+    "F26_1": {
+      "type": "string",
+      "description": "\u03a626_1"
+    },
+    "F25": {
+      "type": "string",
+      "description": "\u03a625"
+    },
+    "phone": {
+      "type": "string",
+      "description": "phone - Phone number"
+    },
+    "T24": {
+      "type": "string",
+      "description": "T24"
+    },
+    "F24": {
+      "type": "string",
+      "description": "\u03a624"
+    },
+    "F23": {
+      "type": "string",
+      "description": "\u03a623"
+    },
+    "T22": {
+      "type": "string",
+      "description": "T22"
+    },
+    "details": {
+      "type": "string",
+      "description": "\u03a0\u0391\u03a1\u0391\u03a4\u0397\u03a1\u0397\u03a3\u0395\u0399\u03a3 - Details"
+    },
+    "father_n": {
+      "type": "string",
+      "description": "\u039f\u039d_\u03a0\u0391\u03a4\u03a1\u039f\u03a3 - Father initial"
+    },
+    "father_name": {
+      "type": "string",
+      "description": "\u039f\u039d\u039f\u039c\u0391 \u03a0\u0391\u03a4\u0395\u03a1\u0391 - Father name"
+    },
+    "ElectoralDistrict": {
+      "type": "string",
+      "description": "ElectoralDistrict"
+    },
+    "ElectoralTown": {
+      "type": "string",
+      "description": "ElectoralTown"
+    },
+    "RelatedMember": {
+      "type": "string",
+      "description": "RelatedMember"
+    },
+    "custom_data": {
+      "type": "object",
+      "description": "Additional custom fields from import"
+    },
+    "row_version": {
+      "type": "number",
+      "default": 1,
+      "description": "Optimistic locking version"
+    }
+  },
+  "required": [
+    "person_id"
+  ]
+}

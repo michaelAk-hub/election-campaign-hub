@@ -1,0 +1,31 @@
+{
+  "name": "PushMessageAck",
+  "type": "object",
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "description": "Reference to push message"
+    },
+    "recipient_type": {
+      "type": "string",
+      "enum": [
+        "chreosi",
+        "kanali"
+      ],
+      "description": "Type of recipient"
+    },
+    "username": {
+      "type": "string",
+      "description": "Username who acknowledged"
+    },
+    "acknowledged_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "message_id",
+    "recipient_type",
+    "username"
+  ]
+}

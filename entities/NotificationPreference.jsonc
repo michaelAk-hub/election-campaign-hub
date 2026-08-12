@@ -1,0 +1,31 @@
+{
+  "name": "NotificationPreference",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "User email"
+    },
+    "portal_username": {
+      "type": "string",
+      "description": "Portal username for chreosi/kanali users"
+    },
+    "password_changes": {
+      "type": "boolean",
+      "default": true
+    },
+    "account_updates": {
+      "type": "boolean",
+      "default": true
+    },
+    "system_messages": {
+      "type": "boolean",
+      "default": true
+    },
+    "data_changes": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": []
+}

@@ -1,0 +1,44 @@
+{
+  "name": "MfaChallenge",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Reference to AppUser ID"
+    },
+    "preauth_token": {
+      "type": "string",
+      "description": "Short-lived pre-auth token"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this challenge expires"
+    },
+    "is_used": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether OTP has been successfully verified"
+    },
+    "send_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of OTPs sent"
+    },
+    "last_send_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last time OTP was sent"
+    },
+    "attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of failed verification attempts"
+    }
+  },
+  "required": [
+    "user_id",
+    "preauth_token",
+    "expires_at"
+  ]
+}

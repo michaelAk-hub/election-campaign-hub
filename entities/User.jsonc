@@ -1,0 +1,13 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "password": {
+      "type": "string",
+      "description": "User password for organotikos users"
+    }
+  },
+  "required": [
+    "password"
+  ]
+}

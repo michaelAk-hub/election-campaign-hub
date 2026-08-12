@@ -1,0 +1,46 @@
+{
+  "name": "SmsLog",
+  "type": "object",
+  "properties": {
+    "category": {
+      "type": "string",
+      "description": "otp | chreosi_credentials"
+    },
+    "title": {
+      "type": "string",
+      "description": "UI title (not a real SMS title)"
+    },
+    "to_phone": {
+      "type": "string"
+    },
+    "to_username": {
+      "type": "string"
+    },
+    "message_preview": {
+      "type": "string",
+      "description": "Masked preview (no plaintext password)"
+    },
+    "provider": {
+      "type": "string",
+      "default": "vonage"
+    },
+    "provider_message_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "description": "sent | failed"
+    },
+    "error": {
+      "type": "string"
+    },
+    "sent_by_user_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "category",
+    "to_phone",
+    "status"
+  ]
+}

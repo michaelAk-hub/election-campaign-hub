@@ -1,0 +1,31 @@
+{
+  "name": "SmsPhoneGroupMember",
+  "type": "object",
+  "properties": {
+    "group_id": {
+      "type": "string",
+      "description": "ID of the parent SmsPhoneGroup"
+    },
+    "raw_phone": {
+      "type": "string",
+      "description": "Phone number as originally entered"
+    },
+    "normalized_phone": {
+      "type": "string",
+      "description": "Normalized E.164 phone number"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Optional display name for this member"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "group_id",
+    "raw_phone",
+    "normalized_phone"
+  ]
+}

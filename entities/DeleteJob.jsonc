@@ -1,0 +1,51 @@
+{
+  "name": "DeleteJob",
+  "type": "object",
+  "properties": {
+    "job_type": {
+      "type": "string",
+      "enum": [
+        "delete_dataset",
+        "delete_all_persons"
+      ],
+      "description": "Type of delete job"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "done",
+        "error"
+      ],
+      "default": "pending"
+    },
+    "total": {
+      "type": "number",
+      "default": 0
+    },
+    "deleted": {
+      "type": "number",
+      "default": 0
+    },
+    "message": {
+      "type": "string",
+      "description": "Current status message"
+    },
+    "error": {
+      "type": "string"
+    },
+    "dataset_id": {
+      "type": "string",
+      "description": "For delete_dataset jobs: the dataset being deleted (needed for safe resume)"
+    },
+    "last_heartbeat_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of last heartbeat \u2014 used to detect and prevent concurrent invocations"
+    }
+  },
+  "required": [
+    "job_type"
+  ]
+}

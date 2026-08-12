@@ -1,0 +1,50 @@
+{
+  "name": "ImportJob",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "done",
+        "error"
+      ],
+      "default": "pending"
+    },
+    "total": {
+      "type": "number",
+      "default": 0
+    },
+    "processed": {
+      "type": "number",
+      "default": 0
+    },
+    "message": {
+      "type": "string"
+    },
+    "error": {
+      "type": "string"
+    },
+    "dataset_id": {
+      "type": "string"
+    },
+    "dataset_name": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "last_heartbeat_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "failed_rows": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": []
+}

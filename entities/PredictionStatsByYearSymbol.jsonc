@@ -1,0 +1,37 @@
+{
+  "name": "PredictionStatsByYearSymbol",
+  "type": "object",
+  "properties": {
+    "dataset_id": {
+      "type": "string",
+      "description": "Dataset this stats row belongs to"
+    },
+    "admission_year": {
+      "type": "string"
+    },
+    "symbol": {
+      "type": "string"
+    },
+    "total": {
+      "type": "number",
+      "default": 0
+    },
+    "voted_yes": {
+      "type": "number",
+      "default": 0
+    },
+    "voted_no": {
+      "type": "number",
+      "default": 0
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "dataset_id",
+    "admission_year",
+    "symbol"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "KanaliAccount",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "description": "Auto-generated username"
+    },
+    "password_hash": {
+      "type": "string",
+      "description": "Hashed password"
+    },
+    "plain_password": {
+      "type": "string",
+      "description": "Plain text password (for admin visibility)"
+    },
+    "user_type": {
+      "type": "string",
+      "enum": [
+        "A",
+        "B"
+      ],
+      "default": "A",
+      "description": "Kanali user type"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "username",
+    "password_hash",
+    "user_type"
+  ]
+}
