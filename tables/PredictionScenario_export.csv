@@ -1,0 +1,2 @@
+"name","display_order","is_active","config_json","total_seats","id","created_date","updated_date","created_by_id","created_by","is_sample"
+"Fotis","1","true","{""parties"":[{""name"":""Fotis"",""color"":""#3b82f6"",""symbols"":[{""symbol"":""Σ"",""multiplier"":1},{""symbol"":""Π"",""multiplier"":1},{""symbol"":""Ο"",""multiplier"":1}]}],""year_groups"":[]}","1","6a6de081d50d2d949c508209","2026-08-01T12:03:13.935000","2026-08-01T12:03:13.935000","service_e26771ba-23cc-4ede-86d3-c06393e82682","service+e26771ba-23cc-4ede-86d3-c06393e82682@no-reply.base44.com","false"
