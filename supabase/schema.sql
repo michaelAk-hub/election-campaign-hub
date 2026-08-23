@@ -606,4 +606,16 @@ begin
   end loop;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- Grants: the Edge Functions connect with the service_role key, which needs
+-- table privileges (RLS is separately bypassed by service_role). anon and
+-- authenticated are intentionally NOT granted — the browser never queries
+-- tables directly; everything goes through Edge Functions.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to service_role;
+grant all privileges on all tables in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
+
 -- Done. 32 tables created.
