@@ -21,7 +21,10 @@ async function invoke(name, body = {}) {
   });
   let data = null;
   try { data = await res.json(); } catch { /* non-JSON response */ }
-  if (!res.ok) {
+  // Functions return JSON bodies for 4xx too (e.g. { valid:false }, { success:false },
+  // { error }) which pages read directly — so return those as { data }. Only throw on
+  // 5xx or a missing body, matching how pages' try/catch blocks expect real failures.
+  if (res.status >= 500 || (data == null && !res.ok)) {
     const err = new Error(data?.error || `Request failed (${res.status})`);
     err.response = { status: res.status, data };
     throw err;
