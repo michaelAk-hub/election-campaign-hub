@@ -4,6 +4,8 @@ Convert a Base44 CSV export into ready-to-run Postgres INSERT SQL for Supabase.
 
 Usage:
     python3 base44_csv_to_sql.py <TableName> <export.csv> [> out.sql]
+    python3 base44_csv_to_sql.py <TableName> <export.csv> <rows_per_file>
+        -> writes <TableName>_import_partNN.sql chunks (for the SQL Editor size limit)
 
 - Column TYPES are read from ../schema.sql (single source of truth), so casting
   (jsonb / boolean / integer / numeric / timestamptz / text) is always correct.
@@ -66,6 +68,7 @@ def main():
     if len(sys.argv) < 3:
         sys.exit("usage: base44_csv_to_sql.py <TableName> <export.csv>")
     table, csv_path = sys.argv[1], sys.argv[2]
+    rows_per_file = int(sys.argv[3]) if len(sys.argv) > 3 else None
     schema_path = os.path.join(os.path.dirname(__file__), "..", "schema.sql")
     types = load_schema_types(schema_path)
     if table not in types:
@@ -79,20 +82,33 @@ def main():
         use_cols = [c for c in coltypes if c in headers]
         rows = list(reader)
 
-    out = sys.stdout
-    out.write(f"-- {table}: {len(rows)} rows from {os.path.basename(csv_path)}\n")
-    out.write("begin;\n")
     collist = ", ".join(f'"{c}"' for c in use_cols)
-    for i in range(0, len(rows), BATCH):
-        chunk = rows[i:i+BATCH]
-        out.write(f'insert into public."{table}" ({collist}) values\n')
-        vals = []
-        for r in chunk:
-            cells = [cast(r.get(c), coltypes[c]) for c in use_cols]
-            vals.append("  (" + ", ".join(cells) + ")")
-        out.write(",\n".join(vals))
-        out.write("\non conflict (\"id\") do nothing;\n")
-    out.write("commit;\n")
+
+    def write_rows(out, subset, part_label):
+        out.write(f"-- {table} {part_label}: {len(subset)} rows from {os.path.basename(csv_path)}\n")
+        out.write("begin;\n")
+        for i in range(0, len(subset), BATCH):
+            chunk = subset[i:i+BATCH]
+            out.write(f'insert into public."{table}" ({collist}) values\n')
+            vals = []
+            for r in chunk:
+                cells = [cast(r.get(c), coltypes[c]) for c in use_cols]
+                vals.append("  (" + ", ".join(cells) + ")")
+            out.write(",\n".join(vals))
+            out.write("\non conflict (\"id\") do nothing;\n")
+        out.write("commit;\n")
+
+    if rows_per_file:
+        outdir = os.path.dirname(os.path.abspath(csv_path))
+        parts = [rows[i:i+rows_per_file] for i in range(0, len(rows), rows_per_file)]
+        n = len(parts)
+        for idx, subset in enumerate(parts, 1):
+            path = os.path.join(os.path.dirname(__file__), f"{table}_import_part{idx:02d}.sql")
+            with open(path, "w", encoding="utf-8") as fh:
+                write_rows(fh, subset, f"part {idx}/{n}")
+            print(f"wrote {path}  ({len(subset)} rows)")
+    else:
+        write_rows(sys.stdout, rows, "(all)")
 
 if __name__ == "__main__":
     main()
