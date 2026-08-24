@@ -198,66 +198,19 @@ export default function Dashboard() {
     setIsUploading(true);
 
     try {
-      // Upload file first
+      // Import through the same deterministic backend as the Records page:
+      // encode the file as a data URL, then importPersonsJob parses the CSV/XLSX,
+      // maps the Greek headers, bulk-inserts, and activates a new dataset (which
+      // archives any previous one — so the new upload becomes the active roll).
       const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
-
-      // Extract data from file
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+      const { data } = await base44.functions.invoke('importPersonsJob', {
+        session_token: localStorage.getItem('app_session_token'),
         file_url,
-        json_schema: {
-          type: 'object',
-          properties: {
-            department: { type: 'string' },
-            admission_year: { type: 'string' },
-            academic_level: { type: 'string' },
-            person_id: { type: 'string' },
-            ucid: { type: 'string' },
-            mobile_phone: { type: 'string' },
-            first_name: { type: 'string' },
-            last_name: { type: 'string' },
-            contact_person_1: { type: 'string' },
-            contact_person_2: { type: 'string' },
-            member: { type: 'string' },
-            prediction_symbol: { type: 'string' },
-            voted: { type: 'boolean' },
-            notes: { type: 'string' },
-            monadikos_kanali: { type: 'string' }
-          }
-        }
+        dataset_name: uploadFile.name,
       });
+      if (!data?.job_id) throw new Error(data?.error || 'Αποτυχία εισαγωγής');
 
-      if (result.status === 'error') {
-        toast.error('Σφάλμα ανάλυσης αρχείου: ' + result.details);
-        setIsUploading(false);
-        return;
-      }
-
-      const records = Array.isArray(result.output) ? result.output : [result.output];
-
-      // Delete all if replace mode
-      if (importMode === 'replace') {
-        let allPeople = [];
-        let skip = 0;
-        const limit = 5000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const batch = await base44.entities.Person.list('-created_date', limit, skip);
-          allPeople = allPeople.concat(batch);
-          skip += limit;
-          hasMore = batch.length === limit;
-        }
-
-        for (const person of allPeople) {
-          await base44.entities.Person.delete(person.id);
-        }
-        toast.success(`Διαγράφηκαν ${allPeople.length} εγγραφές`);
-      }
-
-      // Import new records
-      await base44.entities.Person.bulkCreate(records);
-      
-      toast.success(`Εισήχθησαν ${records.length} εγγραφές επιτυχώς`);
+      toast.success('Η εισαγωγή ολοκληρώθηκε');
       setUploadDialog(false);
       setUploadFile(null);
       refetch();
