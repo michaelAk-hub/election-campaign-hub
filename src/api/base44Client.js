@@ -75,4 +75,30 @@ const auth = {
   redirectToLogin: () => {},
 };
 
-export const base44 = { functions: { invoke }, entities, auth };
+// Encode a File/Blob as a base64 data: URL. Edge Functions can fetch() a data:
+// URL, so this replaces Base44's storage upload for the import flow — the file
+// content rides along in the request body, no bucket needed.
+async function fileToDataUrl(file) {
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  const mime = file.type || 'application/octet-stream';
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+// Minimal shim of Base44's Core integrations. UploadFile returns a data: URL
+// (see above). ExtractDataFromUploadedFile isn't migrated yet.
+const integrations = {
+  Core: {
+    UploadFile: async ({ file }) => ({ file_url: await fileToDataUrl(file) }),
+    ExtractDataFromUploadedFile: async () => {
+      throw new Error('ExtractDataFromUploadedFile is not available yet');
+    },
+  },
+};
+
+export const base44 = { functions: { invoke }, entities, auth, integrations };
