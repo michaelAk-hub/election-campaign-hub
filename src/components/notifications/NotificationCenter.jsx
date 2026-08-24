@@ -237,7 +237,7 @@ export default function NotificationCenter({ userType, username }) {
           <ScrollArea className="flex-1 mt-4">
             <div className="space-y-3 pr-4">
               {filteredNotifications.length === 0 ? (
-                <div className="text-center py-12 text-slate-500">
+                <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                   <BellOff className="h-12 w-12 mx-auto mb-4 text-slate-300" />
                   <p>Δεν υπάρχουν ειδοποιήσεις</p>
                 </div>
@@ -258,15 +258,15 @@ export default function NotificationCenter({ userType, username }) {
                           {getIcon(notif.type)}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
-                              <h4 className={cn('font-semibold text-sm', !notif.read ? 'text-slate-900' : 'text-slate-600')}>
+                              <h4 className={cn('font-semibold text-sm', !notif.read ? 'text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300')}>
                                 {notif.title}
                               </h4>
                               {!notif.read && <div className="h-2 w-2 rounded-full bg-blue-600 flex-shrink-0 mt-1" />}
                             </div>
-                            <p className="text-sm text-slate-600 mt-1">{notif.message}</p>
+                            <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">{notif.message}</p>
                             <div className="flex items-center justify-between mt-2">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
                                   {format(new Date(notif.created_date), 'dd MMM yyyy, HH:mm', { locale: el })}
                                 </span>
                                 {expiryLabel && (

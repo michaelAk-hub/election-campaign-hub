@@ -212,7 +212,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
     const CustomTooltip = ({ active, payload, label }) => {
         if (!active || !payload?.length) return null;
         return (
-            <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
+            <div className="bg-white dark:bg-slate-800 p-3 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
                 <p className="font-semibold text-sm mb-2">
                     {format(new Date(label), 'dd/MM/yyyy HH:mm', { locale: el })}
                 </p>
@@ -262,7 +262,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                 <CardContent>
                     <div className="text-center py-8 space-y-3">
                         <TrendingUp className="h-14 w-14 text-slate-300 mx-auto" />
-                        <p className="text-slate-600 text-sm">
+                        <p className="text-slate-600 dark:text-slate-300 text-sm">
                             Παρακολουθήστε τη ροή της ψηφοφορίας σε πραγματικό χρόνο<br />
                             με αθροιστικές γραμμές ανά παράταξη
                         </p>
@@ -295,7 +295,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                                 <CardHeader className="pb-3">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3 flex-1">
-                                            <span className="font-semibold text-slate-600">#{index + 1}</span>
+                                            <span className="font-semibold text-slate-600 dark:text-slate-300">#{index + 1}</span>
                                             <Input
                                                 placeholder="Όνομα Παράταξης"
                                                 value={parataksi.name}
@@ -308,7 +308,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                                                     type="color"
                                                     value={parataksi.color}
                                                     onChange={(e) => updateParataksi(parataksi.id, 'color', e.target.value)}
-                                                    className="w-10 h-10 rounded cursor-pointer border border-slate-300"
+                                                    className="w-10 h-10 rounded cursor-pointer border border-slate-300 dark:border-slate-700"
                                                 />
                                             </div>
                                         </div>
@@ -346,7 +346,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                                         )}
                                     </div>
                                     {parataksi.symbols.length > 0 && (
-                                        <div className="mt-2 text-sm text-slate-600">
+                                        <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                                             Επιλεγμένα: {parataksi.symbols.join(', ')}
                                         </div>
                                     )}
@@ -395,7 +395,7 @@ export default function VoteFlowChart({ sessionToken, availableSymbols = [], fil
                         {loadingChart && (
                             <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-6 w-6 animate-spin text-slate-400 mr-2" />
-                                <span className="text-slate-500">Φόρτωση δεδομένων...</span>
+                                <span className="text-slate-500 dark:text-slate-400">Φόρτωση δεδομένων...</span>
                             </div>
                         )}
                         {!loadingChart && chartData && (

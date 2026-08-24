@@ -42,7 +42,7 @@ import { cn } from '@/lib/utils';
 function StatusBadge({ status }) {
   if (status === 'active') return <Badge className="bg-green-100 text-green-800 border-green-200">Ενεργό</Badge>;
   if (status === 'expired') return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Έληξε</Badge>;
-  if (status === 'disabled') return <Badge className="bg-slate-100 text-slate-600 border-slate-200">Απενεργοποιημένο</Badge>;
+  if (status === 'disabled') return <Badge className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700">Απενεργοποιημένο</Badge>;
   return null;
 }
 
@@ -138,7 +138,7 @@ export default function SentMessagesTable() {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="py-8 text-center text-slate-500">
+        <CardContent className="py-8 text-center text-slate-500 dark:text-slate-400">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
           Φόρτωση μηνυμάτων...
         </CardContent>
@@ -163,7 +163,7 @@ export default function SentMessagesTable() {
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
               <MessageSquare className="h-12 w-12 mx-auto mb-3 text-slate-300" />
               <p>Δεν υπάρχουν σταλμένα μηνύματα</p>
             </div>
@@ -194,7 +194,7 @@ export default function SentMessagesTable() {
                       <TableCell>
                         <div className="max-w-[180px]">
                           <p className="font-medium text-sm truncate">{row.title}</p>
-                          <p className="text-xs text-slate-500 truncate mt-0.5">{row.message}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{row.message}</p>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -203,18 +203,18 @@ export default function SentMessagesTable() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Users className="h-3 w-3 text-slate-400" />
-                          <span className="text-xs text-slate-600 max-w-[140px] truncate">
+                          <span className="text-xs text-slate-600 dark:text-slate-300 max-w-[140px] truncate">
                             {row.recipient_summary}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs text-slate-600 truncate max-w-[120px] block">
+                        <span className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[120px] block">
                           {row.sender_email || '—'}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs text-slate-600">
+                        <span className="text-xs text-slate-600 dark:text-slate-300">
                           {row.created_date
                             ? format(new Date(row.created_date), 'dd/MM/yy HH:mm', { locale: el })
                             : '—'}
@@ -297,42 +297,42 @@ export default function SentMessagesTable() {
           {detailRow && (
             <div className="space-y-3 text-sm">
               <div>
-                <p className="text-xs text-slate-500 uppercase font-medium mb-1">Τίτλος</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Τίτλος</p>
                 <p className="font-semibold">{detailRow.title}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase font-medium mb-1">Μήνυμα</p>
-                <p className="text-slate-700">{detailRow.message}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Μήνυμα</p>
+                <p className="text-slate-700 dark:text-slate-300">{detailRow.message}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-medium mb-1">Σύστημα</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Σύστημα</p>
                   <SourceBadge source_type={detailRow.source_type} />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-medium mb-1">Κατάσταση</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Κατάσταση</p>
                   <StatusBadge status={detailRow.status} />
                 </div>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase font-medium mb-1">Παραλήπτες</p>
-                <p className="text-slate-700">{detailRow.recipient_summary}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Παραλήπτες</p>
+                <p className="text-slate-700 dark:text-slate-300">{detailRow.recipient_summary}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase font-medium mb-1">Αποστολέας</p>
-                <p className="text-slate-700">{detailRow.sender_email || '—'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Αποστολέας</p>
+                <p className="text-slate-700 dark:text-slate-300">{detailRow.sender_email || '—'}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase font-medium mb-1">Αποστολή</p>
-                <p className="text-slate-700">
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Αποστολή</p>
+                <p className="text-slate-700 dark:text-slate-300">
                   {detailRow.created_date
                     ? format(new Date(detailRow.created_date), 'dd MMM yyyy, HH:mm', { locale: el })
                     : '—'}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase font-medium mb-1">Λήξη</p>
-                <p className="text-slate-700">
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Λήξη</p>
+                <p className="text-slate-700 dark:text-slate-300">
                   {detailRow.expires_at
                     ? format(new Date(detailRow.expires_at), 'dd MMM yyyy, HH:mm', { locale: el })
                     : 'Χωρίς λήξη'}
@@ -340,8 +340,8 @@ export default function SentMessagesTable() {
               </div>
               {detailRow.disabled_at && (
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-medium mb-1">Απενεργοποιήθηκε</p>
-                  <p className="text-slate-700">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Απενεργοποιήθηκε</p>
+                  <p className="text-slate-700 dark:text-slate-300">
                     {format(new Date(detailRow.disabled_at), 'dd MMM yyyy, HH:mm', { locale: el })}
                     {detailRow.disabled_by && ` από ${detailRow.disabled_by}`}
                   </p>
@@ -349,7 +349,7 @@ export default function SentMessagesTable() {
               )}
               {detailRow.send_batch_id && (
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-medium mb-1">Batch ID</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mb-1">Batch ID</p>
                   <p className="text-slate-400 font-mono text-xs">{detailRow.send_batch_id}</p>
                 </div>
               )}

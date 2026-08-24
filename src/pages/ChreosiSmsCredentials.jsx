@@ -192,7 +192,7 @@ export default function ChreosiSmsCredentials() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
-              <AlertDescription className="text-xs font-mono text-slate-600">
+              <AlertDescription className="text-xs font-mono text-slate-600 dark:text-slate-300">
                 Placeholders: {"{PORTAL_URL}  {USERNAME}  {PASSWORD}  {NAME}"}
               </AlertDescription>
             </Alert>
@@ -206,7 +206,7 @@ export default function ChreosiSmsCredentials() {
                   checked={includeTitleLine}
                   onCheckedChange={setIncludeTitleLine}
                 />
-                <label htmlFor="include-title" className="text-xs text-slate-600 cursor-pointer">
+                <label htmlFor="include-title" className="text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
                   Βάλε τον τίτλο ως 1η γραμμή στο SMS
                 </label>
               </div>
@@ -261,7 +261,7 @@ export default function ChreosiSmsCredentials() {
 
               {/* Chreosi sub-mode */}
               {sendTarget === "chreosi" && (
-                <div className="space-y-2 pl-2 border-l-2 border-slate-200">
+                <div className="space-y-2 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -295,20 +295,20 @@ export default function ChreosiSmsCredentials() {
 
               {/* Group selector */}
               {sendTarget === "group" && (
-                <div className="pl-2 border-l-2 border-slate-200">
+                <div className="pl-2 border-l-2 border-slate-200 dark:border-slate-700">
                   <SmsPhoneGroupManager
                     selectedGroupId={selectedGroupId}
                     onGroupSelect={setSelectedGroupId}
                   />
-                  <p className="text-xs text-slate-500 mt-2">
-                    Υποστηρίζεται μόνο το placeholder <code className="bg-slate-100 px-1 rounded">{"{PORTAL_URL}"}</code>.
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                    Υποστηρίζεται μόνο το placeholder <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">{"{PORTAL_URL}"}</code>.
                   </p>
                 </div>
               )}
 
               {/* Manual phone textarea */}
               {sendTarget === "manual" && (
-                <div className="space-y-1 pl-2 border-l-2 border-slate-200">
+                <div className="space-y-1 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
                   <Label>Τηλέφωνα</Label>
                   <Textarea
                     placeholder={"99123456\n+35799123456\n0035799123456"}
@@ -317,8 +317,8 @@ export default function ChreosiSmsCredentials() {
                     rows={5}
                     className="font-mono text-sm"
                   />
-                  <p className="text-xs text-slate-500">
-                    Ένα τηλέφωνο ανά γραμμή ή διαχωρισμένα με κόμμα/ελληνικό ερωτηματικό. Υποστηρίζεται μόνο το placeholder <code className="bg-slate-100 px-1 rounded">{"{PORTAL_URL}"}</code>.
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Ένα τηλέφωνο ανά γραμμή ή διαχωρισμένα με κόμμα/ελληνικό ερωτηματικό. Υποστηρίζεται μόνο το placeholder <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">{"{PORTAL_URL}"}</code>.
                   </p>
                 </div>
               )}
@@ -349,8 +349,8 @@ export default function ChreosiSmsCredentials() {
                   <span className="text-green-600">✓ Εστάλησαν: {lastResult.sent}</span>
                   <span className="text-red-600">✗ Απέτυχαν: {lastResult.failed}</span>
                   {lastResult.skipped > 0 && <span className="text-amber-600">⚠ Παραλείφθηκαν: {lastResult.skipped}</span>}
-                  {lastResult.skipped_duplicate > 0 && <span className="text-slate-500">Διπλότυπα: {lastResult.skipped_duplicate}</span>}
-                  {lastResult.skipped_invalid > 0 && <span className="text-slate-500">Μη έγκυρα: {lastResult.skipped_invalid}</span>}
+                  {lastResult.skipped_duplicate > 0 && <span className="text-slate-500 dark:text-slate-400">Διπλότυπα: {lastResult.skipped_duplicate}</span>}
+                  {lastResult.skipped_invalid > 0 && <span className="text-slate-500 dark:text-slate-400">Μη έγκυρα: {lastResult.skipped_invalid}</span>}
                 </div>
                 {lastResult.results?.filter(r => r.status === "failed").length > 0 && (
                   <div className="text-xs text-red-600 space-y-1">
@@ -386,14 +386,14 @@ export default function ChreosiSmsCredentials() {
             </div>
 
             {isLoading ? (
-              <div className="text-slate-500 text-sm py-4 text-center">Φόρτωση...</div>
+              <div className="text-slate-500 dark:text-slate-400 text-sm py-4 text-center">Φόρτωση...</div>
             ) : (
               <div className="space-y-1 max-h-80 overflow-auto border rounded-lg p-3">
                 {filteredAccounts.length === 0 ? (
                   <div className="text-slate-400 text-sm text-center py-4">Δεν βρέθηκαν χρήστες</div>
                 ) : (
                   filteredAccounts.map((a) => (
-                    <label key={a.id} className="flex items-center gap-3 text-sm py-1 px-1 hover:bg-slate-50 rounded cursor-pointer">
+                    <label key={a.id} className="flex items-center gap-3 text-sm py-1 px-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded cursor-pointer">
                       <Checkbox
                         checked={!!selected[a.username]}
                         onCheckedChange={(v) => setSelected(prev => ({ ...prev, [a.username]: !!v }))}
@@ -411,7 +411,7 @@ export default function ChreosiSmsCredentials() {
               </div>
             )}
 
-            <div className="text-sm text-slate-600">
+            <div className="text-sm text-slate-600 dark:text-slate-300">
               Επιλεγμένοι: <strong>{selectedUsernames.length}</strong> / {filteredAccounts.length}
             </div>
           </CardContent>
@@ -453,7 +453,7 @@ export default function ChreosiSmsCredentials() {
                     </span>
                   </div>
                   {l.message_preview && (
-                    <div className="text-xs text-slate-500 mt-1 pl-6">{l.message_preview}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 pl-6">{l.message_preview}</div>
                   )}
                   {l.error && <div className="text-xs text-red-500 mt-1 pl-6">{l.error}</div>}
                 </div>

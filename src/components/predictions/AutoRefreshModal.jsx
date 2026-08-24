@@ -76,7 +76,7 @@ export default function AutoRefreshModal({ open, onClose, settings, onApply, onR
 
                     {/* Interval inputs */}
                     <div className={enabled ? '' : 'opacity-40 pointer-events-none'}>
-                        <Label className="text-xs text-slate-500 mb-2 block">Διάστημα Ανανέωσης</Label>
+                        <Label className="text-xs text-slate-500 dark:text-slate-400 mb-2 block">Διάστημα Ανανέωσης</Label>
                         <div className="flex items-center gap-2">
                             <div className="flex flex-col items-center gap-1">
                                 <Input

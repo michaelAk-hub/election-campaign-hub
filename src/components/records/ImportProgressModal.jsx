@@ -104,7 +104,7 @@ export default function ImportProgressModal({ jobId, onClose }) {
         <div className="space-y-4 py-2">
           {/* Progress bar */}
           <div>
-            <div className="flex justify-between text-xs text-slate-500 mb-1">
+            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
               <span>{job?.message || 'Αναμονή...'}</span>
               <span>{job?.processed ?? 0} / {job?.total ?? 0}</span>
             </div>

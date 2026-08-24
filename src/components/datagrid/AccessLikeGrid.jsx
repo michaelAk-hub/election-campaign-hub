@@ -200,13 +200,13 @@ export default function AccessLikeGrid({
         <div className="border rounded-lg overflow-hidden" ref={tableRef}>
             <div className="overflow-auto" style={{ maxHeight: '600px' }}>
                 <table className="w-full border-collapse">
-                    <thead className="bg-slate-50 sticky top-0 z-10">
+                    <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-10">
                         {table.getHeaderGroups().map(headerGroup => (
                             <tr key={headerGroup.id}>
                                 {headerGroup.headers.map(header => (
                                     <th
                                         key={header.id}
-                                        className="px-3 py-2 text-left text-xs font-medium text-slate-600 border-b border-r relative"
+                                        className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-300 border-b border-r relative"
                                         style={{ width: header.getSize() }}
                                     >
                                         {flexRender(header.column.columnDef.header, header.getContext())}
@@ -232,13 +232,13 @@ export default function AccessLikeGrid({
                             </tr>
                         ) : data.length === 0 ? (
                             <tr>
-                                <td colSpan={orderedColumns.length} className="text-center py-8 text-slate-500">
+                                <td colSpan={orderedColumns.length} className="text-center py-8 text-slate-500 dark:text-slate-400">
                                     Δεν βρέθηκαν εγγραφές
                                 </td>
                             </tr>
                         ) : (
                             table.getRowModel().rows.map((row, rowIndex) => (
-                                <tr key={row.id} className="hover:bg-slate-50">
+                                <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-700">
                                     {row.getVisibleCells().map(cell => {
                                         const columnId = cell.column.id;
                                         const isActive = activeCell?.rowIndex === rowIndex && activeCell?.columnId === columnId;
@@ -257,7 +257,7 @@ export default function AccessLikeGrid({
                                                     isActive && "ring-2 ring-blue-500 ring-inset",
                                                     hasError && "bg-red-50",
                                                     hasConflict && "bg-yellow-50",
-                                                    !col?.editable && "bg-slate-50 text-slate-500"
+                                                    !col?.editable && "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
                                                 )}
                                                 onClick={() => handleCellClick(rowIndex, columnId, cell.getValue())}
                                                 onDoubleClick={() => handleCellDoubleClick(rowIndex, columnId, cell.getValue())}

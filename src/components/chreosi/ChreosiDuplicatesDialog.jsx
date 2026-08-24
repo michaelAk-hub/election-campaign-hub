@@ -94,7 +94,7 @@ export default function ChreosiDuplicatesDialog({ open, onClose, duplicateGroups
               const isDone = doneGroups.includes(groupIdx);
               const state = mergeState[groupIdx] || { keeperId: null, mergeIds: [] };
               return (
-                <div key={groupIdx} className={`border rounded-xl p-4 space-y-3 ${isDone ? 'opacity-50 bg-slate-50' : ''}`}>
+                <div key={groupIdx} className={`border rounded-xl p-4 space-y-3 ${isDone ? 'opacity-50 bg-slate-50 dark:bg-slate-800' : ''}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -105,7 +105,7 @@ export default function ChreosiDuplicatesDialog({ open, onClose, duplicateGroups
 
                   {!isDone && (
                     <>
-                      <p className="text-xs text-slate-500">Επιλέξτε ποιος είναι ο κύριος λογαριασμός (keeper). Οι υπόλοιποι θα συγχωνευτούν μέσα του.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Επιλέξτε ποιος είναι ο κύριος λογαριασμός (keeper). Οι υπόλοιποι θα συγχωνευτούν μέσα του.</p>
                       <div className="space-y-2">
                         {group.accounts.map(acc => {
                           const isKeeper = state.keeperId === acc.id;
@@ -120,7 +120,7 @@ export default function ChreosiDuplicatesDialog({ open, onClose, duplicateGroups
                               />
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium text-sm">{acc.username}</div>
-                                <div className="text-xs text-slate-500">{acc.display_name || '—'} · {acc.phone || 'χωρίς τηλ.'} · {acc.is_active ? 'Ενεργός' : 'Ανενεργός'}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">{acc.display_name || '—'} · {acc.phone || 'χωρίς τηλ.'} · {acc.is_active ? 'Ενεργός' : 'Ανενεργός'}</div>
                                 {acc.allowed_prediction_symbols?.length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {acc.allowed_prediction_symbols.map(s => <Badge key={s} variant="outline" className="text-xs">{s}</Badge>)}

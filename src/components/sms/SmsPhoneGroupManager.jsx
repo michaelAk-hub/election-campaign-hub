@@ -134,7 +134,7 @@ export default function SmsPhoneGroupManager({ selectedGroupId, onGroupSelect })
       </div>
 
       {selectedGroup && (
-        <p className="text-xs text-slate-500 pl-1">
+        <p className="text-xs text-slate-500 dark:text-slate-400 pl-1">
           {selectedGroup.member_count || 0} τηλέφωνα
           {selectedGroup.description ? ` • ${selectedGroup.description}` : ""}
         </p>
@@ -164,7 +164,7 @@ export default function SmsPhoneGroupManager({ selectedGroupId, onGroupSelect })
                 className="font-mono text-sm"
                 placeholder={"99123456\n99234567\n+35799345678"}
               />
-              <p className="text-xs text-slate-500">Ένα τηλέφωνο ανά γραμμή. Μη έγκυροι αριθμοί θα αγνοηθούν.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Ένα τηλέφωνο ανά γραμμή. Μη έγκυροι αριθμοί θα αγνοηθούν.</p>
             </div>
           </div>
           <DialogFooter>
@@ -184,7 +184,7 @@ export default function SmsPhoneGroupManager({ selectedGroupId, onGroupSelect })
           <DialogHeader>
             <DialogTitle>Διαγραφή Ομάδας</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-600 py-2">
+          <p className="text-sm text-slate-600 dark:text-slate-300 py-2">
             Είστε σίγουροι ότι θέλετε να διαγράψετε την ομάδα <strong>"{deleteConfirm?.name}"</strong> και όλα τα τηλέφωνά της;
           </p>
           <DialogFooter>

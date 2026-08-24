@@ -123,7 +123,7 @@ const AccessStyleFilter = forwardRef((props, ref) => {
     const totalAvailable = filterValues.length + (hasBlanks ? 1 : 0);
 
     return (
-        <div className="w-64 bg-white rounded-lg shadow-lg border border-slate-200 p-3">
+        <div className="w-64 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-3">
             <div className="relative mb-3">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
@@ -134,7 +134,7 @@ const AccessStyleFilter = forwardRef((props, ref) => {
                 />
             </div>
 
-            <div className="flex items-center space-x-2 mb-2 pb-2 border-b border-slate-200">
+            <div className="flex items-center space-x-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
                 <Checkbox
                     id="select-all"
                     checked={filterValues.length > 0 && selectedValues.size === filterValues.length && (!hasBlanks || blanksSelected)}
@@ -154,7 +154,7 @@ const AccessStyleFilter = forwardRef((props, ref) => {
                 ) : (
                     <div className="space-y-1.5">
                         {infoMessage && (
-                            <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md p-2">
+                            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md p-2">
                                 {infoMessage}
                             </div>
                         )}
@@ -166,7 +166,7 @@ const AccessStyleFilter = forwardRef((props, ref) => {
                                     checked={blanksSelected}
                                     onCheckedChange={() => setBlanksSelected(!blanksSelected)}
                                 />
-                                <label htmlFor="blanks" className="text-sm italic text-slate-500 cursor-pointer select-none">
+                                <label htmlFor="blanks" className="text-sm italic text-slate-500 dark:text-slate-400 cursor-pointer select-none">
                                     (Blanks)
                                 </label>
                             </div>

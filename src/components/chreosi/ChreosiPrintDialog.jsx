@@ -278,7 +278,7 @@ export default function ChreosiPrintDialog({ open, onClose, accounts, people }) 
         </div>
 
         <DialogFooter className="flex-row items-center justify-between pt-3 border-t dark:border-slate-700 gap-2">
-          <Button variant="ghost" size="sm" onClick={handleReset} className="text-slate-500">
+          <Button variant="ghost" size="sm" onClick={handleReset} className="text-slate-500 dark:text-slate-400">
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
             Επαναφορά
           </Button>

@@ -74,7 +74,7 @@ export default function PullToRefresh({ onRefresh, children }) {
           style={{ height: `${Math.max(pullDistance, refreshing ? THRESHOLD : 0)}px` }}
         >
           <div
-            className="w-10 h-10 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center"
+            className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 flex items-center justify-center"
             style={{ transform: refreshing ? 'none' : `rotate(${progress * 360}deg)` }}
           >
             <Loader2

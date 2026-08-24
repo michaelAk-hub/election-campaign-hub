@@ -103,7 +103,7 @@ function OpToggle({ value, onChange }) {
             "px-3 py-1.5 text-xs font-bold transition-colors",
             value === op
               ? op === 'AND' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
-              : 'bg-white text-slate-500 hover:bg-slate-50'
+              : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
           )}
         >
           {op}
@@ -129,7 +129,7 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
           {/* Group header */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">Ομάδα</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Ομάδα</span>
               <OpToggle
                 value={node.op}
                 onChange={(v) => setTree(prev => updateNodeAtPath(prev, path, (n) => ({ ...n, op: v })))}
@@ -186,7 +186,7 @@ export default function RuleTreeBuilder({ tree, setTree, availableColumns, opera
       const ops = operatorsByType[type] || operatorsByType.text;
 
       return (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
           <Select
             value={node.field}
             onValueChange={(v) => {

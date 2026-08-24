@@ -25,7 +25,7 @@ export default function ConflictResolutionDialog({
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
                         Ένας άλλος χρήστης έχει τροποποιήσει αυτή την εγγραφή ενώ εσείς επεξεργαζόσασταν το πεδίο <strong>{field}</strong>.
                     </p>
 
@@ -37,15 +37,15 @@ export default function ConflictResolutionDialog({
                             </div>
                         </div>
 
-                        <div className="p-4 bg-slate-50 rounded-lg">
-                            <div className="text-xs font-medium text-slate-900 mb-2">Τρέχουσα Τιμή (από άλλον χρήστη)</div>
-                            <div className="text-sm text-slate-700 font-mono break-words">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                            <div className="text-xs font-medium text-slate-900 dark:text-slate-100 mb-2">Τρέχουσα Τιμή (από άλλον χρήστη)</div>
+                            <div className="text-sm text-slate-700 dark:text-slate-300 font-mono break-words">
                                 {currentValue === null || currentValue === undefined ? '(κενό)' : String(currentValue)}
                             </div>
                         </div>
                     </div>
 
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
                         <strong>Προτείνεται:</strong> Επιλέξτε "Φόρτωση Τελευταίας" για να δείτε όλες τις αλλαγές του άλλου χρήστη,
                         ή "Αντικατάσταση" για να επιβάλετε τη δική σας τιμή.
                     </div>

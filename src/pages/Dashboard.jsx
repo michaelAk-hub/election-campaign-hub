@@ -289,11 +289,11 @@ export default function Dashboard() {
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Συνολική Πρόοδος</span>
-              <span className="font-semibold text-slate-900">{votePercentage}%</span>
+              <span className="text-slate-600 dark:text-slate-300">Συνολική Πρόοδος</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{votePercentage}%</span>
             </div>
             <Progress value={votePercentage} className="h-3" />
-            <div className="flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
               <span>{votedCount.toLocaleString('el-GR')} ψήφισαν</span>
               <span>{notVotedCount.toLocaleString('el-GR')} απομένουν</span>
             </div>
@@ -317,8 +317,8 @@ export default function Dashboard() {
             {departmentStats.map((dept, idx) => (
               <div key={dept.department} className="space-y-2">
                 <div className="flex items-center justify-between text-xs sm:text-sm">
-                  <span className="text-slate-700 truncate max-w-[140px] sm:max-w-[200px]">{dept.department}</span>
-                  <span className="text-slate-500 whitespace-nowrap ml-2">
+                  <span className="text-slate-700 dark:text-slate-300 truncate max-w-[140px] sm:max-w-[200px]">{dept.department}</span>
+                  <span className="text-slate-500 dark:text-slate-400 whitespace-nowrap ml-2">
                     {dept.voted}/{dept.total} ({dept.percentage}%)
                   </span>
                 </div>
@@ -334,31 +334,31 @@ export default function Dashboard() {
             <CardTitle className="text-base sm:text-lg">Λογαριασμοί</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 sm:space-y-4">
-            <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
                   <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm sm:text-base font-medium text-slate-900">Χρεωστικοί</p>
-                  <p className="text-xs sm:text-sm text-slate-500">Ενεργοί λογαριασμοί</p>
+                  <p className="text-sm sm:text-base font-medium text-slate-900 dark:text-slate-100">Χρεωστικοί</p>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ενεργοί λογαριασμοί</p>
                 </div>
               </div>
-              <span className="text-xl sm:text-2xl font-bold text-slate-900">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {chreosiAccounts.filter(a => a.is_active).length}
               </span>
             </div>
-            <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg">
                   <Vote className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm sm:text-base font-medium text-slate-900">Κανάλι</p>
-                  <p className="text-xs sm:text-sm text-slate-500">Ενεργοί λογαριασμοί</p>
+                  <p className="text-sm sm:text-base font-medium text-slate-900 dark:text-slate-100">Κανάλι</p>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ενεργοί λογαριασμοί</p>
                 </div>
               </div>
-              <span className="text-xl sm:text-2xl font-bold text-slate-900">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {kanaliAccounts.filter(a => a.is_active).length}
               </span>
             </div>
@@ -379,13 +379,13 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           {recentSubmissions.length === 0 ? (
-            <p className="text-slate-500 text-center py-8">Δεν υπάρχουν καταχωρήσεις ακόμα</p>
+            <p className="text-slate-500 dark:text-slate-400 text-center py-8">Δεν υπάρχουν καταχωρήσεις ακόμα</p>
           ) : (
             <div className="space-y-2">
               {recentSubmissions.slice(0, 5).map(sub => (
                 <div 
                   key={sub.id} 
-                  className="flex items-center justify-between p-2 sm:p-3 bg-slate-50 rounded-lg gap-2"
+                  className="flex items-center justify-between p-2 sm:p-3 bg-slate-50 dark:bg-slate-800 rounded-lg gap-2"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     <div className={`p-1 sm:p-1.5 rounded-full flex-shrink-0 ${
@@ -400,8 +400,8 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-medium text-slate-900 truncate">ID: {sub.submitted_id}</p>
-                      <p className="text-xs text-slate-500 truncate">{sub.kanali_username}</p>
+                      <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 truncate">ID: {sub.submitted_id}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{sub.kanali_username}</p>
                     </div>
                   </div>
                   <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
@@ -431,12 +431,12 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           {smsLogs.length === 0 ? (
-            <p className="text-slate-500 text-center py-8">Δεν υπάρχουν SMS ακόμα</p>
+            <p className="text-slate-500 dark:text-slate-400 text-center py-8">Δεν υπάρχουν SMS ακόμα</p>
           ) : (
             <div className="overflow-auto max-h-96">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-white z-10">
-                  <tr className="border-b text-xs text-slate-500">
+                <thead className="sticky top-0 bg-white dark:bg-slate-800 z-10">
+                  <tr className="border-b text-xs text-slate-500 dark:text-slate-400">
                     <th className="text-left py-2 pr-3 font-medium">Ημ/νία</th>
                     <th className="text-left py-2 pr-3 font-medium">Κατηγορία</th>
                     <th className="text-left py-2 pr-3 font-medium">Username</th>
@@ -447,13 +447,13 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {smsLogs.map(log => (
-                    <tr key={log.id} className="border-b last:border-0 hover:bg-slate-50">
-                      <td className="py-2 pr-3 text-xs text-slate-500 whitespace-nowrap">
+                    <tr key={log.id} className="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700">
+                      <td className="py-2 pr-3 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {new Date(log.created_date).toLocaleString('el-GR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
                       </td>
-                      <td className="py-2 pr-3 text-xs text-slate-600">{log.category || '—'}</td>
+                      <td className="py-2 pr-3 text-xs text-slate-600 dark:text-slate-300">{log.category || '—'}</td>
                       <td className="py-2 pr-3 font-medium truncate max-w-[120px]">{log.to_username || '—'}</td>
-                      <td className="py-2 pr-3 text-xs text-slate-500">{log.to_phone || '—'}</td>
+                      <td className="py-2 pr-3 text-xs text-slate-500 dark:text-slate-400">{log.to_phone || '—'}</td>
                       <td className="py-2 pr-3">
                         <Badge className={log.status === 'sent'
                           ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
@@ -493,7 +493,7 @@ export default function Dashboard() {
                   file:bg-blue-50 file:text-blue-700
                   hover:file:bg-blue-100"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Η πρώτη γραμμή του αρχείου πρέπει να περιέχει τα ονόματα των πεδίων
               </p>
             </div>
@@ -501,7 +501,7 @@ export default function Dashboard() {
             <div className="space-y-2">
               <Label>Τρόπος Εισαγωγής</Label>
               <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
                   <input
                     type="radio"
                     name="importMode"
@@ -512,10 +512,10 @@ export default function Dashboard() {
                   />
                   <div>
                     <p className="font-medium text-sm">Προσθήκη</p>
-                    <p className="text-xs text-slate-500">Προσθήκη νέων εγγραφών στις υπάρχουσες</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Προσθήκη νέων εγγραφών στις υπάρχουσες</p>
                   </div>
                 </label>
-                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
                   <input
                     type="radio"
                     name="importMode"
@@ -526,7 +526,7 @@ export default function Dashboard() {
                   />
                   <div>
                     <p className="font-medium text-sm text-red-600">Αντικατάσταση</p>
-                    <p className="text-xs text-slate-500">Διαγραφή όλων και εισαγωγή νέων</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Διαγραφή όλων και εισαγωγή νέων</p>
                   </div>
                 </label>
               </div>

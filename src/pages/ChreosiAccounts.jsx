@@ -92,7 +92,7 @@ function RowActionsMenu({ row, onEdit, onResetPassword, onDelete, onSendSms, onM
   return (
     <>
       <button ref={btnRef} onClick={handleOpen} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-        <svg className="h-4 w-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="h-4 w-4 text-slate-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 20 20">
           <circle cx="10" cy="4" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="10" cy="16" r="1.5" />
         </svg>
       </button>
@@ -484,7 +484,7 @@ export default function ChreosiAccounts() {
         </div>
         {selectedIds.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 ml-auto">
-            <span className="text-sm text-slate-600">{selectedIds.length} επιλεγμένα</span>
+            <span className="text-sm text-slate-600 dark:text-slate-300">{selectedIds.length} επιλεγμένα</span>
             {/* Select all across pages */}
             {total > PAGE_SIZE && (
               <Button variant="outline" size="sm" onClick={handleSelectAllFiltered} disabled={loadingAllIds}>
@@ -518,7 +518,7 @@ export default function ChreosiAccounts() {
           </div>
         )}
         {selectedIds.length === 0 && (
-          <span className="text-sm text-slate-500 ml-auto">{total} εγγραφές</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400 ml-auto">{total} εγγραφές</span>
         )}
       </div>
 
@@ -562,9 +562,9 @@ export default function ChreosiAccounts() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500 dark:text-slate-400"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></TableCell></TableRow>
               ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500">Δεν βρέθηκαν εγγραφές</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500 dark:text-slate-400">Δεν βρέθηκαν εγγραφές</TableCell></TableRow>
               ) : (
                 rows.map(row => {
                   const selected = selectedSet.has(row.id);
@@ -641,7 +641,7 @@ export default function ChreosiAccounts() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-500">Σελίδα {page + 1} από {totalPages}</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400">Σελίδα {page + 1} από {totalPages}</span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
               <ChevronLeft className="h-4 w-4" />
@@ -726,7 +726,7 @@ export default function ChreosiAccounts() {
               <Label className="text-sm font-medium mb-2 block">Κατάσταση Ψήφου</Label>
               <div className="flex gap-3">
                 {VOTED_STATUS_OPTIONS.map(opt => (
-                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 hover:bg-slate-50">
+                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700">
                     <input type="checkbox" checked={bulkVoted.includes(opt.value)} onChange={e => setBulkVoted(e.target.checked ? [...bulkVoted, opt.value] : bulkVoted.filter(v => v !== opt.value))} />
                     <span className="text-sm">{opt.label}</span>
                   </label>
@@ -781,7 +781,7 @@ export default function ChreosiAccounts() {
                 {VOTED_STATUS_OPTIONS.map(opt => {
                   const sel = (formData.allowed_voted_statuses || []).includes(opt.value);
                   return (
-                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 hover:bg-slate-50">
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700">
                       <input type="checkbox" checked={sel} onChange={e => {
                         const cur = formData.allowed_voted_statuses || [];
                         setFormData({...formData, allowed_voted_statuses: e.target.checked ? [...cur, opt.value] : cur.filter(v => v !== opt.value)});

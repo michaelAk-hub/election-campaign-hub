@@ -160,7 +160,7 @@ export default function CompareMerge() {
             }`}>
               {s}
             </div>
-            <span className={`text-sm ${step >= s ? 'text-slate-900' : 'text-slate-400'}`}>
+            <span className={`text-sm ${step >= s ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}>
               {s === 1 ? 'Μεταφόρτωση' : s === 2 ? 'Ρύθμιση' : 'Αποτελέσματα'}
             </span>
             {s < 3 && <div className="w-8 h-0.5 bg-slate-200" />}
@@ -178,11 +178,11 @@ export default function CompareMerge() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center hover:border-blue-400 transition-colors">
+            <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-12 text-center hover:border-blue-400 transition-colors">
               <Upload className="h-12 w-12 mx-auto text-slate-400 mb-4" />
               <Label className="cursor-pointer">
                 <span className="text-blue-600 hover:underline">Επιλέξτε αρχείο</span>
-                <span className="text-slate-500"> ή σύρετε εδώ</span>
+                <span className="text-slate-500 dark:text-slate-400"> ή σύρετε εδώ</span>
                 <Input
                   type="file"
                   accept=".csv,.xlsx"
@@ -192,8 +192,8 @@ export default function CompareMerge() {
               </Label>
               <p className="text-sm text-slate-400 mt-2">CSV, XLSX (μέγ. 10MB)</p>
             </div>
-            <div className="mt-4 p-4 bg-slate-50 rounded-lg">
-              <p className="text-sm text-slate-600">
+            <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
                 <strong>Τρέχοντα δεδομένα:</strong> {people.length.toLocaleString('el-GR')} εγγραφές
               </p>
             </div>
@@ -229,7 +229,7 @@ export default function CompareMerge() {
                   <SelectItem value="ucid">UCID</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Οι εγγραφές θα αντιστοιχιστούν με βάση αυτό το πεδίο
               </p>
             </div>
@@ -264,7 +264,7 @@ export default function CompareMerge() {
               <CardContent className="pt-6 text-center">
                 <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500 mb-2" />
                 <p className="text-2xl font-bold">{comparisonResults.matched.length}</p>
-                <p className="text-slate-500">Αντιστοιχήθηκαν</p>
+                <p className="text-slate-500 dark:text-slate-400">Αντιστοιχήθηκαν</p>
               </CardContent>
             </Card>
             <Card>
@@ -273,7 +273,7 @@ export default function CompareMerge() {
                   <span className="text-amber-600 font-bold">B</span>
                 </div>
                 <p className="text-2xl font-bold">{comparisonResults.baseOnly.length}</p>
-                <p className="text-slate-500">Μόνο στη Βάση</p>
+                <p className="text-slate-500 dark:text-slate-400">Μόνο στη Βάση</p>
               </CardContent>
             </Card>
             <Card>
@@ -282,7 +282,7 @@ export default function CompareMerge() {
                   <span className="text-blue-600 font-bold">U</span>
                 </div>
                 <p className="text-2xl font-bold">{comparisonResults.uploadOnly.length}</p>
-                <p className="text-slate-500">Μόνο στο Αρχείο</p>
+                <p className="text-slate-500 dark:text-slate-400">Μόνο στο Αρχείο</p>
               </CardContent>
             </Card>
           </div>

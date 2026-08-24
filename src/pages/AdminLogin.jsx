@@ -81,7 +81,7 @@ export default function AdminLogin() {
                     <CardTitle className="text-2xl font-bold">
                         Σύνδεση Διαχειριστή & Οργανωτικού
                     </CardTitle>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
                         Portal B - Admin & Organotiki Login
                     </p>
                 </CardHeader>
@@ -136,7 +136,7 @@ export default function AdminLogin() {
                         </Button>
                     </form>
 
-                    <p className="text-center text-slate-500 text-sm mt-6">
+                    <p className="text-center text-slate-500 dark:text-slate-400 text-sm mt-6">
                         <button
                             onClick={() => window.location.href = createPageUrl('PortalLogin')}
                             className="text-blue-600 hover:underline"

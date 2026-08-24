@@ -159,7 +159,7 @@ export default function SendMessage() {
                   placeholder="Εισάγετε τον τίτλο του μηνύματος..."
                   maxLength={100}
                 />
-                <p className="text-xs text-slate-500 mt-1">{title.length}/100</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{title.length}/100</p>
               </div>
 
               <div>
@@ -172,14 +172,14 @@ export default function SendMessage() {
                   rows={5}
                   maxLength={500}
                 />
-                <p className="text-xs text-slate-500 mt-1">{message.length}/500</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{message.length}/500</p>
               </div>
 
               {/* Expiry section */}
               <div className="border rounded-lg p-4 space-y-3 bg-slate-50 dark:bg-slate-800/30">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-slate-500" />
+                    <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                     <Label htmlFor="expiry-switch" className="cursor-pointer font-medium">
                       Το μήνυμα λήγει
                     </Label>
@@ -193,7 +193,7 @@ export default function SendMessage() {
 
                 {expiryEnabled && (
                   <div className="space-y-2 pt-1">
-                    <Label className="text-sm text-slate-600">Λήξη μετά από</Label>
+                    <Label className="text-sm text-slate-600 dark:text-slate-300">Λήξη μετά από</Label>
                     <div className="flex gap-2">
                       <Input
                         type="number"
@@ -275,7 +275,7 @@ export default function SendMessage() {
                   ))}
                   {selectedGroups.length > 0 && (
                     <div className="pt-2 border-t">
-                      <p className="text-sm text-slate-600">Επιλεγμένες: {selectedGroups.length} ομάδες</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">Επιλεγμένες: {selectedGroups.length} ομάδες</p>
                     </div>
                   )}
                 </TabsContent>
@@ -356,7 +356,7 @@ export default function SendMessage() {
                   </ScrollArea>
                   {selectedUsers.length > 0 && (
                     <div className="pt-2 border-t mt-2">
-                      <p className="text-sm text-slate-600">Επιλεγμένοι: {selectedUsers.length} χρήστες</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">Επιλεγμένοι: {selectedUsers.length} χρήστες</p>
                     </div>
                   )}
                 </TabsContent>
@@ -392,14 +392,14 @@ export default function SendMessage() {
             <CardTitle className="text-sm">Προεπισκόπηση</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
               <div className="flex gap-3">
                 <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-sm text-slate-900">
+                  <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
                     {title || 'Τίτλος μηνύματος'}
                   </h4>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
                     {message || 'Περιεχόμενο μηνύματος'}
                   </p>
                   {expiryEnabled && expiryValid && expiryValue && (

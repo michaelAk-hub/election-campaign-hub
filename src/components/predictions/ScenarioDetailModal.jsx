@@ -13,7 +13,7 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
             <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-lg font-bold">{scenario.name}</DialogTitle>
-                    <div className="text-sm text-slate-500">
+                    <div className="text-sm text-slate-500 dark:text-slate-400">
                         {scenario.total_seats} έδρες · Πραγματικοί Ψήφοι: {result.actual_voted_count?.toLocaleString('el-GR')} · Σύνολο (raw): {(result.total_raw_votes ?? result.total_predicted_votes ?? 0).toLocaleString('el-GR')} · Σταθμισμένοι: {Math.round(result.total_weighted_votes ?? result.total_predicted_votes ?? 0)} · Μέτρο: {result.quota?.toFixed(2)}
                     </div>
                 </DialogHeader>
@@ -52,7 +52,7 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right font-bold">{(party.rawVotes ?? 0).toLocaleString('el-GR')}</TableCell>
-                                            <TableCell className="text-right text-slate-500">{(party.weightedVotes ?? party.predictedVotes ?? 0).toFixed(1)}</TableCell>
+                                            <TableCell className="text-right text-slate-500 dark:text-slate-400">{(party.weightedVotes ?? party.predictedVotes ?? 0).toFixed(1)}</TableCell>
                                             <TableCell className="text-right font-bold">{party.percentage?.toFixed(2)}%</TableCell>
                                             <TableCell className="text-right font-bold text-blue-700 dark:text-blue-400">{party.seats?.toFixed(2)}</TableCell>
                                         </TableRow>
@@ -72,7 +72,7 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
                                     <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2">
                                         <div className="flex items-center justify-between">
                                             <span className="font-medium text-sm">{group.group_name}</span>
-                                            <span className="text-xs text-slate-500">{group.total_persons} ψήφοι · {group.global_share_percent?.toFixed(1)}% του συνόλου</span>
+                                            <span className="text-xs text-slate-500 dark:text-slate-400">{group.total_persons} ψήφοι · {group.global_share_percent?.toFixed(1)}% του συνόλου</span>
                                         </div>
                                         {group.condition_expression && (
                                             <div className="mt-1 text-xs text-slate-400 font-mono bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 inline-block">
@@ -94,7 +94,7 @@ export default function ScenarioDetailModal({ open, onClose, scenario, result })
                                                 <TableRow key={pi}>
                                                     <TableCell className="text-sm">{pr.name}</TableCell>
                                                     <TableCell className="text-right text-sm">{(pr.rawVotes ?? 0).toLocaleString('el-GR')}</TableCell>
-                                                    <TableCell className="text-right text-sm text-slate-500">{Math.round(pr.weightedVotes ?? pr.predictedVotes ?? 0).toLocaleString('el-GR')}</TableCell>
+                                                    <TableCell className="text-right text-sm text-slate-500 dark:text-slate-400">{Math.round(pr.weightedVotes ?? pr.predictedVotes ?? 0).toLocaleString('el-GR')}</TableCell>
                                                     <TableCell className="text-right text-sm font-bold">{pr.percentage?.toFixed(2)}%</TableCell>
                                                 </TableRow>
                                             ))}

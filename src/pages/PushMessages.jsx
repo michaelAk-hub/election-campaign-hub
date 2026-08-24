@@ -162,9 +162,9 @@ export default function PushMessages() {
               })}
             >
               {row.is_active ? (
-                <EyeOff className="h-4 w-4 text-slate-500" />
+                <EyeOff className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               ) : (
-                <Eye className="h-4 w-4 text-slate-500" />
+                <Eye className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               )}
             </Button>
             <Button
@@ -254,7 +254,7 @@ export default function PushMessages() {
           </DialogHeader>
           
           <div className="py-4">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               Είστε σίγουροι ότι θέλετε να διαγράψετε το μήνυμα "{messageToDelete?.title}";
             </p>
           </div>

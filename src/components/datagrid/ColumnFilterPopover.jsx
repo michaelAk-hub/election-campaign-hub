@@ -102,7 +102,7 @@ export function ColumnFilterPanel({ columnKey, columnLabel, partition = 'all', c
 
   return (
     <div onClick={e => e.stopPropagation()}>
-      <p className="text-xs font-semibold text-slate-600 mb-2">{columnLabel}</p>
+      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">{columnLabel}</p>
 
       <div className="relative mb-3">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -114,7 +114,7 @@ export function ColumnFilterPanel({ columnKey, columnLabel, partition = 'all', c
         />
       </div>
 
-      <div className="flex items-center space-x-2 mb-2 pb-2 border-b border-slate-200">
+      <div className="flex items-center space-x-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
         <Checkbox
           id={`sa-${columnKey}`}
           checked={filterValues.length > 0 && selectedValues.size === filterValues.length && (!hasBlanks || blanksSelected)}
@@ -134,7 +134,7 @@ export function ColumnFilterPanel({ columnKey, columnLabel, partition = 'all', c
         ) : (
           <div className="space-y-1.5">
             {infoMessage && (
-              <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md p-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md p-2">
                 {infoMessage}
               </div>
             )}
@@ -145,7 +145,7 @@ export function ColumnFilterPanel({ columnKey, columnLabel, partition = 'all', c
                   checked={blanksSelected}
                   onCheckedChange={() => setBlanksSelected(v => !v)}
                 />
-                <label htmlFor={`blank-${columnKey}`} className="text-sm italic text-slate-500 cursor-pointer select-none">
+                <label htmlFor={`blank-${columnKey}`} className="text-sm italic text-slate-500 dark:text-slate-400 cursor-pointer select-none">
                   (Κενά)
                 </label>
               </div>

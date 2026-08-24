@@ -232,7 +232,7 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
           {/* STEP: IDLE */}
           {step === 'idle' && (
             <div className="text-center py-8 space-y-4">
-              <p className="text-slate-600">Κάντε κλικ για να αναλύσετε τα δεδομένα πριν ξεκινήσετε.</p>
+              <p className="text-slate-600 dark:text-slate-300">Κάντε κλικ για να αναλύσετε τα δεδομένα πριν ξεκινήσετε.</p>
               {analyzeError && <Alert variant="destructive"><AlertDescription>{analyzeError}</AlertDescription></Alert>}
               <Button onClick={runAnalysis} size="lg">
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -245,7 +245,7 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
           {step === 'analyzing' && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600 mr-3" />
-              <span className="text-slate-600">Ανάλυση δεδομένων...</span>
+              <span className="text-slate-600 dark:text-slate-300">Ανάλυση δεδομένων...</span>
             </div>
           )}
 
@@ -262,8 +262,8 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
                   { label: 'Επιπλέον λογαριασμοί', value: analysis.extraAccounts?.length ?? 0, color: 'text-amber-600' },
                 ].map((item, i) => (
                   <div key={i} className="border rounded-lg p-3 text-center">
-                    <div className={`text-2xl font-bold ${item.color || 'text-slate-900'}`}>{item.value}</div>
-                    <div className="text-xs text-slate-500 mt-1">{item.label}</div>
+                    <div className={`text-2xl font-bold ${item.color || 'text-slate-900 dark:text-slate-100'}`}>{item.value}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.label}</div>
                   </div>
                 ))}
               </div>
@@ -302,7 +302,7 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
           {/* STEP: SETTINGS */}
           {(step === 'settings' || step === 'analysis') && !analysis?.hasDuplicates && (
             <div className="space-y-5 border-t pt-4">
-              <h3 className="font-semibold text-sm text-slate-700">Ρυθμίσεις για όλους τους λογαριασμούς</h3>
+              <h3 className="font-semibold text-sm text-slate-700 dark:text-slate-300">Ρυθμίσεις για όλους τους λογαριασμούς</h3>
 
               {/* Symbols */}
               <div>
@@ -328,7 +328,7 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
                 <label className="text-sm font-medium block mb-2">Κατάσταση Ψήφου</label>
                 <div className="flex gap-3">
                   {VOTED_STATUS_OPTIONS.map(opt => (
-                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 hover:bg-slate-50">
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700">
                       <input
                         type="checkbox"
                         checked={selectedVoted.includes(opt.value)}
@@ -357,15 +357,15 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
             <div className="space-y-4 py-4">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-3" />
-                <p className="font-semibold text-slate-700">Επεξεργασία λογαριασμών...</p>
-                <p className="text-sm text-slate-500 mt-1">Μην κλείσετε το παράθυρο — η εργασία συνεχίζεται ακόμα κι αν φορτώσετε ξανά</p>
+                <p className="font-semibold text-slate-700 dark:text-slate-300">Επεξεργασία λογαριασμών...</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Μην κλείσετε το παράθυρο — η εργασία συνεχίζεται ακόμα κι αν φορτώσετε ξανά</p>
               </div>
               <Progress value={pct} className="h-3" />
               <div className="grid grid-cols-4 gap-2 text-center text-sm">
-                <div><div className="text-lg font-bold">{jobProgress.processed}/{jobProgress.total}</div><div className="text-xs text-slate-500">Επεξεργ.</div></div>
-                <div><div className="text-lg font-bold text-green-600">{jobProgress.created}</div><div className="text-xs text-slate-500">Νέοι</div></div>
-                <div><div className="text-lg font-bold text-blue-600">{jobProgress.updated}</div><div className="text-xs text-slate-500">Ενημερ.</div></div>
-                <div><div className="text-lg font-bold text-red-600">{jobProgress.failed}</div><div className="text-xs text-slate-500">Αποτυχ.</div></div>
+                <div><div className="text-lg font-bold">{jobProgress.processed}/{jobProgress.total}</div><div className="text-xs text-slate-500 dark:text-slate-400">Επεξεργ.</div></div>
+                <div><div className="text-lg font-bold text-green-600">{jobProgress.created}</div><div className="text-xs text-slate-500 dark:text-slate-400">Νέοι</div></div>
+                <div><div className="text-lg font-bold text-blue-600">{jobProgress.updated}</div><div className="text-xs text-slate-500 dark:text-slate-400">Ενημερ.</div></div>
+                <div><div className="text-lg font-bold text-red-600">{jobProgress.failed}</div><div className="text-xs text-slate-500 dark:text-slate-400">Αποτυχ.</div></div>
               </div>
               {/* Live failed rows */}
               {jobProgress.results?.filter(r => r.action === 'failed')?.length > 0 && (
@@ -392,9 +392,9 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
                 <p className="text-xl font-bold text-green-700">Ολοκληρώθηκε!</p>
               </div>
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="border rounded-lg p-3"><div className="text-2xl font-bold text-green-600">{jobProgress.created}</div><div className="text-xs text-slate-500">Δημιουργήθηκαν</div></div>
-                <div className="border rounded-lg p-3"><div className="text-2xl font-bold text-blue-600">{jobProgress.updated}</div><div className="text-xs text-slate-500">Ενημερώθηκαν</div></div>
-                <div className="border rounded-lg p-3"><div className="text-2xl font-bold text-red-600">{jobProgress.failed}</div><div className="text-xs text-slate-500">Απέτυχαν</div></div>
+                <div className="border rounded-lg p-3"><div className="text-2xl font-bold text-green-600">{jobProgress.created}</div><div className="text-xs text-slate-500 dark:text-slate-400">Δημιουργήθηκαν</div></div>
+                <div className="border rounded-lg p-3"><div className="text-2xl font-bold text-blue-600">{jobProgress.updated}</div><div className="text-xs text-slate-500 dark:text-slate-400">Ενημερώθηκαν</div></div>
+                <div className="border rounded-lg p-3"><div className="text-2xl font-bold text-red-600">{jobProgress.failed}</div><div className="text-xs text-slate-500 dark:text-slate-400">Απέτυχαν</div></div>
               </div>
               {jobProgress.results?.length > 0 && (
                 <Button variant="outline" onClick={() => exportCsv(jobProgress.results)} className="w-full">

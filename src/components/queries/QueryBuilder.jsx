@@ -81,7 +81,7 @@ export default function QueryBuilder({ conditions, onChange, onTest, testCount, 
 
       {conditions.length === 0 ? (
         <Card className="p-8 text-center border-dashed">
-          <p className="text-sm text-slate-500 mb-3">Δεν υπάρχουν συνθήκες</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">Δεν υπάρχουν συνθήκες</p>
           <Button size="sm" variant="outline" onClick={addCondition}>
             <Plus className="h-3 w-3 mr-1" />
             Προσθήκη Πρώτης Συνθήκης
@@ -101,7 +101,7 @@ export default function QueryBuilder({ conditions, onChange, onTest, testCount, 
                     <select
                       value={conditions[index - 1].connector}
                       onChange={(e) => updateCondition(index - 1, { connector: e.target.value })}
-                      className="px-3 py-1 text-xs font-semibold border rounded-md bg-white"
+                      className="px-3 py-1 text-xs font-semibold border rounded-md bg-white dark:bg-slate-800"
                     >
                       <option value="AND">ΚΑΙ (AND)</option>
                       <option value="OR">Ή (OR)</option>
@@ -177,9 +177,9 @@ export default function QueryBuilder({ conditions, onChange, onTest, testCount, 
       {conditions.length > 0 && (
         <>
           <div className="pt-2">
-            <Label className="text-xs text-slate-500 mb-1 block">Έκφραση που δημιουργήθηκε:</Label>
-            <Card className="p-3 bg-slate-50">
-              <code className="text-xs text-slate-700 break-all">
+            <Label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Έκφραση που δημιουργήθηκε:</Label>
+            <Card className="p-3 bg-slate-50 dark:bg-slate-800">
+              <code className="text-xs text-slate-700 dark:text-slate-300 break-all">
                 {buildExpression() || '(κενή)'}
               </code>
             </Card>
@@ -198,7 +198,7 @@ export default function QueryBuilder({ conditions, onChange, onTest, testCount, 
             {testCount !== null && (
               <span className={cn(
                 "text-sm font-semibold px-3 py-1 rounded-full",
-                testCount > 0 ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                testCount > 0 ? "bg-green-100 text-green-700" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
               )}>
                 {testCount} {testCount === 1 ? 'εγγραφή' : 'εγγραφές'}
               </span>

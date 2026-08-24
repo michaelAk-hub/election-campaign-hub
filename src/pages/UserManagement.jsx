@@ -325,7 +325,7 @@ export default function UserManagement() {
                                                         {formatRemaining(b.locked_until)}
                                                     </Badge>
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-slate-500">#{b.lock_level}</td>
+                                                <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">#{b.lock_level}</td>
                                                 <td className="px-4 py-3">
                                                     {isAdmin ? (
                                                         <Button
@@ -456,7 +456,7 @@ export default function UserManagement() {
                                                             Online
                                                         </Badge>
                                                         {onlineStatus.last_seen[user.id] && (
-                                                            <span className="text-xs text-slate-500">
+                                                            <span className="text-xs text-slate-500 dark:text-slate-400">
                                                                 {formatDistanceToNow(new Date(onlineStatus.last_seen[user.id]), { 
                                                                     addSuffix: true,
                                                                     locale: el 
@@ -465,7 +465,7 @@ export default function UserManagement() {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-600">
+                                                    <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                                                         <Circle className="h-2 w-2 mr-1" />
                                                         Offline
                                                     </Badge>

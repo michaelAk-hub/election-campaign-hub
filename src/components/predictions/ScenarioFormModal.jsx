@@ -252,12 +252,12 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
                                             onChange={e => updateParty(party.id, 'name', e.target.value)}
                                         />
                                         <div className="flex items-center gap-1">
-                                            <Label className="text-xs text-slate-500">Χρώμα</Label>
+                                            <Label className="text-xs text-slate-500 dark:text-slate-400">Χρώμα</Label>
                                             <input
                                                 type="color"
                                                 value={party.color}
                                                 onChange={e => updateParty(party.id, 'color', e.target.value)}
-                                                className="w-8 h-8 rounded cursor-pointer border border-slate-300"
+                                                className="w-8 h-8 rounded cursor-pointer border border-slate-300 dark:border-slate-700"
                                             />
                                         </div>
                                         {parties.length > 1 && (
@@ -268,7 +268,7 @@ export default function ScenarioFormModal({ open, onClose, onSaved, editScenario
                                     </div>
                                     {/* Symbol rows */}
                                     <div className="space-y-2 pl-1">
-                                        <Label className="text-xs text-slate-500">Σύμβολα & Πολλαπλασιαστές</Label>
+                                        <Label className="text-xs text-slate-500 dark:text-slate-400">Σύμβολα & Πολλαπλασιαστές</Label>
                                         {party.symbols.map((sm, si) => (
                                             <div key={si} className="flex items-center gap-2">
                                                 <select

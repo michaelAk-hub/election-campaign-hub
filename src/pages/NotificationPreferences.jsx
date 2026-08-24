@@ -78,7 +78,7 @@ export default function NotificationPreferences() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label className="text-base">Αλλαγές Κωδικού</Label>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Ειδοποίηση όταν ο κωδικός σας αλλάξει ή επαναφερθεί
               </p>
             </div>
@@ -91,7 +91,7 @@ export default function NotificationPreferences() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label className="text-base">Ενημερώσεις Λογαριασμού</Label>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Ειδοποιήσεις για αλλαγές στον λογαριασμό σας
               </p>
             </div>
@@ -104,7 +104,7 @@ export default function NotificationPreferences() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label className="text-base">Μηνύματα Συστήματος</Label>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Σημαντικές ανακοινώσεις και ενημερώσεις συστήματος
               </p>
             </div>
@@ -117,7 +117,7 @@ export default function NotificationPreferences() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label className="text-base">Αλλαγές Δεδομένων</Label>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Ειδοποιήσεις όταν τα δεδομένα ενημερώνονται
               </p>
             </div>

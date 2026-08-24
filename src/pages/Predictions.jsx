@@ -349,7 +349,7 @@ export default function Predictions() {
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500">Φόρτωση...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">Φόρτωση...</TableCell></TableRow>
                             ) : sortedSymbolRows.length > 0 ? (
                                 <>
                                     {sortedSymbolRows.map((row, idx) => (
@@ -372,7 +372,7 @@ export default function Predictions() {
                                     </TableRow>
                                 </>
                             ) : (
-                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500">Δεν υπάρχουν δεδομένα</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">Δεν υπάρχουν δεδομένα</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -386,7 +386,7 @@ export default function Predictions() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                     {loading ? (
-                        <div className="text-center py-8 text-slate-500">Φόρτωση...</div>
+                        <div className="text-center py-8 text-slate-500 dark:text-slate-400">Φόρτωση...</div>
                     ) : Object.values(groupedByYear).length > 0 ? (
                         Object.values(groupedByYear).map((yearData) => (
                             <Collapsible key={yearData.year} className="border rounded-lg">
@@ -449,7 +449,7 @@ export default function Predictions() {
                             </Collapsible>
                         ))
                     ) : (
-                        <div className="text-center py-8 text-slate-500">Δεν υπάρχουν δεδομένα</div>
+                        <div className="text-center py-8 text-slate-500 dark:text-slate-400">Δεν υπάρχουν δεδομένα</div>
                     )}
                 </CardContent>
             </Card>

@@ -916,9 +916,9 @@ th{background:#f3f4f6;font-weight:700}
 
                   {/* Expression preview */}
                   <div className="bg-slate-900 text-green-400 p-3 rounded-lg text-xs">
-                    <div className="text-slate-500 mb-1 text-[10px] uppercase tracking-wider">Έκφραση:</div>
+                    <div className="text-slate-500 dark:text-slate-400 mb-1 text-[10px] uppercase tracking-wider">Έκφραση:</div>
                     <div className="font-mono break-all">
-                      {nodeToExpression(ruleTree, true) || <span className="text-slate-500">Καμία έκφραση</span>}
+                      {nodeToExpression(ruleTree, true) || <span className="text-slate-500 dark:text-slate-400">Καμία έκφραση</span>}
                     </div>
                   </div>
                 </div>
@@ -931,7 +931,7 @@ th{background:#f3f4f6;font-weight:700}
                     rows={4}
                     className="font-mono text-sm"
                   />
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Χρησιμοποιήστε: AND, OR, NOT, =, !=, contains, παρενθέσεις (). Προτεραιότητα: NOT {'>'} AND {'>'} OR.
                   </p>
                 </div>
@@ -975,7 +975,7 @@ th{background:#f3f4f6;font-weight:700}
           </DialogHeader>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600 font-medium">{queryResults.length.toLocaleString()} εγγραφές</span>
+              <span className="text-sm text-slate-600 dark:text-slate-300 font-medium">{queryResults.length.toLocaleString()} εγγραφές</span>
               {queryResults.length > 100 && (
                 <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded px-2 py-0.5">
                   Εμφανίζονται οι πρώτες 100 — εξάγετε για όλες
@@ -1089,7 +1089,7 @@ th{background:#f3f4f6;font-weight:700}
                       <div className="flex-1 text-sm">{c.label}</div>
                       {checked && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Θέση</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">Θέση</span>
                           <Select
                             value={String(idx + 1)}
                             onValueChange={(v) => setColPosition(c.key, Number(v))}

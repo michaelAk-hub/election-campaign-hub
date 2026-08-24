@@ -521,7 +521,7 @@ export default function Layout({ children, currentPageName }) {
               <div className="text-5xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                 {Math.floor(timeoutCountdown / 60)}:{String(timeoutCountdown % 60).padStart(2, '0')}
               </div>
-              <div className="text-sm text-slate-500">λεπτά</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">λεπτά</div>
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">

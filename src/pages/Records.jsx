@@ -332,7 +332,7 @@ function RowActionsCellRenderer(params) {
         onClick={openMenu}
         className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
       >
-        <MoreHorizontal className="h-4 w-4 text-slate-500" />
+        <MoreHorizontal className="h-4 w-4 text-slate-500 dark:text-slate-400" />
       </button>
       {open && createPortal(
         <div
@@ -1376,7 +1376,7 @@ export default function Records() {
               <DialogTitle>⚠️ Λείπει το πεδίο ΑΤ (ID)</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
-              <p className="text-sm text-slate-700">Το αρχείο δεν περιέχει στήλη <strong>person_id / ΑΤ</strong>. Πώς θέλετε να συνεχίσετε;</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300">Το αρχείο δεν περιέχει στήλη <strong>person_id / ΑΤ</strong>. Πώς θέλετε να συνεχίσετε;</p>
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
                 <p className="text-sm font-medium text-amber-900">Επιλογή 1: Αγνόηση & Εισαγωγή</p>
                 <p className="text-xs text-amber-800">Το σύστημα θα δημιουργήσει αυτόματα αύξοντα αριθμό ως person_id.</p>
@@ -1408,7 +1408,7 @@ export default function Records() {
               <DialogTitle>⚠️ Μερικές γραμμές χωρίς person_id</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
-              <p className="text-sm text-slate-700">
+              <p className="text-sm text-slate-700 dark:text-slate-300">
                 Το αρχείο περιέχει <strong>{mixedMissingCount}</strong> γραμμές χωρίς person_id και{' '}
                 <strong>{pendingRows.length - mixedMissingCount}</strong> γραμμές με person_id.
               </p>
@@ -1442,7 +1442,7 @@ export default function Records() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <p className="text-sm text-slate-700">
+              <p className="text-sm text-slate-700 dark:text-slate-300">
                 Θα διαγραφούν <strong>ΟΛΕΣ</strong> οι εγγραφές και <strong>ΟΛΑ</strong> τα Dataset. Η ενέργεια δεν μπορεί να αναιρεθεί.
               </p>
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
@@ -1482,12 +1482,12 @@ export default function Records() {
                 <div className="space-y-4 py-2">
                   <div className="flex items-center gap-3">
                     <Loader2 className="h-5 w-5 animate-spin text-blue-600 flex-shrink-0" />
-                    <p className="text-sm font-medium text-slate-700">{uploadProgress.step}</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{uploadProgress.step}</p>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
                     <div className="bg-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${uploadProgress.percent}%` }} />
                   </div>
-                  <p className="text-xs text-slate-500 text-center">{uploadProgress.percent}% ολοκληρώθηκε — παρακαλώ περιμένετε...</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center">{uploadProgress.percent}% ολοκληρώθηκε — παρακαλώ περιμένετε...</p>
                 </div>
               )}
             </div>

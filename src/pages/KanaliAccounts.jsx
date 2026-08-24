@@ -398,7 +398,7 @@ export default function KanaliAccounts() {
                     {createdAccounts.map((a, i) => (
                       <div key={i} className="p-2 bg-slate-50 dark:bg-slate-800 rounded flex justify-between">
                         <span>{a.username}</span>
-                        <span className="text-slate-500">{a.password}</span>
+                        <span className="text-slate-500 dark:text-slate-400">{a.password}</span>
                       </div>
                     ))}
                   </div>
