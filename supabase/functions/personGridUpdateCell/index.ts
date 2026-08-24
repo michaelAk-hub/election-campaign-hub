@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     }
 
     const { data: updated } = await supabase.from("Person").update(patch).eq("id", current.id).select().maybeSingle();
-    // TODO(prediction stats): trigger a rebuild once predictions are ported.
+    // Prediction stats are computed live from Person rows — no cache rebuild needed.
     return json({ data: updated });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);

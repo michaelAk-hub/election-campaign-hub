@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
         status: "done", deleted: total,
         message: `Ολοκληρώθηκε! Διαγράφηκαν ${total} εγγραφές και το dataset αφαιρέθηκε.`,
       }).eq("id", job.id);
-      // TODO(prediction stats): rebuild once predictions are ported.
+      // Prediction stats are computed live from Person rows — no cache rebuild needed.
       return json({ success: true, job_id: job.id, done: true, deleted: total });
     } catch (e) {
       const msg = (e as Error).message;

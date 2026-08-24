@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
 
     await supabase.from("Dataset").update({ status: "active", activated_at: new Date().toISOString() }).eq("id", datasetId);
 
-    // TODO(prediction stats): rebuild the cache for this dataset once predictions are ported.
+    // Prediction stats are computed live from Person rows — no cache rebuild needed.
     return json({ success: true });
   } catch (e) {
     return json({ success: false, error: (e as Error).message }, 500);

@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
         failed_rows: failed,
       }).eq("id", job.id);
 
-      // TODO(prediction stats): rebuild once predictions are ported.
+      // Prediction stats are computed live from Person rows — no cache rebuild needed.
       return json({ success: true, job_id: job.id, dataset_id: dataset!.id, done: true });
     } catch (e) {
       const msg = (e as Error).message;

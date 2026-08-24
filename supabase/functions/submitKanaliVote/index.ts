@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       reason_text: reason, person_record_id: personRecordId,
     });
 
-    // TODO(prediction stats): trigger a rebuild once rebuildPredictionStats is ported.
+    // Prediction stats are computed live from Person rows — no cache rebuild needed.
     return json({ status, reason });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
