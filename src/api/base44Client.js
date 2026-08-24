@@ -32,18 +32,42 @@ async function invoke(name, body = {}) {
   return { data };
 }
 
-// Direct entity access from the browser is not wired yet (everything goes through
-// Edge Functions). These no-ops keep pages that reference entities from crashing.
-const noopEntity = {
-  filter: async () => [],
-  list: async () => [],
-  get: async () => null,
-  create: async () => ({}),
-  update: async () => ({}),
-  delete: async () => ({}),
-  subscribe: () => () => {},
-};
-const entities = new Proxy({}, { get: () => noopEntity });
+// Entity access mirrors the Base44 SDK surface (list/filter/get/create/update/
+// delete/bulkCreate) by routing through the admin-authed `entityGateway` Edge
+// Function. Without an admin session token (portal or logged-out contexts), we
+// preserve the old no-op behavior so those pages don't error or leak reads.
+async function entityInvoke(entity, op, args) {
+  const token = localStorage.getItem('app_session_token');
+  if (!token) {
+    if (op === 'get') return null;
+    if (op === 'list' || op === 'filter') return [];
+    if (op === 'bulkCreate') return [];
+    return {};
+  }
+  const { data } = await invoke('entityGateway', { entity, op, args, session_token: token });
+  if (data?.error) {
+    const err = new Error(data.error);
+    if (data.force_logout) err.force_logout = true;
+    throw err;
+  }
+  return data?.result;
+}
+
+function makeEntity(name) {
+  return {
+    list: (sort, limit, skip) => entityInvoke(name, 'list', [sort, limit, skip]),
+    filter: (query, sort, limit, skip) => entityInvoke(name, 'filter', [query, sort, limit, skip]),
+    get: (id) => entityInvoke(name, 'get', [id]),
+    create: (data) => entityInvoke(name, 'create', [data]),
+    bulkCreate: (rows) => entityInvoke(name, 'bulkCreate', [rows]),
+    update: (id, data) => entityInvoke(name, 'update', [id, data]),
+    delete: (id) => entityInvoke(name, 'delete', [id]),
+    subscribe: () => () => {},
+  };
+}
+const entities = new Proxy({}, {
+  get: (_t, name) => (typeof name === 'symbol' ? undefined : makeEntity(name)),
+});
 
 const auth = {
   me: async () => { throw new Error('not authenticated'); },
