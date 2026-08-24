@@ -1,0 +1,12 @@
+{
+  "name": "V-O-T-E",
+  "short_name": "V-O-T-E",
+  "description": "Σύστημα διαχείρισης εκλογικής εκστρατείας",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" }
+  ]
+}
