@@ -504,59 +504,29 @@ export default function Portal() {
       setLoading(false);
 
       // Bug 4: use validated canonical values, not raw localStorage
-      const validatedPortalType = validated.portalType;
       const validatedUsername = validated.username;
-      const myKey = `${validatedPortalType}:${validatedUsername}`;
-      const targetGroups = validatedPortalType === 'chreosi' ? ['chreosi', 'both'] : ['kanali', 'both'];
 
-      // Check for unacknowledged push messages
+      // Fetch the first unacknowledged push message targeted at this portal user.
+      // All targeting/expiry/ack filtering runs server-side (portal-authed).
       const checkMessages = async () => {
-        const now = new Date();
-        const messages = await base44.entities.PushMessage.filter({ is_active: true });
-
-        // Filter: active, not disabled, not expired, targeting this user
-        const relevantMessages = messages.filter(m => {
-          // Expiry / disabled checks
-          if (m.disabled_at != null) return false;
-          if (m.expires_at != null && new Date(m.expires_at) <= now) return false;
-
-          const mode = m.delivery_mode || 'group';
-          if (mode === 'group') {
-            return targetGroups.includes(m.target_group);
-          } else {
-            const keys = Array.isArray(m.target_user_keys) ? m.target_user_keys : [];
-            return keys.includes(myKey);
-          }
+        const token = localStorage.getItem('portal_session');
+        const { data } = await base44.functions.invoke('portalPushMessages', {
+          sessionToken: token,
+          username: validatedUsername,
         });
-
-        for (const msg of relevantMessages) {
-          // Bug 3: lookup must include recipient_type to isolate chreosi vs kanali acks
-          const acks = await base44.entities.PushMessageAck.filter({
-            message_id: msg.id,
-            recipient_type: validatedPortalType,
-            username: validatedUsername
-          });
-          if (acks.length === 0) {
-            setPushMessage(msg);
-            break;
-          }
-        }
+        setPushMessage(prev => {
+          const next = data?.message || null;
+          // Keep the current one if it's still the same (avoid flicker); otherwise update.
+          if (prev && next && prev.id === next.id) return prev;
+          return next;
+        });
       };
 
       await checkMessages();
 
-      unsubscribePushMessages = base44.entities.PushMessage.subscribe((event) => {
-        if (event.type === 'create' || event.type === 'update') {
-          checkMessages();
-        }
-        // If a visible push message was disabled/deactivated, clear it immediately
-        if (event.type === 'update' && event.data) {
-          const d = event.data;
-          if (d.is_active === false || d.disabled_at != null) {
-            setPushMessage(prev => prev && prev.id === d.id ? null : prev);
-          }
-        }
-      });
+      // No realtime in the shim — poll so new broadcasts / disables appear without a refresh.
+      const pollId = setInterval(checkMessages, 20000);
+      unsubscribePushMessages = () => clearInterval(pollId);
     };
 
     checkSession();
