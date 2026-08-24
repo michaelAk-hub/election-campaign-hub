@@ -51,8 +51,13 @@ async function readRows(
   sort: unknown, limit: unknown, skip: unknown,
 ): Promise<any[]> {
   const s = parseSort(sort);
-  const lim = Number.isFinite(Number(limit)) ? Number(limit) : null;
-  const off = Number.isFinite(Number(skip)) ? Number(skip) : 0;
+  // NOTE: the frontend shim serializes an omitted arg as JSON null, and
+  // Number(null) === 0 — so treat null/undefined/0/negative as "no limit"
+  // (page through everything) rather than a literal limit of 0 (one row).
+  const nLim = Number(limit);
+  const lim = (limit === null || limit === undefined || !Number.isFinite(nLim) || nLim <= 0) ? null : nLim;
+  const nOff = Number(skip);
+  const off = (skip === null || skip === undefined || !Number.isFinite(nOff) || nOff < 0) ? 0 : nOff;
 
   const build = () => {
     let q = supabase.from(entity).select("*");
