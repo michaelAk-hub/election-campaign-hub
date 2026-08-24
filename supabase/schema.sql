@@ -590,6 +590,7 @@ create table if not exists public."LoginThrottle" (
   "updated_date" timestamptz not null default now(),
   "throttle_key" text unique,
   "fail_count" integer default 0,
+  "lock_level" integer default 0,
   "first_failed_at" timestamptz,
   "last_failed_at" timestamptz,
   "locked_until" timestamptz

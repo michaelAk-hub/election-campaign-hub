@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2, Circle, RefreshCw } from 'lucide-react';
+import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2, Circle, RefreshCw, Lock, Unlock } from 'lucide-react';
 import { createPageUrl } from '../utils';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'sonner';
@@ -97,6 +97,43 @@ export default function UserManagement() {
         },
         enabled: !!currentUser,
         refetchInterval: 20000 // Refresh every 20 seconds
+    });
+
+    // Locked-out accounts (login rate-limiting). Refetch periodically; a 1s ticker
+    // drives the live "time remaining" countdown between refetches.
+    const { data: blocked = [] } = useQuery({
+        queryKey: ['blockedAccounts'],
+        queryFn: async () => {
+            const sessionToken = localStorage.getItem('app_session_token');
+            const { data } = await base44.functions.invoke('loginThrottleAdmin', {
+                session_token: sessionToken, action: 'list'
+            });
+            return data?.blocked ?? [];
+        },
+        enabled: !!currentUser,
+        refetchInterval: 15000
+    });
+
+    const [nowTs, setNowTs] = useState(Date.now());
+    useEffect(() => {
+        const t = setInterval(() => setNowTs(Date.now()), 1000);
+        return () => clearInterval(t);
+    }, []);
+
+    const unlockMutation = useMutation({
+        mutationFn: async (throttleKey) => {
+            const sessionToken = localStorage.getItem('app_session_token');
+            const { data } = await base44.functions.invoke('loginThrottleAdmin', {
+                session_token: sessionToken, action: 'unlock', throttle_key: throttleKey
+            });
+            if (data?.error) throw new Error(data.error);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['blockedAccounts'] });
+            toast.success('Ο λογαριασμός ξεκλειδώθηκε');
+        },
+        onError: (e) => toast.error(e.message || 'Σφάλμα ξεκλειδώματος')
     });
 
     const createOrganotikiMutation = useMutation({
@@ -223,8 +260,97 @@ export default function UserManagement() {
 
     const isAdmin = currentUser?.role === 'ADMIN';
 
+    // Live "time remaining" from an ISO lock expiry (Greek short units).
+    const formatRemaining = (lockedUntil) => {
+        const ms = new Date(lockedUntil).getTime() - nowTs;
+        if (ms <= 0) return 'λήγει…';
+        const total = Math.ceil(ms / 1000);
+        const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+        if (h > 0) return `${h}ω ${m}λ`;
+        if (m > 0) return `${m}λ ${s}δ`;
+        return `${s}δ`;
+    };
+    const accountTypeLabel = (t) => ({
+        admin: 'Διαχειριστής', organotiki: 'Οργανωτικός', chreosi: 'Χρεωστικό', kanali: 'Κανάλι'
+    }[t] || 'Portal');
+    // Lock info for the admin/organotiki rows, keyed by email (admin:<email>).
+    const blockedByEmail = new Map(
+        blocked.filter(b => (b.throttle_key || '').startsWith('admin:'))
+               .map(b => [b.throttle_key.slice(6), b])
+    );
+
     return (
         <div className="space-y-6">
+            {/* Locked-out accounts (brute-force protection) */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <Lock className={`h-5 w-5 ${blocked.length > 0 ? 'text-red-600' : 'text-slate-400'}`} />
+                        <div>
+                            <CardTitle>Κλειδωμένοι Λογαριασμοί</CardTitle>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                {blocked.length} λογαριασμοί προσωρινά κλειδωμένοι λόγω αποτυχημένων προσπαθειών σύνδεσης
+                            </p>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {blocked.length === 0 ? (
+                        <p className="text-sm text-slate-500 dark:text-slate-400 py-1">
+                            Κανένας κλειδωμένος λογαριασμός αυτή τη στιγμή.
+                        </p>
+                    ) : (
+                        <div className="border dark:border-slate-700 rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΧΡΗΣΤΗΣ</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΤΥΠΟΣ</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΥΠΟΛΟΙΠΟΣ ΧΡΟΝΟΣ</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΕΠΙΠΕΔΟ</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">ΕΝΕΡΓΕΙΑ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y dark:divide-slate-700">
+                                        {blocked.map((b) => (
+                                            <tr key={b.throttle_key} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                                                <td className="px-4 py-3 text-sm font-medium">{b.username}</td>
+                                                <td className="px-4 py-3">
+                                                    <Badge variant="secondary">{accountTypeLabel(b.account_type)}</Badge>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm">
+                                                    <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                                                        <Lock className="h-3 w-3 mr-1" />
+                                                        {formatRemaining(b.locked_until)}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-slate-500">#{b.lock_level}</td>
+                                                <td className="px-4 py-3">
+                                                    {isAdmin ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => unlockMutation.mutate(b.throttle_key)}
+                                                            disabled={unlockMutation.isPending}
+                                                        >
+                                                            <Unlock className="h-3 w-3 mr-1" />
+                                                            Ξεκλείδωμα
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400 dark:text-slate-500">Μόνο διαχειριστής</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -346,17 +472,39 @@ export default function UserManagement() {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3">
-                                                {user.is_active ? (
-                                                    <Badge className="bg-green-100 text-green-800">
-                                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                                        Ενεργός
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge className="bg-red-100 text-red-800">
-                                                        <XCircle className="h-3 w-3 mr-1" />
-                                                        Ανενεργός
-                                                    </Badge>
-                                                )}
+                                                <div className="flex flex-col items-start gap-1">
+                                                    {user.is_active ? (
+                                                        <Badge className="bg-green-100 text-green-800">
+                                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                                            Ενεργός
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge className="bg-red-100 text-red-800">
+                                                            <XCircle className="h-3 w-3 mr-1" />
+                                                            Ανενεργός
+                                                        </Badge>
+                                                    )}
+                                                    {blockedByEmail.get((user.email || '').toLowerCase()) && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300">
+                                                                <Lock className="h-3 w-3 mr-1" />
+                                                                Κλειδωμένος {formatRemaining(blockedByEmail.get((user.email || '').toLowerCase()).locked_until)}
+                                                            </Badge>
+                                                            {isAdmin && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-6 px-1"
+                                                                    title="Ξεκλείδωμα"
+                                                                    onClick={() => unlockMutation.mutate(blockedByEmail.get((user.email || '').toLowerCase()).throttle_key)}
+                                                                    disabled={unlockMutation.isPending}
+                                                                >
+                                                                    <Unlock className="h-3 w-3" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2">
