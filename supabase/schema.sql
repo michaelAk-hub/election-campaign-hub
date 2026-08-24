@@ -618,4 +618,23 @@ grant all privileges on all sequences in schema public to service_role;
 alter default privileges in schema public grant all on tables to service_role;
 alter default privileges in schema public grant all on sequences to service_role;
 
+-- ---------------------------------------------------------------------------
+-- Row Level Security: enable on every table with NO policies (deny-all for
+-- anon/authenticated; service_role bypasses RLS). This closes the public Data
+-- API against voter PII, password_hash and plain_password. See security.sql,
+-- which carries the same statements for running against an existing database.
+-- ---------------------------------------------------------------------------
+do $$
+declare t text;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public' loop
+    execute format('alter table public.%I enable row level security;', t);
+  end loop;
+end $$;
+revoke all on all tables in schema public from anon, authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
+revoke all on schema public from anon, authenticated;
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
+
 -- Done. 32 tables created.

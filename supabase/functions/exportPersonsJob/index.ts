@@ -49,15 +49,19 @@ Deno.serve(async (req) => {
       const xlsx = buildXlsx(rows);
       const path = `${job.id}.xlsx`;
 
-      // Ensure the (public) bucket exists, then upload.
-      await supabase.storage.createBucket(BUCKET, { public: true }).catch(() => {});
+      // Private bucket + short-lived signed URL — the export holds voter PII and
+      // must not be publicly downloadable. updateBucket flips an older public
+      // bucket to private; createBucket covers the first-ever run.
+      await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {});
+      await supabase.storage.updateBucket(BUCKET, { public: false }).catch(() => {});
       const up = await supabase.storage.from(BUCKET).upload(path, xlsx, {
         contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         upsert: true,
       });
       if (up.error) throw new Error(up.error.message);
-      const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      const fileUrl = pub.publicUrl;
+      const signed = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600); // valid 1 hour
+      if (signed.error) throw new Error(signed.error.message);
+      const fileUrl = signed.data.signedUrl;
 
       await supabase.from("ExportJob").update({
         status: "done", total: rows.length, processed: rows.length, file_url: fileUrl,
