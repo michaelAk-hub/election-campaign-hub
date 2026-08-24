@@ -3,6 +3,7 @@ import { getServiceClient } from "../_shared/client.ts";
 import { preflight, json } from "../_shared/http.ts";
 import { fetchAll } from "../_shared/db.ts";
 import { sha256Hex } from "../_shared/appSession.ts";
+import { throttleRetryAfter, recordLoginFailure, clearLoginThrottle, lockedMessage } from "../_shared/throttle.ts";
 
 Deno.serve(async (req) => {
   const pf = preflight(req);
@@ -12,9 +13,16 @@ Deno.serve(async (req) => {
     const { email, password } = await req.json();
     if (!email || !password) return json({ error: "Email και κωδικός απαιτούνται" }, 400);
 
+    const throttleKey = `admin:${email.toLowerCase()}`;
+    const retryAfter = await throttleRetryAfter(supabase, throttleKey);
+    if (retryAfter != null) return json({ error: lockedMessage(retryAfter) }, 429);
+
     const users = await fetchAll(supabase, "AppUser");
     const user = users.find((u: any) => (u.email || "").toLowerCase() === email.toLowerCase());
-    if (!user) return json({ error: "Λάθος email ή κωδικός" }, 401);
+    if (!user) {
+      await recordLoginFailure(supabase, throttleKey);
+      return json({ error: "Λάθος email ή κωδικός" }, 401);
+    }
     if (user.role !== "ADMIN" && user.role !== "ORGANOTIKI") {
       return json({ error: "Μη εξουσιοδοτημένη πρόσβαση" }, 403);
     }
@@ -22,7 +30,11 @@ Deno.serve(async (req) => {
       return json({ error: "Ο λογαριασμός σας δεν είναι ενεργός" }, 403);
     }
     const hash = await sha256Hex(password);
-    if (hash !== user.password_hash) return json({ error: "Λάθος email ή κωδικός" }, 401);
+    if (hash !== user.password_hash) {
+      await recordLoginFailure(supabase, throttleKey);
+      return json({ error: "Λάθος email ή κωδικός" }, 401);
+    }
+    await clearLoginThrottle(supabase, throttleKey);
 
     const preauthToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();

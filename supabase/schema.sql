@@ -582,13 +582,28 @@ create table if not exists public."PredictionStatsByYearSymbol" (
 create index if not exists "ix_StatsByYearSymbol_dataset" on public."PredictionStatsByYearSymbol" ("dataset_id");
 
 -- ---------------------------------------------------------------------------
+-- Login rate-limiting (brute-force defense) — see login_throttle.sql.
+-- ---------------------------------------------------------------------------
+create table if not exists public."LoginThrottle" (
+  "id" text primary key default gen_random_uuid()::text,
+  "created_date" timestamptz not null default now(),
+  "updated_date" timestamptz not null default now(),
+  "throttle_key" text unique,
+  "fail_count" integer default 0,
+  "first_failed_at" timestamptz,
+  "last_failed_at" timestamptz,
+  "locked_until" timestamptz
+);
+create index if not exists "ix_LoginThrottle_key" on public."LoginThrottle" ("throttle_key");
+
+-- ---------------------------------------------------------------------------
 -- Attach updated_date trigger to every table
 -- ---------------------------------------------------------------------------
 do $$
 declare
   t text;
   tables text[] := array[
-    'AppUser','AppSession','PortalSession','MfaChallenge',
+    'AppUser','AppSession','PortalSession','MfaChallenge','LoginThrottle',
     'ChreosiAccount','KanaliAccount','ChreosiCheckmark','ChreosiCreateJob',
     'Dataset','Person','ImportJob','ExportJob','DeleteJob',
     'KanaliSubmission','NotFoundVoter',

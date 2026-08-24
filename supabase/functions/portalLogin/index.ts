@@ -3,6 +3,7 @@
 // Self-contained (no shared imports) so it can be pasted into the dashboard editor.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import bcrypt from "npm:bcryptjs@2.4.3";
+import { throttleRetryAfter, recordLoginFailure, clearLoginThrottle, lockedMessage } from "../_shared/throttle.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +61,9 @@ Deno.serve(async (req) => {
       return json({ success: false, error: "Λάθος στοιχεία σύνδεσης" });
     }
     const normalizedUsername = normalizeUsername(username);
+    const throttleKey = `portal:${normalizedUsername}`;
+    const retryAfter = await throttleRetryAfter(supabase, throttleKey);
+    if (retryAfter != null) return json({ success: false, error: lockedMessage(retryAfter) }, 429);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     // ── Chreosi ──
@@ -71,7 +75,11 @@ Deno.serve(async (req) => {
       const ok = await verifyAndMigratePassword(
         supabase, "ChreosiAccount", chreosi.id, chreosi.password_hash, password, chreosi.plain_password,
       );
-      if (!ok) return json({ success: false, error: "Λάθος στοιχεία σύνδεσης" });
+      if (!ok) {
+        await recordLoginFailure(supabase, throttleKey);
+        return json({ success: false, error: "Λάθος στοιχεία σύνδεσης" });
+      }
+      await clearLoginThrottle(supabase, throttleKey);
       const token = generateToken();
       await supabase.from("PortalSession").insert({
         session_token: token, username: normalizedUsername, portal_type: "chreosi",
@@ -89,7 +97,11 @@ Deno.serve(async (req) => {
       const ok = await verifyAndMigratePassword(
         supabase, "KanaliAccount", kanali.id, kanali.password_hash, password, kanali.plain_password,
       );
-      if (!ok) return json({ success: false, error: "Λάθος στοιχεία σύνδεσης" });
+      if (!ok) {
+        await recordLoginFailure(supabase, throttleKey);
+        return json({ success: false, error: "Λάθος στοιχεία σύνδεσης" });
+      }
+      await clearLoginThrottle(supabase, throttleKey);
       const token = generateToken();
       await supabase.from("PortalSession").insert({
         session_token: token, username: normalizedUsername, portal_type: "kanali",
@@ -98,6 +110,8 @@ Deno.serve(async (req) => {
       return json({ success: true, token, portalType: "kanali", username: normalizedUsername, kanaliType: kanali.user_type });
     }
 
+    // Unknown username — count it too, so username-probing is throttled.
+    await recordLoginFailure(supabase, throttleKey);
     return json({ success: false, error: "Λάθος στοιχεία σύνδεσης" });
   } catch (error) {
     return json({ success: false, error: (error as Error).message }, 500);
