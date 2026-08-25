@@ -1127,14 +1127,14 @@ export default function Records() {
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
       <div className="space-y-3">
-        {/* Compact header row: title + toolbar on one line */}
-        <div className="flex flex-wrap items-center gap-2 justify-between">
-          <div className="flex items-center gap-2 min-w-0">
+        {/* Single-line header: title (shrinks) + all controls inline; scrolls if too narrow */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <Database className="h-5 w-5 text-blue-600 shrink-0" />
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 truncate">Εγγραφές</h1>
-            {subtitle && <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400 truncate">— {subtitle}</span>}
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 shrink-0">Εγγραφές</h1>
+            {subtitle && <span className="hidden lg:inline text-xs text-slate-500 dark:text-slate-400 truncate">— {subtitle}</span>}
           </div>
-          <div className="flex flex-wrap gap-1.5 items-center">
+          <div className="flex items-center gap-1.5 shrink-0">
             {USE_AG_GRID && (
               <AgGridSearchInput
                 value={serverSearchTerm}
@@ -1147,7 +1147,7 @@ export default function Records() {
             )}
 
             <Select value={partition} onValueChange={setPartition}>
-              <SelectTrigger className="h-8 min-w-[140px] text-sm"><SelectValue placeholder="Ομάδα" /></SelectTrigger>
+              <SelectTrigger className="h-8 w-[130px] text-sm shrink-0"><SelectValue placeholder="Ομάδα" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Όλα</SelectItem>
                 <SelectItem value="postgrad">Μεταπτυχιακοί</SelectItem>
@@ -1156,39 +1156,26 @@ export default function Records() {
               </SelectContent>
             </Select>
 
-            <Button size="sm" disabled={!activeDatasetId} onClick={() => { if (!activeDatasetId) return; setFormData({}); setAddDialog(true); }} className="h-8">
+            <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8 shrink-0">
+              <FileSpreadsheet className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Πρότυπο</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setUploadDialog(true)} className="h-8 shrink-0">
+              <Upload className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Εισαγωγή</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={!activeDatasetId} className="h-8 shrink-0">
+              <Download className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Εξαγωγή</span>
+            </Button>
+            <Button size="sm" disabled={!activeDatasetId} onClick={() => { if (!activeDatasetId) return; setFormData({}); setAddDialog(true); }} className="h-8 shrink-0">
               <Plus className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">Νέα</span>
             </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8">
-                  <MoreHorizontal className="h-4 w-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Ενέργειες</span>
-                  <ChevronDown className="h-3.5 w-3.5 ml-1 hidden sm:inline" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setUploadDialog(true)}>
-                  <Upload className="h-4 w-4 mr-2" /> Εισαγωγή
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExport} disabled={!activeDatasetId}>
-                  <Download className="h-4 w-4 mr-2" /> Εξαγωγή
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDownloadTemplate}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Πρότυπο
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={deleteLoading}
-                  onClick={() => setDeleteAllConfirmOpen(true)}
-                  className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" /> Ολική Διαγραφή
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button variant="destructive" size="sm" className="h-8 shrink-0" disabled={deleteLoading} onClick={() => setDeleteAllConfirmOpen(true)}>
+              <Trash2 className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Ολική Διαγραφή</span>
+            </Button>
           </div>
         </div>
 
