@@ -7,6 +7,14 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 const theme = themeQuartz;
 
+// Grid sizing — the body is sized to show a fixed number of rows.
+const ROW_HEIGHT = 28;
+const HEADER_HEIGHT = 33;
+const VISIBLE_ROWS = 23;
+const HSCROLL = 15; // room for the horizontal scrollbar so it doesn't eat a row
+// Height of the AG-Grid element itself (header + 23 rows + horizontal scrollbar).
+const GRID_BODY_HEIGHT = HEADER_HEIGHT + VISIBLE_ROWS * ROW_HEIGHT + HSCROLL;
+
 const defaultColDef = {
   resizable: true,
   sortable: false,
@@ -106,8 +114,8 @@ export default function RecordsAgGrid({
   }, [onColumnOrderChange]);
 
   return (
-    <div style={{ height, width: '100%' }} className="flex flex-col">
-      <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
+    <div style={{ width: '100%' }} className="flex flex-col">
+      <div style={{ height: GRID_BODY_HEIGHT, width: '100%' }}>
         <AgGridReact
           ref={gridRef}
           theme={theme}
@@ -116,8 +124,8 @@ export default function RecordsAgGrid({
           rowModelType="infinite"
           cacheBlockSize={500}
           maxBlocksInCache={10}
-          rowHeight={28}
-          headerHeight={33}
+          rowHeight={ROW_HEIGHT}
+          headerHeight={HEADER_HEIGHT}
           getRowId={getRowId}
           context={context}
           rowSelection={rowSelection}
