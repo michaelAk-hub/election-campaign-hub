@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -163,7 +163,7 @@ function AgGridSearchInput({ value, onCommit }) {
         value={local}
         onChange={e => handleChange(e.target.value)}
         placeholder={`Αναζήτηση (${SEARCH_MIN_CHARS}+ χαρ)...`}
-        className="pl-8 pr-8 h-10 w-52 text-sm"
+        className="pl-8 pr-8 h-8 w-40 sm:w-48 text-sm"
       />
       {local && (
         <button
@@ -1156,30 +1156,39 @@ export default function Records() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8">
-              <FileSpreadsheet className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Πρότυπο</span>
-            </Button>
-
-            <Button variant="outline" size="sm" onClick={() => setUploadDialog(true)} className="h-8">
-              <Upload className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Εισαγωγή</span>
-            </Button>
-
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={!activeDatasetId} className="h-8">
-              <Download className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Εξαγωγή</span>
-            </Button>
-
             <Button size="sm" disabled={!activeDatasetId} onClick={() => { if (!activeDatasetId) return; setFormData({}); setAddDialog(true); }} className="h-8">
               <Plus className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">Νέα</span>
             </Button>
 
-            <Button variant="destructive" size="sm" className="h-8" disabled={deleteLoading} onClick={() => setDeleteAllConfirmOpen(true)}>
-              <Trash2 className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Ολική Διαγραφή</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8">
+                  <MoreHorizontal className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Ενέργειες</span>
+                  <ChevronDown className="h-3.5 w-3.5 ml-1 hidden sm:inline" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setUploadDialog(true)}>
+                  <Upload className="h-4 w-4 mr-2" /> Εισαγωγή
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExport} disabled={!activeDatasetId}>
+                  <Download className="h-4 w-4 mr-2" /> Εξαγωγή
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadTemplate}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Πρότυπο
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={deleteLoading}
+                  onClick={() => setDeleteAllConfirmOpen(true)}
+                  className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Ολική Διαγραφή
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
