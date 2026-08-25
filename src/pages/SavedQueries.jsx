@@ -1026,11 +1026,6 @@ th{background:#f3f4f6;font-weight:700}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-600 dark:text-slate-300 font-medium">{queryResults.length.toLocaleString()} εγγραφές</span>
-              {queryResults.length > 100 && (
-                <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded px-2 py-0.5">
-                  Εμφανίζονται οι πρώτες 100 — εξάγετε για όλες
-                </span>
-              )}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={openPrintSettings} disabled={queryResults.length === 0}>
@@ -1046,7 +1041,7 @@ th{background:#f3f4f6;font-weight:700}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="left" className="max-w-xs">
-                    Κατεβάζει <strong>όλα</strong> τα αποτελέσματα (όχι μόνο τις 100 που φαίνονται) σε αρχείο CSV, το οποίο ανοίγει απευθείας στο Excel.
+                    Κατεβάζει <strong>όλα</strong> τα αποτελέσματα σε αρχείο CSV, το οποίο ανοίγει απευθείας στο Excel.
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -1064,7 +1059,7 @@ th{background:#f3f4f6;font-weight:700}
                 </tr>
               </thead>
               <tbody>
-                {queryResults.slice(0, 100).map((row, idx) => (
+                {queryResults.map((row, idx) => (
                   <tr key={idx} className="border-t dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">
                     {(runDialog.query?.columns || []).map(k => (
                       <td key={k} className="p-3">
