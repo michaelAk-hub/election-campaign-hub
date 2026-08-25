@@ -116,8 +116,8 @@ export default function RecordsAgGrid({
           rowModelType="infinite"
           cacheBlockSize={500}
           maxBlocksInCache={10}
-          rowHeight={26}
-          headerHeight={30}
+          rowHeight={28}
+          headerHeight={33}
           getRowId={getRowId}
           context={context}
           rowSelection={rowSelection}
