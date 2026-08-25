@@ -1240,12 +1240,12 @@ export default function Records() {
             onSortModelChange={handleSortModelChange}
             onColumnOrderChange={handleAgColumnOrderChange}
             gridRef={agGridRef}
-            height="calc(100vh - 170px)"
+            height="calc(100vh - 150px)"
           />
         ) : (
           <DataGrid
             mode="infinite"
-            height="calc(100vh - 170px)"
+            height="calc(100vh - 150px)"
             data={people}
             columns={COLUMNS}
             searchable
