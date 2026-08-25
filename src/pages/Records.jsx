@@ -1239,12 +1239,6 @@ export default function Records() {
             onCellValueChanged={handleAgCellValueChanged}
             onSortModelChange={handleSortModelChange}
             onColumnOrderChange={handleAgColumnOrderChange}
-            onRowDoubleClick={(params) => {
-              if (params.data) {
-                setFormData({ ...params.data });
-                setEditDialog({ open: true, person: params.data });
-              }
-            }}
             gridRef={agGridRef}
             height="calc(100vh - 170px)"
           />

@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     let datasetId = body.datasetId;
     if (!datasetId) {
       const { data: active } = await supabase.from("Dataset").select("id").eq("status", "active");
-      if (!active?.length) return json({ rows: [], lastRow: 0 });
+      if (!active?.length) return json({ rows: [], lastRow: 0, total: 0 });
       datasetId = active[0].id;
     }
 
@@ -101,7 +101,9 @@ Deno.serve(async (req) => {
     const limit = Math.max(1, (endRow - startRow) || 100);
     const page = rows.slice(startRow, startRow + limit);
     const lastRow = (startRow + page.length >= rows.length) ? rows.length : -1;
-    return json({ rows: page, lastRow });
+    // `total` is always the full filtered row count (independent of paging),
+    // so the grid footer can show it immediately without scrolling to the end.
+    return json({ rows: page, lastRow, total: rows.length });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }
