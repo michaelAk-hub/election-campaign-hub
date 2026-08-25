@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Plus, Play, Trash2, Download, FileText, X, CheckCircle2, AlertCircle, Info, Printer, Settings2 } from 'lucide-react';
+import { Search, Plus, Play, Trash2, Download, FileText, X, CheckCircle2, AlertCircle, Info, Printer, Settings2, Pencil } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from 'sonner';
@@ -277,6 +277,7 @@ const DEFAULT_TREE = () => ({ type: 'group', op: 'AND', children: [newCond(AVAIL
 export default function SavedQueries() {
   const queryClient = useQueryClient();
   const [createDialog, setCreateDialog] = useState(false);
+  const [editingId, setEditingId] = useState(null); // null = create, id = edit
   const [runDialog, setRunDialog] = useState({ open: false, query: null });
   const [queryResults, setQueryResults] = useState([]);
   const [formData, setFormData] = useState({
@@ -344,6 +345,7 @@ export default function SavedQueries() {
   };
 
   const resetDialog = () => {
+    setEditingId(null);
     setFormData({ name: '', description: '', columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'], filters: {}, logicalExpression: '' });
     setRuleTree(DEFAULT_TREE());
     setUseVisualBuilder(true);
@@ -385,6 +387,43 @@ export default function SavedQueries() {
     mutationFn: (id) => base44.entities.SavedQuery.delete(id),
     onSuccess: () => { queryClient.invalidateQueries(['saved-queries']); toast.success('Το ερώτημα διαγράφηκε'); }
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.SavedQuery.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['saved-queries']);
+      setCreateDialog(false);
+      resetDialog();
+      toast.success('Το ερώτημα ενημερώθηκε');
+    }
+  });
+
+  // Load an existing query into the builder dialog for editing.
+  const openEditDialog = (query) => {
+    setEditingId(query.id);
+    setFormData({
+      name: query.name || '',
+      description: query.description || '',
+      columns: query.columns || ['person_id', 'last_name', 'first_name', 'department', 'voted'],
+      filters: query.filters || {},
+      logicalExpression: query.logicalExpression || '',
+    });
+    if (query.rule_tree?.type) {
+      setRuleTree(query.rule_tree);
+      setUseVisualBuilder(true);
+    } else if (query.conditions?.length) {
+      setRuleTree(legacyConditionsToRuleTree(query.conditions));
+      setUseVisualBuilder(true);
+    } else if (query.logicalExpression?.trim()) {
+      setRuleTree(DEFAULT_TREE());
+      setUseVisualBuilder(false); // manual-expression query
+    } else {
+      setRuleTree(DEFAULT_TREE());
+      setUseVisualBuilder(true);
+    }
+    setExprError('');
+    setCreateDialog(true);
+  };
 
   const runQuery = (query) => {
     let results = [...people];
@@ -717,12 +756,14 @@ th{background:#f3f4f6;font-weight:700}
     const finalExpression = useVisualBuilder
       ? nodeToExpression(ruleTree, true)
       : formData.logicalExpression;
-    createMutation.mutate({
+    const payload = {
       ...formData,
       logicalExpression: finalExpression,
       rule_tree: useVisualBuilder ? ruleTree : { type: 'group', op: 'AND', children: [] },
       conditions: []
-    });
+    };
+    if (editingId) updateMutation.mutate({ id: editingId, data: payload });
+    else createMutation.mutate(payload);
   };
 
   if (isLoading) return <LoadingSpinner />;
@@ -743,7 +784,7 @@ th{background:#f3f4f6;font-weight:700}
               <Printer className="h-4 w-4 mr-2" />
               Εκτύπωση Επιλεγμένων ({selectedQueryIds.length})
             </Button>
-            <Button onClick={() => setCreateDialog(true)}>
+            <Button onClick={() => { resetDialog(); setCreateDialog(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               Νέο Ερώτημα
             </Button>
@@ -778,7 +819,7 @@ th{background:#f3f4f6;font-weight:700}
           title="Δεν υπάρχουν αποθηκευμένα ερωτήματα"
           description="Δημιουργήστε ένα νέο ερώτημα για να ξεκινήσετε"
           action={
-            <Button onClick={() => setCreateDialog(true)}>
+            <Button onClick={() => { resetDialog(); setCreateDialog(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               Νέο Ερώτημα
             </Button>
@@ -811,11 +852,20 @@ th{background:#f3f4f6;font-weight:700}
                     />
                     <span className="truncate">{query.name}</span>
                   </div>
-                  <Button variant="ghost" size="icon"
-                    onClick={() => { if (confirm('Διαγραφή αυτού του ερωτήματος;')) deleteMutation.mutate(query.id); }}
-                    className="text-red-500 hover:text-red-600">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center shrink-0">
+                    <Button variant="ghost" size="icon"
+                      onClick={() => openEditDialog(query)}
+                      title="Επεξεργασία"
+                      className="text-slate-500 hover:text-blue-600">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon"
+                      onClick={() => { if (confirm('Διαγραφή αυτού του ερωτήματος;')) deleteMutation.mutate(query.id); }}
+                      title="Διαγραφή"
+                      className="text-red-500 hover:text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -852,7 +902,7 @@ th{background:#f3f4f6;font-weight:700}
       <Dialog open={createDialog} onOpenChange={(open) => { if (!open) resetDialog(); setCreateDialog(open); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Νέο Ερώτημα</DialogTitle>
+            <DialogTitle>{editingId ? 'Επεξεργασία Ερωτήματος' : 'Νέο Ερώτημα'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2 max-h-[65vh] overflow-y-auto pr-1">
@@ -960,8 +1010,8 @@ th{background:#f3f4f6;font-weight:700}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => { resetDialog(); setCreateDialog(false); }}>Ακύρωση</Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending || !!exprError}>
-              Αποθήκευση ({previewCount} εγγραφές)
+            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending || !!exprError}>
+              {editingId ? 'Ενημέρωση' : 'Αποθήκευση'} ({previewCount} εγγραφές)
             </Button>
           </DialogFooter>
         </DialogContent>
