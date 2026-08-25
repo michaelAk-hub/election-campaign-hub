@@ -252,72 +252,72 @@ export default function Layout({ children, currentPageName }) {
       <style>{`
         body { overscroll-behavior: none; }
         button, [role="button"], svg { user-select: none; -webkit-user-select: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* ── DESKTOP: 2-row fixed top navbar (lg+) ── */}
-      <header className="hidden lg:block fixed top-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-        {/* Row 1: Branding + User actions */}
-        <div className="flex items-center justify-between px-6 h-12 border-b border-slate-100 dark:border-slate-800">
-          {/* Branding */}
-          <Link to={createPageUrl('Dashboard')} className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-md flex items-center justify-center">
-              <Vote className="h-4 w-4 text-white" />
-            </div>
-            <div className="leading-tight">
-              <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Εκλογές</span>
-              <span className="text-[9px] text-slate-400 uppercase tracking-wider ml-1.5">2026</span>
-            </div>
-          </Link>
-
-          {/* User info + actions */}
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs font-medium text-slate-900 dark:text-slate-100 leading-tight max-w-[160px] truncate">
-                {user.full_name || user.email}
-              </p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                {isAdmin ? 'Διαχειριστής' : 'Οργανωτικός'}
-              </p>
-            </div>
-            <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="text-slate-400 hover:text-slate-600 h-7 w-7"
-              title="Αποσύνδεση"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+      {/* ── DESKTOP: single-row fixed top navbar with integrated menu (lg+) ── */}
+      <header className="hidden lg:flex items-center gap-3 fixed top-0 left-0 right-0 z-40 h-14 px-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+        {/* Branding */}
+        <Link to={createPageUrl('Dashboard')} className="flex items-center gap-2 shrink-0">
+          <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-md flex items-center justify-center">
+            <Vote className="h-4 w-4 text-white" />
           </div>
-        </div>
+          <div className="leading-tight hidden xl:block">
+            <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Εκλογές</span>
+            <span className="text-[9px] text-slate-400 uppercase tracking-wider ml-1.5">2026</span>
+          </div>
+        </Link>
 
-        {/* Row 2: Nav links — flex-wrap, no scrolling */}
-        <div className="px-4 py-1.5">
-          <nav className="flex flex-wrap gap-x-0.5 gap-y-0.5">
-            {adminNavItems.map((item) => {
-              const isActive = currentPageName === item.page;
-              return (
-                <React.Fragment key={item.page}>
-                  {item.divider && (
-                    <div className="w-px self-stretch bg-slate-200 dark:bg-slate-700 mx-1 my-0.5" />
+        <div className="w-px self-stretch bg-slate-200 dark:bg-slate-700 my-3 shrink-0" />
+
+        {/* Nav links — inline, horizontally scrollable if they overflow */}
+        <nav className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto no-scrollbar">
+          {adminNavItems.map((item) => {
+            const isActive = currentPageName === item.page;
+            return (
+              <React.Fragment key={item.page}>
+                {item.divider && (
+                  <div className="w-px self-stretch bg-slate-200 dark:bg-slate-700 mx-1 my-2 shrink-0" />
+                )}
+                <Link
+                  to={createPageUrl(item.page)}
+                  title={item.name}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all shrink-0",
+                    isActive
+                      ? "bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
                   )}
-                  <Link
-                    to={createPageUrl(item.page)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all",
-                      isActive
-                        ? "bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400"
-                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
-                    )}
-                  >
-                    <item.icon className="h-3.5 w-3.5 shrink-0" />
-                    <span>{item.name}</span>
-                  </Link>
-                </React.Fragment>
-              );
-            })}
-          </nav>
+                >
+                  <item.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span>{item.name}</span>
+                </Link>
+              </React.Fragment>
+            );
+          })}
+        </nav>
+
+        {/* User info + actions */}
+        <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-slate-200 dark:border-slate-700">
+          <div className="text-right hidden xl:block">
+            <p className="text-xs font-medium text-slate-900 dark:text-slate-100 leading-tight max-w-[140px] truncate">
+              {user.full_name || user.email}
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              {isAdmin ? 'Διαχειριστής' : 'Οργανωτικός'}
+            </p>
+          </div>
+          <NotificationCenter userType={isAdmin ? 'admin' : 'organotikos'} />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="text-slate-400 hover:text-slate-600 h-7 w-7"
+            title="Αποσύνδεση"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
@@ -411,8 +411,8 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* ── Main Content ── */}
-      {/* Desktop: pt accounts for row1 (48px) + row2 (approx 44px) = ~92px. Use pt-24 (96px) for safety */}
-      <main className="lg:pt-24 pt-16 min-h-screen w-full max-w-full"
+      {/* Desktop: single-row header is h-14 (56px); pt-16 (64px) clears it with a small gap. */}
+      <main className="lg:pt-16 pt-16 min-h-screen w-full max-w-full"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 4rem)' }}
       >
         <AnimatePresence mode="wait" initial={false}>
