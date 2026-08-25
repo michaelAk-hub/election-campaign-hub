@@ -20,7 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Database, Plus, Download, MoreHorizontal, Pencil, Trash2,
-  CheckCircle2, Phone, Upload, FileSpreadsheet, Loader2, Search, X, Filter
+  CheckCircle2, Phone, Upload, FileSpreadsheet, Loader2, Search, X, Filter, ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ColumnFilterPanel } from '@/components/datagrid/ColumnFilterPopover';
@@ -480,6 +480,7 @@ export default function Records() {
   const [importJobId, setImportJobId] = useState(null);
   const [exportJobId, setExportJobId] = useState(null);
   const [partition, setPartition] = useState('all');
+  const [showDatasets, setShowDatasets] = useState(false); // collapsible datasets panel (compact by default)
   const [mixedImportDialog, setMixedImportDialog] = useState(false);
   const [mixedMissingCount, setMixedMissingCount] = useState(0);
   const [serverSearchTerm, setServerSearchTerm] = useState('');
@@ -1125,73 +1126,81 @@ export default function Records() {
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-      <div className="space-y-6">
-        <PageHeader
-          title="Εγγραφές"
-          subtitle={subtitle}
-          icon={Database}
-          actions={
-            <div className="flex flex-wrap gap-2 items-center">
-              {USE_AG_GRID && (
-                <AgGridSearchInput
-                  value={serverSearchTerm}
-                  onCommit={(val) => {
-                    if (val.length === 0 || val.length >= SEARCH_MIN_CHARS) {
-                      setServerSearchTerm(val);
-                    }
-                  }}
-                />
-              )}
+      <div className="space-y-3">
+        {/* Compact header row: title + toolbar on one line */}
+        <div className="flex flex-wrap items-center gap-2 justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <Database className="h-5 w-5 text-blue-600 shrink-0" />
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 truncate">Εγγραφές</h1>
+            {subtitle && <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400 truncate">— {subtitle}</span>}
+          </div>
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {USE_AG_GRID && (
+              <AgGridSearchInput
+                value={serverSearchTerm}
+                onCommit={(val) => {
+                  if (val.length === 0 || val.length >= SEARCH_MIN_CHARS) {
+                    setServerSearchTerm(val);
+                  }
+                }}
+              />
+            )}
 
-              <Select value={partition} onValueChange={setPartition}>
-                <SelectTrigger className="h-10 min-w-[180px]"><SelectValue placeholder="Ομάδα" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Όλα</SelectItem>
-                  <SelectItem value="postgrad">Μεταπτυχιακοί</SelectItem>
-                  <SelectItem value="undergrad">Προπτυχιακοί</SelectItem>
-                  <SelectItem value="unknown">Άγνωστοι</SelectItem>
-                </SelectContent>
-              </Select>
+            <Select value={partition} onValueChange={setPartition}>
+              <SelectTrigger className="h-8 min-w-[140px] text-sm"><SelectValue placeholder="Ομάδα" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Όλα</SelectItem>
+                <SelectItem value="postgrad">Μεταπτυχιακοί</SelectItem>
+                <SelectItem value="undergrad">Προπτυχιακοί</SelectItem>
+                <SelectItem value="unknown">Άγνωστοι</SelectItem>
+              </SelectContent>
+            </Select>
 
-              <Button variant="outline" onClick={handleDownloadTemplate} className="h-10">
-                <FileSpreadsheet className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Πρότυπο</span>
-              </Button>
+            <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8">
+              <FileSpreadsheet className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Πρότυπο</span>
+            </Button>
 
-              <Button variant="outline" onClick={() => setUploadDialog(true)} className="h-10">
-                <Upload className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Εισαγωγή</span>
-              </Button>
+            <Button variant="outline" size="sm" onClick={() => setUploadDialog(true)} className="h-8">
+              <Upload className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Εισαγωγή</span>
+            </Button>
 
-              <Button variant="outline" onClick={handleExport} disabled={!activeDatasetId} className="h-10">
-                <Download className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Εξαγωγή</span>
-              </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={!activeDatasetId} className="h-8">
+              <Download className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Εξαγωγή</span>
+            </Button>
 
-              <Button disabled={!activeDatasetId} onClick={() => { if (!activeDatasetId) return; setFormData({}); setAddDialog(true); }} className="h-10">
-                <Plus className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Νέα</span>
-              </Button>
+            <Button size="sm" disabled={!activeDatasetId} onClick={() => { if (!activeDatasetId) return; setFormData({}); setAddDialog(true); }} className="h-8">
+              <Plus className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Νέα</span>
+            </Button>
 
-              <Button
-                variant="destructive"
-                className="h-10"
-                disabled={deleteLoading}
-                onClick={() => setDeleteAllConfirmOpen(true)}
-              >
-                <Trash2 className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Ολική Διαγραφή</span>
-              </Button>
-            </div>
-          }
-        />
+            <Button variant="destructive" size="sm" className="h-8" disabled={deleteLoading} onClick={() => setDeleteAllConfirmOpen(true)}>
+              <Trash2 className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Ολική Διαγραφή</span>
+            </Button>
+          </div>
+        </div>
 
         {datasets.length > 0 && (
-          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 sm:p-4">
-            <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2 text-slate-900 dark:text-slate-100">
-              <FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5" /> Datasets
-            </h3>
-            <div className="space-y-2">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setShowDatasets(v => !v)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-slate-900 dark:text-slate-100"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <FileSpreadsheet className="h-4 w-4 shrink-0" />
+                Datasets
+                <span className="text-xs font-normal text-slate-500 dark:text-slate-400 truncate">
+                  ({datasets.length}{activeDataset ? ` • ενεργό: ${activeDataset.name}` : ''})
+                </span>
+              </span>
+              <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${showDatasets ? 'rotate-180' : ''}`} />
+            </button>
+            {showDatasets && (
+            <div className="space-y-2 px-3 pb-3">
               {datasets.map(dataset => (
                 <div key={dataset.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg gap-3">
                   <div className="min-w-0">
@@ -1213,6 +1222,7 @@ export default function Records() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
@@ -1240,12 +1250,12 @@ export default function Records() {
               }
             }}
             gridRef={agGridRef}
-            height="70vh"
+            height="calc(100vh - 170px)"
           />
         ) : (
           <DataGrid
             mode="infinite"
-            height="70vh"
+            height="calc(100vh - 170px)"
             data={people}
             columns={COLUMNS}
             searchable
