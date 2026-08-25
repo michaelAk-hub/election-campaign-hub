@@ -256,23 +256,10 @@ export default function Layout({ children, currentPageName }) {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* ── DESKTOP: single-row fixed top navbar with integrated menu (lg+) ── */}
-      <header className="hidden lg:flex items-center gap-3 fixed top-0 left-0 right-0 z-40 h-14 px-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-        {/* Branding */}
-        <Link to={createPageUrl('Dashboard')} className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-md flex items-center justify-center">
-            <Vote className="h-4 w-4 text-white" />
-          </div>
-          <div className="leading-tight hidden xl:block">
-            <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Εκλογές</span>
-            <span className="text-[9px] text-slate-400 uppercase tracking-wider ml-1.5">2026</span>
-          </div>
-        </Link>
-
-        <div className="w-px self-stretch bg-slate-200 dark:bg-slate-700 my-3 shrink-0" />
-
-        {/* Nav links — inline, horizontally scrollable if they overflow */}
-        <nav className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto no-scrollbar">
+      {/* ── DESKTOP: sticky top navbar with integrated menu (lg+) ── */}
+      <header className="hidden lg:flex items-center gap-3 sticky top-0 z-40 py-1.5 px-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+        {/* Nav links — wrap to multiple lines (no horizontal scrolling) */}
+        <nav className="flex flex-wrap items-center gap-0.5 flex-1 min-w-0">
           {adminNavItems.map((item) => {
             const isActive = currentPageName === item.page;
             return (
@@ -411,8 +398,9 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* ── Main Content ── */}
-      {/* Desktop: single-row header is h-14 (56px); pt-16 (64px) clears it with a small gap. */}
-      <main className="lg:pt-16 pt-16 min-h-screen w-full max-w-full"
+      {/* Desktop header is sticky (in normal flow), so no top padding needed there.
+          Mobile keeps pt-16 to clear its fixed top header. */}
+      <main className="lg:pt-0 pt-16 min-h-screen w-full max-w-full"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 4rem)' }}
       >
         <AnimatePresence mode="wait" initial={false}>
