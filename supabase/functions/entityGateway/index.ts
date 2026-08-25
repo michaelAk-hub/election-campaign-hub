@@ -66,21 +66,18 @@ async function readRows(
     return q;
   };
 
-  if (lim != null) {
-    const { data, error } = await build().range(off, off + Math.max(1, lim) - 1);
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  }
-  // No limit: page through everything.
+  // PostgREST caps each response at ~1000 rows, so page in 1000-row chunks —
+  // both for an explicit limit above 1000 and for the no-limit ("get all") case.
   const out: any[] = [];
   let from = off;
   const size = 1000;
-  while (true) {
-    const { data, error } = await build().range(from, from + size - 1);
+  while (lim == null || out.length < lim) {
+    const want = lim == null ? size : Math.min(size, lim - out.length);
+    const { data, error } = await build().range(from, from + want - 1);
     if (error) throw new Error(error.message);
     out.push(...(data ?? []));
-    if (!data || data.length < size) break;
-    from += size;
+    if (!data || data.length < want) break; // ran out of rows
+    from += data.length;
   }
   return out;
 }
