@@ -10,7 +10,7 @@ const theme = themeQuartz;
 // Grid sizing — the body is sized to show a fixed number of rows.
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 33;
-const VISIBLE_ROWS = 23;
+const VISIBLE_ROWS = 21;
 const HSCROLL = 15; // room for the horizontal scrollbar so it doesn't eat a row
 // Height of the AG-Grid element itself (header + 23 rows + horizontal scrollbar).
 const GRID_BODY_HEIGHT = HEADER_HEIGHT + VISIBLE_ROWS * ROW_HEIGHT + HSCROLL;
