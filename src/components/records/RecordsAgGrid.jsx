@@ -31,6 +31,7 @@ const rowSelection = { mode: 'multiRow', checkboxes: false, headerCheckbox: fals
 
 export default function RecordsAgGrid({
   activeDatasetId,
+  scratchDatasetId,   // when set, the grid reads a scratch table instead of the live roll
   partition,
   serverSearchTerm,
   filterModel,
@@ -47,14 +48,19 @@ export default function RecordsAgGrid({
   const [totalCount, setTotalCount] = useState(null);
   const [selectedCount, setSelectedCount] = useState(0);
 
+  const isScratch = !!scratchDatasetId;
+  const sourceId = isScratch ? scratchDatasetId : activeDatasetId;
+
   const datasource = useMemo(() => {
-    if (!activeDatasetId) return null;
+    if (!sourceId) return null;
     return {
       getRows: async (params) => {
         try {
-          const { data } = await base44.functions.invoke('personGridFetch', {
+          const fn = isScratch ? 'scratchGridFetch' : 'personGridFetch';
+          const idParams = isScratch ? { scratchDatasetId } : { datasetId: activeDatasetId };
+          const { data } = await base44.functions.invoke(fn, {
             session_token: localStorage.getItem('app_session_token'),
-            datasetId: activeDatasetId,
+            ...idParams,
             partition,
             startRow: params.startRow,
             endRow: params.endRow,
@@ -74,7 +80,7 @@ export default function RecordsAgGrid({
       },
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDatasetId, partition, serverSearchTerm, JSON.stringify(filterModel), JSON.stringify(sortModel)]);
+  }, [activeDatasetId, scratchDatasetId, partition, serverSearchTerm, JSON.stringify(filterModel), JSON.stringify(sortModel)]);
 
   // Reinstall datasource whenever it changes
   useEffect(() => {

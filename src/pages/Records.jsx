@@ -25,6 +25,7 @@ import {
 import { toast } from 'sonner';
 import { ColumnFilterPanel } from '@/components/datagrid/ColumnFilterPopover';
 import RecordsAgGrid from '../components/records/RecordsAgGrid';
+import ScratchTableView from '../components/records/ScratchTableView';
 import ImportProgressModal from '../components/records/ImportProgressModal';
 import ExportProgressModal from '../components/records/ExportProgressModal';
 import DeleteProgressModal from '../components/records/DeleteProgressModal';
@@ -481,6 +482,8 @@ export default function Records() {
   const [exportJobId, setExportJobId] = useState(null);
   const [partition, setPartition] = useState('all');
   const [showDatasets, setShowDatasets] = useState(false); // collapsible datasets panel (compact by default)
+  const [activeTab, setActiveTab] = useState('live'); // 'live' | <scratch dataset id>
+  const [creatingScratch, setCreatingScratch] = useState(false);
   const [mixedImportDialog, setMixedImportDialog] = useState(false);
   const [mixedMissingCount, setMixedMissingCount] = useState(0);
   const [serverSearchTerm, setServerSearchTerm] = useState('');
@@ -644,6 +647,39 @@ export default function Records() {
 
   const activeDataset = useMemo(() => datasets.find(d => d.status === 'active') || null, [datasets]);
   const activeDatasetId = activeDataset?.id || null;
+
+  // ── Scratch tables (isolated staging tables) ───────────────────────────────
+  const { data: scratchDatasets = [], refetch: refetchScratch } = useQuery({
+    queryKey: ['scratchDatasets'],
+    queryFn: async () => {
+      const rows = await base44.entities.ScratchDataset.list('-created_date', 1000, 0);
+      return rows || [];
+    },
+  });
+  const activeScratch = useMemo(
+    () => scratchDatasets.find(s => s.id === activeTab) || null,
+    [scratchDatasets, activeTab]
+  );
+  // If the selected scratch tab disappears (deleted elsewhere), fall back to live.
+  useEffect(() => {
+    if (activeTab !== 'live' && scratchDatasets.length && !activeScratch) setActiveTab('live');
+  }, [activeTab, activeScratch, scratchDatasets.length]);
+
+  const handleCreateScratch = async () => {
+    const name = window.prompt('Όνομα πρόχειρου πίνακα:');
+    if (!name || !name.trim()) return;
+    setCreatingScratch(true);
+    try {
+      const created = await base44.entities.ScratchDataset.create({ name: name.trim(), status: 'active', total_records: 0 });
+      await refetchScratch();
+      if (created?.id) setActiveTab(created.id);
+      toast.success('Ο πρόχειρος πίνακας δημιουργήθηκε — κάντε Εισαγωγή για να προσθέσετε εγγραφές');
+    } catch (e) {
+      toast.error('Αποτυχία δημιουργίας: ' + (e.message || ''));
+    } finally {
+      setCreatingScratch(false);
+    }
+  };
 
   // ── People query (legacy DataGrid path) ────────────────────────────────────
   const peopleQuery = useInfiniteQuery({
@@ -1127,6 +1163,40 @@ export default function Records() {
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
       <div className="space-y-3">
+        {/* Table tabs: live roll (★) + scratch tables + new-table button */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-700 pb-1">
+          <button
+            onClick={() => setActiveTab('live')}
+            className={`h-8 px-3 rounded-t text-sm font-medium shrink-0 whitespace-nowrap ${activeTab === 'live' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+          >
+            ★ Ζωντανός Πίνακας
+          </button>
+          {scratchDatasets.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setActiveTab(s.id)}
+              className={`h-8 px-3 rounded-t text-sm shrink-0 whitespace-nowrap ${activeTab === s.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+              title={`${s.total_records || 0} εγγραφές`}
+            >
+              {s.name || 'Πρόχειρος'}
+            </button>
+          ))}
+          <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0" disabled={creatingScratch} onClick={handleCreateScratch}>
+            <Plus className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Νέος Πίνακας</span>
+          </Button>
+        </div>
+
+        {activeTab !== 'live' ? (
+          <ScratchTableView
+            key={activeTab}
+            scratchDatasetId={activeTab}
+            name={activeScratch?.name}
+            onDeleted={() => { setActiveTab('live'); refetchScratch(); }}
+            onChanged={() => refetchScratch()}
+          />
+        ) : (
+        <>
         {/* Single-line header: title (shrinks) + all controls inline; scrolls if too narrow */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1504,6 +1574,8 @@ export default function Records() {
         {deleteJobId && <DeleteProgressModal jobId={deleteJobId} onClose={handleDeleteJobClose} />}
         {importJobId && <ImportProgressModal jobId={importJobId} onClose={handleImportJobClose} />}
         {exportJobId && <ExportProgressModal jobId={exportJobId} datasetName={activeDataset?.name} onClose={() => setExportJobId(null)} />}
+        </>
+        )}
       </div>
     </PullToRefresh>
   );

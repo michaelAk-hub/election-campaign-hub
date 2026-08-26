@@ -8,9 +8,15 @@ here changes the running system, so it can wait until there is breathing room.
 - [x] **Step 1 (foundation):** `ColumnDef` / `ScratchDataset` / `PersonScratch` tables +
   seeded shared schema — `supabase/scratch_schema.sql` (run once) and mirrored into
   `schema.sql`. Added to `entityGateway` allowlist. _Additive; live path untouched._
-- [ ] Step 2: scratch grid fetch/update functions + tab strip
-- [ ] Step 3: `importScratchJob` + map-on-import; scratch export + delete
-- [ ] Step 4: Design View UI
+- [x] **Step 2+3 (usable slice):** tab strip in Records (live ★ + scratch tabs + New);
+  self-contained `ScratchTableView` (columns from the `ColumnDef` registry, inline edit,
+  total footer); Edge Functions `scratchGridFetch`, `scratchGridUpdateCell`,
+  `importScratchJob`, `exportScratchJob` (inline .xlsx, matches live format),
+  `scratchDatasetDelete`. Live grid only renders on the ★ tab. _Basic import (auto
+  header-map, unknown cols → custom_data); the map-on-import UI and typed editing come
+  with Step 4._
+- [ ] Step 4: Design View UI (add/edit/remove non-mandatory fields; destructive-delete
+  confirm; type-change validation; map-on-import step; typed cell editors)
 - [ ] Step 5 (later): `mergeScratchToLive`
 
 This document captures a design agreed in discussion. It is the reference to pick up
