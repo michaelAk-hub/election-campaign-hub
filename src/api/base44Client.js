@@ -32,6 +32,26 @@ async function invoke(name, body = {}) {
   return { data };
 }
 
+// Like invoke, but for functions that return a binary body (e.g. a file export).
+// Resolves to a Blob on 2xx; throws on failure (reading a JSON { error } body if present).
+async function invokeBlob(name, body = {}) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'apikey': SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(body || {}),
+  });
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try { const j = await res.json(); if (j?.error) msg = j.error; } catch { /* non-JSON */ }
+    throw new Error(msg);
+  }
+  return await res.blob();
+}
+
 // Entity access mirrors the Base44 SDK surface (list/filter/get/create/update/
 // delete/bulkCreate) by routing through the admin-authed `entityGateway` Edge
 // Function. Without an admin session token (portal or logged-out contexts), we
@@ -101,4 +121,4 @@ const integrations = {
   },
 };
 
-export const base44 = { functions: { invoke }, entities, auth, integrations };
+export const base44 = { functions: { invoke, invokeBlob }, entities, auth, integrations };

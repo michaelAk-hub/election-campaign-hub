@@ -107,21 +107,14 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
 
   const handleExport = async () => {
     try {
-      const { data } = await base44.functions.invoke('exportScratchJob', {
+      const blob = await base44.functions.invokeBlob('exportScratchJob', {
         session_token: sessionToken(),
         scratch_dataset_id: scratchDatasetId,
       });
-      if (data?.error) throw new Error(data.error);
-      if (!data?.base64) throw new Error('Άδειο αρχείο');
-      // Decode base64 → Blob → download.
-      const bin = atob(data.base64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const blob = new Blob([bytes], { type: data.mime || 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = data.filename || 'scratch.xlsx';
+      a.download = `${(name || 'scratch').replace(/[^\w.-]+/g, '_')}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
