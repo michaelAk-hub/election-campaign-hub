@@ -101,7 +101,10 @@ scratch tables.
   - **Map-on-import step**: user maps the file's columns onto `ColumnDef` fields, with a
     one-click **"create this as a new field"** for unmatched columns (adds a non-mandatory
     field to the shared schema, then maps to it). Chosen over auto-creating stray columns.
-- **Export** → scratch variant of `exportPersonsJob`, respecting the shared schema columns.
+- **Export** → scratch variant of `exportPersonsJob`. **Matches the live export exactly**:
+  same `.xlsx` output via `buildXlsx` / `EXPORT_COLUMNS` in
+  `supabase/functions/_shared/personIO.ts` (Greek labels, `voted` rendered ΝΑΙ/ΟΧΙ).
+  Non-mandatory user fields append after the standard columns.
 - **Delete** → scratch variant of `deleteDataset` (drops one `ScratchDataset` + its rows).
 
 ---
@@ -161,10 +164,66 @@ Each step is additive and independently shippable.
 
 ---
 
-## 11. Open items / to confirm at build time
+## 11. Field types (confirmed)
 
-- Exact initial contents of the **mandatory-fields constant** (enumerate every field the
-  current functions reference).
-- Which field types the Design View exposes first (`text/number/date/boolean/select` is the
-  proposed set).
-- Export format(s) for scratch (match the live export).
+The Design View exposes this set first: **`text` / `number` / `date` / `boolean` / `select`**.
+(`boolean` renders as a checkbox like `voted`; `select` carries an `options` array.)
+
+---
+
+## 12. Mandatory-fields constant (authoritative, audited 2026-08-26)
+
+These fields are referenced **by name in code logic** (Edge Functions and/or frontend
+pages), or are structural. They are the **locked** rows in the Design View — cannot be
+deleted, renamed, or retyped. Source of truth is `KNOWN_FIELDS` /
+`EXPORT_COLUMNS` in `_shared/personIO.ts` plus the usages audited below.
+
+**Structural (never removable):**
+| Field | Type | Why |
+|---|---|---|
+| `id` | (pk) | primary key |
+| `dataset_id` | text | dataset scoping / partitioning |
+| `row_version` | number | optimistic-locking on concurrent edits |
+| `custom_data` | (jsonb) | storage for all non-mandatory fields |
+| `created_date` | date | default grid sort |
+
+**Referenced in logic (mandatory):**
+| Field | Type | Used by |
+|---|---|---|
+| `person_id` | text | identity (ΑΤ) — grid, export, lookups |
+| `first_name` | text | display, χρεωστικά, κανάλι, portal |
+| `last_name` | text | display, χρεωστικά, κανάλι, portal |
+| `voted` | boolean | predictions, KPIs, vote-flow, κανάλι |
+| `voted_at` | date | prediction vote-flow timing |
+| `prediction_symbol` | text/select | predictions by symbol |
+| `monadikos_kanali` | text | κανάλι vote lookup (`submitKanaliVote`) |
+| `academic_level` | select | partition (postgrad/undergrad/unknown) |
+| `admission_year` | number | predictions by year (heaviest-referenced field) |
+| `department` | text | χρεωστικά / prediction grouping |
+| `ucid` | text | identity / lookup |
+| `member` | text/boolean | χρεωστικά / κανάλι |
+| `notes` | text | portal actions write here |
+| `contact_person_1` | text | χρεωστικά contact |
+| `contact_person_2` | text | χρεωστικά contact |
+| `mobile_phone` | text | SMS / contact |
+
+**Seeded NON-mandatory fields** (exist today as physical columns + export mappings, but no
+code logic references them — so they are user-editable/removable):
+`direction` (ΚΑΤ), `X`, `F26_1`, `F25`, `phone`, `T24`, `F24`, `F23`, `T22`, `details`
+(ΠΑΡΑΤΗΡΗΣΕΙΣ), `father_n`, `father_name`, `ElectoralDistrict`, `ElectoralTown`,
+`RelatedMember`.
+
+> **Build-time note:** these seeded non-mandatory fields are currently *physical* columns.
+> When one is deleted via the Design View, either drop the physical column or stop
+> surfacing it (and remove its `EXPORT_COLUMNS` entry). New non-mandatory fields added later
+> live in `custom_data`, never as physical columns.
+>
+> **Maintenance rule:** whenever a new function starts depending on a field, add that field
+> to this constant (promote it from non-mandatory to mandatory) so the Design View locks it.
+
+---
+
+## 13. Open items
+
+_All prior open items resolved (§11, §12, and §5 export format). Nothing outstanding —
+ready to implement when scheduled (post-Oct 1)._
