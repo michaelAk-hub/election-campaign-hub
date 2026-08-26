@@ -598,6 +598,79 @@ create table if not exists public."LoginThrottle" (
 create index if not exists "ix_LoginThrottle_key" on public."LoginThrottle" ("throttle_key");
 
 -- ---------------------------------------------------------------------------
+-- Scratch tables + shared-schema registry (see docs/scratch-tables-and-
+-- schema-design.md and scratch_schema.sql, which also seeds ColumnDef).
+-- ---------------------------------------------------------------------------
+create table if not exists public."ColumnDef" (
+  "id" text primary key default gen_random_uuid()::text,
+  "created_date" timestamptz not null default now(),
+  "updated_date" timestamptz not null default now(),
+  "created_by" text,
+  "key" text not null unique,
+  "label" text,
+  "type" text not null default 'text',
+  "mandatory" boolean not null default false,
+  "physical" boolean not null default false,
+  "sort_order" integer not null default 0,
+  "options" jsonb
+);
+create index if not exists "ix_ColumnDef_order" on public."ColumnDef" ("sort_order");
+
+create table if not exists public."ScratchDataset" (
+  "id" text primary key default gen_random_uuid()::text,
+  "created_date" timestamptz not null default now(),
+  "updated_date" timestamptz not null default now(),
+  "created_by" text,
+  "name" text,
+  "status" text default 'active',
+  "total_records" integer default 0
+);
+
+create table if not exists public."PersonScratch" (
+  "id" text primary key default gen_random_uuid()::text,
+  "created_date" timestamptz not null default now(),
+  "updated_date" timestamptz not null default now(),
+  "created_by" text,
+  "scratch_dataset_id" text,
+  "dataset_id" text,
+  "department" text,
+  "admission_year" text,
+  "academic_level" text,
+  "person_id" text,
+  "ucid" text,
+  "mobile_phone" text,
+  "first_name" text,
+  "last_name" text,
+  "contact_person_1" text,
+  "contact_person_2" text,
+  "member" text,
+  "prediction_symbol" text,
+  "voted" boolean default false,
+  "voted_at" timestamptz,
+  "notes" text,
+  "monadikos_kanali" text,
+  "direction" text,
+  "X" text,
+  "F26_1" text,
+  "F25" text,
+  "phone" text,
+  "T24" text,
+  "F24" text,
+  "F23" text,
+  "T22" text,
+  "details" text,
+  "father_n" text,
+  "father_name" text,
+  "ElectoralDistrict" text,
+  "ElectoralTown" text,
+  "RelatedMember" text,
+  "custom_data" jsonb,
+  "row_version" integer default 1
+);
+create index if not exists "ix_PersonScratch_dataset" on public."PersonScratch" ("scratch_dataset_id");
+create index if not exists "ix_PersonScratch_person_id" on public."PersonScratch" ("person_id");
+
+-- ---------------------------------------------------------------------------
 -- Attach updated_date trigger to every table
 -- ---------------------------------------------------------------------------
 do $$
@@ -613,7 +686,8 @@ declare
     'SavedQuery','GridPreference','UserActivationLog',
     'PredictionScenario','PredictionVoteFlowConfig','PredictionFilterCache',
     'PredictionRebuildLock','PredictionStatsOverall','PredictionStatsBySymbol',
-    'PredictionStatsByYearSymbol'
+    'PredictionStatsByYearSymbol',
+    'ColumnDef','ScratchDataset','PersonScratch'
   ];
 begin
   foreach t in array tables loop

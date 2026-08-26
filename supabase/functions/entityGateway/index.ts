@@ -14,6 +14,7 @@ const ALLOWED = new Set([
   "NotificationPreference", "Notification", "NotFoundVoter", "KanaliSubmission",
   "ImportJob", "ExportJob", "DeleteJob", "ChreosiCheckmark", "UserActivationLog",
   "PredictionScenario", "PredictionVoteFlowConfig",
+  "ColumnDef", "ScratchDataset", "PersonScratch",
 ]);
 
 // Base44 sort string: "-field" = desc, "field" = asc.

@@ -1,8 +1,17 @@
 # Design: Scratch Tables + Shared Schema / Design View
 
-**Status:** Approved design, not yet built.
+**Status:** In progress.
 **Recommended timing:** Build **after Oct 1** (post-election). Purely additive — nothing
 here changes the running system, so it can wait until there is breathing room.
+
+**Build progress:**
+- [x] **Step 1 (foundation):** `ColumnDef` / `ScratchDataset` / `PersonScratch` tables +
+  seeded shared schema — `supabase/scratch_schema.sql` (run once) and mirrored into
+  `schema.sql`. Added to `entityGateway` allowlist. _Additive; live path untouched._
+- [ ] Step 2: scratch grid fetch/update functions + tab strip
+- [ ] Step 3: `importScratchJob` + map-on-import; scratch export + delete
+- [ ] Step 4: Design View UI
+- [ ] Step 5 (later): `mergeScratchToLive`
 
 This document captures a design agreed in discussion. It is the reference to pick up
 from when implementation starts. No code has been written for it yet.
@@ -61,7 +70,9 @@ auditing required.
   field:
   - `key` (stable internal name), `label` (display), `type`
     (`text | number | date | boolean | select`), `mandatory` (bool),
-    `order` (int), `options` (array, for `select`).
+    `physical` (bool — true = backed by a real column, i.e. the seeded fields;
+    false = stored in `custom_data`), `sort_order` (int), `options` (array, for
+    `select`).
   - Mandatory rows are **code-owned** — the authoritative list is a constant in the code
     (the fields functions depend on). The Design View shows them **locked** (no delete,
     no rename, no retype). Adding a new function that depends on a field ⇒ add that field
