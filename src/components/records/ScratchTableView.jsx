@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import RecordsAgGrid from './RecordsAgGrid';
 // from the live Records grid so the live path is untouched. Reads/writes only
 // PersonScratch via the scratch* Edge Functions.
 export default function ScratchTableView({ scratchDatasetId, name, onDeleted, onChanged }) {
+  const queryClient = useQueryClient();
   const gridRef = useRef(null);
   const fileRef = useRef(null);
   const [search, setSearch] = useState('');
@@ -111,6 +112,8 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
       });
       if (data?.error) throw new Error(data.error);
       toast.success(`Εισήχθησαν ${data.processed} εγγραφές${data.failed ? ` (${data.failed} απέτυχαν)` : ''}`);
+      // Import defines this table's columns — refetch them, then refresh the grid.
+      await queryClient.invalidateQueries({ queryKey: ['columnDefs', scratchDatasetId] });
       gridRef.current?.api?.purgeInfiniteCache?.();
       onChanged?.();
     } catch (e) {
