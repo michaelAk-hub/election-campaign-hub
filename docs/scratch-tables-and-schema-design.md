@@ -1,6 +1,6 @@
 # Design: Scratch Tables + Shared Schema / Design View
 
-**Status:** In progress.
+**Status:** Complete — all steps (1–5) built and tested end-to-end (2026-08-27).
 **Recommended timing:** Build **after Oct 1** (post-election). Purely additive — nothing
 here changes the running system, so it can wait until there is breathing room.
 
