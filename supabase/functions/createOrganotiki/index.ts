@@ -1,7 +1,8 @@
 // createOrganotiki — ADMIN creates a new (inactive) ORGANOTIKI user.
 import { getServiceClient } from "../_shared/client.ts";
 import { preflight, json } from "../_shared/http.ts";
-import { strictAuth, sha256Hex } from "../_shared/appSession.ts";
+import { strictAuth } from "../_shared/appSession.ts";
+import { hashPassword } from "../_shared/password.ts";
 
 Deno.serve(async (req) => {
   const pf = preflight(req);
@@ -20,7 +21,7 @@ Deno.serve(async (req) => {
     const { data: existing } = await supabase.from("AppUser").select("id").eq("email", email.toLowerCase()).maybeSingle();
     if (existing) return json({ error: "Το email υπάρχει ήδη" }, 400);
 
-    const password_hash = await sha256Hex(password);
+    const password_hash = await hashPassword(password);
     const { data: newUser } = await supabase.from("AppUser").insert({
       role: "ORGANOTIKI", email: email.toLowerCase(), password_hash, name, surname, phone,
       is_active: false, session_version: 1, password_changed_at: new Date().toISOString(), created_by_admin_id: admin.id,

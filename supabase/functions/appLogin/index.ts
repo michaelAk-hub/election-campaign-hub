@@ -2,7 +2,7 @@
 import { getServiceClient } from "../_shared/client.ts";
 import { preflight, json } from "../_shared/http.ts";
 import { fetchAll } from "../_shared/db.ts";
-import { sha256Hex } from "../_shared/appSession.ts";
+import { verifyPassword, hashPassword } from "../_shared/password.ts";
 import { throttleRetryAfter, recordLoginFailure, clearLoginThrottle, lockedMessage } from "../_shared/throttle.ts";
 import { generateTotpSecret, otpauthUri } from "../_shared/totp.ts";
 
@@ -30,12 +30,17 @@ Deno.serve(async (req) => {
     if (user.role === "ORGANOTIKI" && !user.is_active) {
       return json({ error: "Ο λογαριασμός σας δεν είναι ενεργός" }, 403);
     }
-    const hash = await sha256Hex(password);
-    if (hash !== user.password_hash) {
+    const { ok, legacy } = await verifyPassword(password, user.password_hash);
+    if (!ok) {
       await recordLoginFailure(supabase, throttleKey);
       return json({ error: "Λάθος email ή κωδικός" }, 401);
     }
     await clearLoginThrottle(supabase, throttleKey);
+    // Transparently upgrade legacy unsalted-SHA-256 hashes to bcrypt.
+    if (legacy) {
+      try { await supabase.from("AppUser").update({ password_hash: await hashPassword(password) }).eq("id", user.id); }
+      catch { /* non-fatal: login still succeeds */ }
+    }
 
     const preauthToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
