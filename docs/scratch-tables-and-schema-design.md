@@ -16,8 +16,18 @@ here changes the running system, so it can wait until there is breathing room.
   `scratchDatasetDelete`. Live grid only renders on the ★ tab. _Basic import (auto
   header-map, unknown cols → custom_data); the map-on-import UI and typed editing come
   with Step 4._
-- [ ] Step 4: Design View UI (add/edit/remove non-mandatory fields; destructive-delete
-  confirm; type-change validation; map-on-import step; typed cell editors)
+- [~] **Step 4 (in progress):**
+  - [x] `schemaAdmin` Edge Function (list/addField/updateField/validateType/
+    countFieldData/deleteField/reorder) — mandatory fields protected, type-change
+    validated (blocks + reports offending rows), delete clears custom_data across
+    Person + PersonScratch.
+  - [x] Design View dialog (`SchemaDesignDialog`) — reachable from Records ("Σχεδίαση"):
+    add/edit-label/retype/delete/reorder fields; locked mandatory rows; destructive-delete
+    confirm ("erases N rows"); type-change block dialog with offending rows + force.
+  - [x] Typed cell editors in the scratch grid (number/date/select/boolean checkbox).
+  - [ ] Map-on-import step (map file columns → fields, "create as new field").
+  - [ ] Wire the LIVE grid to render registry-defined custom fields (currently the
+    Design View governs scratch tables; the live grid still uses its fixed columns).
 - [ ] Step 5 (later): `mergeScratchToLive`
 
 This document captures a design agreed in discussion. It is the reference to pick up

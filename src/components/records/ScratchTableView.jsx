@@ -39,9 +39,11 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
   );
 
   const columnDefs = useMemo(() => {
+    const truthy = (v) => v === true || ['true', 'ναι', 'nai', 'yes', '1', 'y'].includes(String(v ?? '').trim().toLowerCase());
     return columnDefsRegistry.map((cd) => {
       const isCustom = !cd.physical;
-      return {
+      const raw = (p) => (isCustom ? p.data?.custom_data?.[cd.key] : p.data?.[cd.key]);
+      const col = {
         colId: cd.key,
         headerName: cd.label || cd.key,
         field: isCustom ? undefined : cd.key,
@@ -50,6 +52,20 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
         minWidth: 90,
         resizable: true,
       };
+      if (cd.type === 'number') {
+        col.cellEditor = 'agNumberCellEditor';
+      } else if (cd.type === 'date') {
+        col.cellEditor = 'agDateStringCellEditor';
+      } else if (cd.type === 'select') {
+        col.cellEditor = 'agSelectCellEditor';
+        col.cellEditorParams = { values: Array.isArray(cd.options) ? cd.options : [] };
+      } else if (cd.type === 'boolean') {
+        col.valueGetter = (p) => truthy(raw(p));
+        col.cellRenderer = (p) => (p.value ? '✓' : '');
+        col.cellEditor = 'agCheckboxCellEditor';
+        col.cellDataType = 'boolean';
+      }
+      return col;
     });
   }, [columnDefsRegistry]);
 

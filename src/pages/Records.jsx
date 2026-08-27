@@ -20,12 +20,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Database, Plus, Download, MoreHorizontal, Pencil, Trash2,
-  CheckCircle2, Phone, Upload, FileSpreadsheet, Loader2, Search, X, Filter, ChevronDown
+  CheckCircle2, Phone, Upload, FileSpreadsheet, Loader2, Search, X, Filter, ChevronDown, Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ColumnFilterPanel } from '@/components/datagrid/ColumnFilterPopover';
 import RecordsAgGrid from '../components/records/RecordsAgGrid';
 import ScratchTableView from '../components/records/ScratchTableView';
+import SchemaDesignDialog from '../components/records/SchemaDesignDialog';
 import ImportProgressModal from '../components/records/ImportProgressModal';
 import ExportProgressModal from '../components/records/ExportProgressModal';
 import DeleteProgressModal from '../components/records/DeleteProgressModal';
@@ -484,6 +485,7 @@ export default function Records() {
   const [showDatasets, setShowDatasets] = useState(false); // collapsible datasets panel (compact by default)
   const [activeTab, setActiveTab] = useState('live'); // 'live' | <scratch dataset id>
   const [creatingScratch, setCreatingScratch] = useState(false);
+  const [schemaDialogOpen, setSchemaDialogOpen] = useState(false);
   const [mixedImportDialog, setMixedImportDialog] = useState(false);
   const [mixedMissingCount, setMixedMissingCount] = useState(0);
   const [serverSearchTerm, setServerSearchTerm] = useState('');
@@ -1185,7 +1187,17 @@ export default function Records() {
             <Plus className="h-4 w-4 sm:mr-1" />
             <span className="hidden sm:inline">Νέος Πίνακας</span>
           </Button>
+          <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0 ml-auto" onClick={() => setSchemaDialogOpen(true)}>
+            <Settings className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Σχεδίαση</span>
+          </Button>
         </div>
+
+        <SchemaDesignDialog
+          open={schemaDialogOpen}
+          onOpenChange={setSchemaDialogOpen}
+          onSchemaChanged={() => queryClient.invalidateQueries({ queryKey: ['columnDefs'] })}
+        />
 
         {activeTab !== 'live' ? (
           <ScratchTableView
