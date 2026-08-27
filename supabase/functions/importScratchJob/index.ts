@@ -1,34 +1,70 @@
 // importScratchJob — parse an uploaded CSV/XLSX and insert PersonScratch rows
-// into a scratch table. Mirror of importPersonsJob, but writes to PersonScratch
-// scoped by scratch_dataset_id and never activates anything. If scratch_dataset_id
-// is given the rows are appended to that table; otherwise a new ScratchDataset is
-// created from `name`.
+// into a scratch table. Writes to PersonScratch scoped by scratch_dataset_id and
+// never activates anything. Three modes:
+//   • preview: true            → parse headers only, import nothing
+//   • mapping: {header→target} → import applying the user's column mapping
+//   • (neither)                → auto-map headers (legacy/default)
 import { getServiceClient } from "../_shared/client.ts";
 import { preflight, json } from "../_shared/http.ts";
 import { strictAuth } from "../_shared/appSession.ts";
-import { parseFile, buildHeaderMap, mapRow, EXPORT_COLUMNS } from "../_shared/personIO.ts";
+import { parseFile, buildHeaderMap, mapRow, EXPORT_COLUMNS, KNOWN_FIELDS } from "../_shared/personIO.ts";
 
 const INSERT_BATCH = 500;
 const norm = (k: unknown) => String(k).trim().toLowerCase();
 const LABELS: Record<string, string> = Object.fromEntries(EXPORT_COLUMNS.map((c) => [c.key, c.label]));
+const sanitize = (h: string) => String(h).trim().replace(/[^\w]/g, "_");
+const toBool = (v: any) => ["ναι", "nai", "yes", "true", "1", "y"].includes(String(v ?? "").trim().toLowerCase());
+const colType = (key: string) => (key === "voted" ? "boolean" : key === "voted_at" ? "date" : "text");
 
-// Build this scratch table's ColumnDef rows from the file's headers, in order.
-// Free-form: nothing is mandatory; unmapped headers become custom (JSONB) fields.
-function columnDefsFromHeaders(tableKey: string, headers: string[], headerMap: Record<string, string>) {
+// Auto path: build ColumnDef rows from the file's headers (in order).
+function columnDefsFromHeaders(tableKey: string, headers: string[], headerMap: Record<string, string>, startOrder: number) {
   const seen = new Set<string>();
   const defs: any[] = [];
-  let order = 10;
+  let order = startOrder;
   for (const h of headers) {
     const canonical = headerMap[norm(h)] || headerMap[h] || null;
     const physical = !!canonical;
     const key = canonical || h;
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    const type = key === "voted" ? "boolean" : key === "voted_at" ? "date" : "text";
-    defs.push({
-      table_key: tableKey, key, label: LABELS[key] || key, type,
-      mandatory: false, physical, sort_order: order,
-    });
+    defs.push({ table_key: tableKey, key, label: LABELS[key] || key, type: colType(key), mandatory: false, physical, sort_order: order });
+    order += 10;
+  }
+  return defs;
+}
+
+// Mapping path: resolve one file header's target key ('__skip__' → null).
+function targetKey(header: string, target: string): string | null {
+  if (!target || target === "__skip__") return null;
+  return target === "__new__" ? sanitize(header) : target;
+}
+
+function rowFromMapping(raw: Record<string, any>, mapping: Record<string, string>) {
+  const out: Record<string, any> = {};
+  const custom: Record<string, string> = {};
+  for (const [header, target] of Object.entries(mapping)) {
+    const key = targetKey(header, target);
+    if (!key) continue;
+    const value = raw[header];
+    if (key === "voted") { out.voted = toBool(value); continue; }
+    const sval = value === null || value === undefined ? "" : String(value).trim();
+    if (KNOWN_FIELDS.has(key)) out[key] = sval; else custom[key] = sval;
+  }
+  if (Object.keys(custom).length) out.custom_data = custom;
+  return out;
+}
+
+function columnDefsFromMapping(tableKey: string, mapping: Record<string, string>, startOrder: number) {
+  const seen = new Set<string>();
+  const defs: any[] = [];
+  let order = startOrder;
+  for (const [header, target] of Object.entries(mapping)) {
+    const key = targetKey(header, target);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const physical = KNOWN_FIELDS.has(key);
+    const label = target === "__new__" ? header : (LABELS[key] || key);
+    defs.push({ table_key: tableKey, key, label, type: colType(key), mandatory: false, physical, sort_order: order });
     order += 10;
   }
   return defs;
@@ -44,7 +80,7 @@ Deno.serve(async (req) => {
     if (auth.error) return json({ error: auth.error, ...(auth.force_logout ? { force_logout: true } : {}) }, auth.status);
     if (auth.user.role !== "ADMIN") return json({ error: "Unauthorized" }, 401);
 
-    const { file_url, name, person_id_col } = body;
+    const { file_url, name, person_id_col, preview, mapping } = body;
     let scratchDatasetId = body.scratch_dataset_id;
     if (!file_url) return json({ error: "file_url is required" }, 400);
 
@@ -56,12 +92,21 @@ Deno.serve(async (req) => {
       return json({ error: `File parse error: ${(e as Error).message}` }, 400);
     }
     const total = rawRows.length;
-
-    // Map + assign a person_id when missing (same rule as the live import).
     const headers = rawRows.length ? Object.keys(rawRows[0]) : [];
-    const headerMap = buildHeaderMap(headers);
+
+    // Preview: return headers (+ auto-map hints) so the frontend can build the mapping UI.
+    if (preview) {
+      const hm = buildHeaderMap(headers);
+      const suggestions: Record<string, string> = {};
+      for (const h of headers) suggestions[h] = hm[norm(h)] || hm[h] || "";
+      return json({ success: true, headers, suggestions, total });
+    }
+
+    const useMapping = mapping && typeof mapping === "object";
+    const headerMap = useMapping ? {} : buildHeaderMap(headers);
+
     const mapped = rawRows.map((r, i) => {
-      const row = mapRow(r, headerMap);
+      const row = useMapping ? rowFromMapping(r, mapping) : mapRow(r, headerMap);
       if (!row.person_id || String(row.person_id).trim() === "") {
         row.person_id = person_id_col && r[person_id_col] ? String(r[person_id_col]).trim() : String(i + 1);
       }
@@ -94,9 +139,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Define this table's columns from the file headers (idempotent — re-import
-    // won't duplicate). New headers on a re-import are added as extra columns.
-    const defs = columnDefsFromHeaders(scratchDatasetId, headers, headerMap);
+    // Define/extend this table's columns (append new columns after existing ones).
+    const { data: maxRow } = await supabase.from("ColumnDef").select("sort_order")
+      .eq("table_key", scratchDatasetId).order("sort_order", { ascending: false }).limit(1).maybeSingle();
+    const startOrder = (Number(maxRow?.sort_order) || 0) + 10;
+    const defs = useMapping
+      ? columnDefsFromMapping(scratchDatasetId, mapping, startOrder)
+      : columnDefsFromHeaders(scratchDatasetId, headers, headerMap, startOrder);
     if (defs.length) {
       await supabase.from("ColumnDef").upsert(defs, { onConflict: "table_key,key", ignoreDuplicates: true });
     }

@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Upload, Download, Trash2, Loader2, Search } from 'lucide-react';
 import RecordsAgGrid from './RecordsAgGrid';
+import ImportMappingDialog from './ImportMappingDialog';
+
+const sanitize = (h) => String(h).trim().replace(/[^\w]/g, '_');
 
 // Self-contained editable view for one scratch table. Deliberately separate
 // from the live Records grid so the live path is untouched. Reads/writes only
@@ -20,6 +23,8 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
   const [filterModel, setFilterModel] = useState({});
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [importDialog, setImportDialog] = useState(null); // { fileUrl, headers, defaultMapping, total }
+  const [importBusy, setImportBusy] = useState(false);
 
   const sessionToken = () => localStorage.getItem('app_session_token');
 
@@ -100,27 +105,59 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
     setSortModel({ field, dir });
   }, []);
 
-  const doImport = async (file) => {
+  // Phase 1: upload + read headers, then open the mapping dialog.
+  const onFileChosen = async (file) => {
     if (!file) return;
     setImporting(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const { data } = await base44.functions.invoke('importScratchJob', {
         session_token: sessionToken(),
-        scratch_dataset_id: scratchDatasetId,
         file_url,
+        preview: true,
       });
       if (data?.error) throw new Error(data.error);
-      toast.success(`Εισήχθησαν ${data.processed} εγγραφές${data.failed ? ` (${data.failed} απέτυχαν)` : ''}`);
-      // Import defines this table's columns — refetch them, then refresh the grid.
-      await queryClient.invalidateQueries({ queryKey: ['columnDefs', scratchDatasetId] });
-      gridRef.current?.api?.purgeInfiniteCache?.();
-      onChanged?.();
+      const headers = data.headers || [];
+      const suggestions = data.suggestions || {};
+      const existingByKey = new Map(columnDefsRegistry.map(c => [c.key, c]));
+      const defaultMapping = {};
+      for (const h of headers) {
+        const sug = suggestions[h];
+        const sk = sanitize(h);
+        if (sug && existingByKey.has(sug)) defaultMapping[h] = sug;
+        else if (existingByKey.has(sk)) defaultMapping[h] = sk;
+        else defaultMapping[h] = '__new__';
+      }
+      setImportDialog({ fileUrl: file_url, headers, defaultMapping, total: data.total || 0 });
     } catch (e) {
-      toast.error('Αποτυχία εισαγωγής: ' + (e.message || ''));
+      toast.error('Αποτυχία ανάγνωσης αρχείου: ' + (e.message || ''));
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  // Phase 2: import applying the chosen mapping.
+  const runImport = async (mapping) => {
+    if (!importDialog) return;
+    setImportBusy(true);
+    try {
+      const { data } = await base44.functions.invoke('importScratchJob', {
+        session_token: sessionToken(),
+        scratch_dataset_id: scratchDatasetId,
+        file_url: importDialog.fileUrl,
+        mapping,
+      });
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Εισήχθησαν ${data.processed} εγγραφές${data.failed ? ` (${data.failed} απέτυχαν)` : ''}`);
+      await queryClient.invalidateQueries({ queryKey: ['columnDefs', scratchDatasetId] });
+      gridRef.current?.api?.purgeInfiniteCache?.();
+      onChanged?.();
+      setImportDialog(null);
+    } catch (e) {
+      toast.error('Αποτυχία εισαγωγής: ' + (e.message || ''));
+    } finally {
+      setImportBusy(false);
     }
   };
 
@@ -190,7 +227,7 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
             type="file"
             accept=".csv,.xlsx,.xls"
             className="hidden"
-            onChange={(e) => doImport(e.target.files?.[0])}
+            onChange={(e) => onFileChosen(e.target.files?.[0])}
           />
           <Button variant="outline" size="sm" className="h-8 shrink-0" disabled={importing} onClick={() => fileRef.current?.click()}>
             {importing ? <Loader2 className="h-4 w-4 sm:mr-1.5 animate-spin" /> : <Upload className="h-4 w-4 sm:mr-1.5" />}
@@ -230,6 +267,17 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
           height="calc(100vh - 130px)"
         />
       )}
+
+      <ImportMappingDialog
+        open={!!importDialog}
+        onOpenChange={(o) => { if (!o) setImportDialog(null); }}
+        headers={importDialog?.headers || []}
+        defaultMapping={importDialog?.defaultMapping || {}}
+        existingColumns={columnDefsRegistry}
+        total={importDialog?.total || 0}
+        busy={importBusy}
+        onConfirm={runImport}
+      />
     </div>
   );
 }

@@ -29,7 +29,10 @@ here changes the running system, so it can wait until there is breathing room.
     scratch tables have no mandatory fields; import defines a table's columns from its
     headers; the Design View opens for the currently-selected tab; delete-scratch-table
     removes its column defs.
-  - [ ] Map-on-import step (map file columns → fields, "create as new field").
+  - [x] Map-on-import step — two-phase scratch import (`importScratchJob` `preview`
+    returns headers + auto-map suggestions; `ImportMappingDialog` maps each file column
+    to an existing column / new field / skip; import applies the mapping and appends new
+    columns after existing ones).
   - [ ] Wire the LIVE grid to render registry-defined custom fields (currently the
     Design View governs scratch tables fully; the live grid still uses its fixed columns).
 - [ ] Step 5 (later): `mergeScratchToLive`
