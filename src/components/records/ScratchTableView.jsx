@@ -54,6 +54,14 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
         headerName: cd.label || cd.key,
         field: isCustom ? undefined : cd.key,
         valueGetter: isCustom ? (p) => p.data?.custom_data?.[cd.key] ?? '' : undefined,
+        // Custom fields live in custom_data → write there so the edit applies
+        // locally and fires onCellValueChanged.
+        valueSetter: isCustom ? (p) => {
+          const c = { ...(p.data.custom_data || {}) };
+          c[cd.key] = p.newValue;
+          p.data.custom_data = c;
+          return true;
+        } : undefined,
         editable: true,
         minWidth: 90,
         resizable: true,

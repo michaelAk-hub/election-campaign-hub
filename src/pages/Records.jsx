@@ -617,6 +617,14 @@ export default function Records() {
         colId: `custom:${key}`,
         headerName: cd.label || key,
         valueGetter: (p) => p.data?.custom_data?.[key] ?? '',
+        // Custom fields live in custom_data → write there so the edit applies
+        // locally and fires onCellValueChanged (which saves it server-side).
+        valueSetter: (p) => {
+          const cd2 = { ...(p.data.custom_data || {}) };
+          cd2[key] = p.newValue;
+          p.data.custom_data = cd2;
+          return true;
+        },
         editable: true,
         sortable: false,
         filter: false,
