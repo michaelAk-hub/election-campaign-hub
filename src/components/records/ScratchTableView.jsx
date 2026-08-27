@@ -119,14 +119,20 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
       if (data?.error) throw new Error(data.error);
       const headers = data.headers || [];
       const suggestions = data.suggestions || {};
-      const existingByKey = new Map(columnDefsRegistry.map(c => [c.key, c]));
+      // Match a file header to an existing column by its key OR label, case-insensitively.
+      const norm = (s) => String(s ?? '').trim().toLowerCase();
+      const byKey = new Map(columnDefsRegistry.map(c => [c.key, c]));
+      const byNorm = new Map();
+      for (const c of columnDefsRegistry) {
+        byNorm.set(norm(c.key), c);
+        if (c.label) byNorm.set(norm(c.label), c);
+      }
       const defaultMapping = {};
       for (const h of headers) {
         const sug = suggestions[h];
-        const sk = sanitize(h);
-        if (sug && existingByKey.has(sug)) defaultMapping[h] = sug;
-        else if (existingByKey.has(sk)) defaultMapping[h] = sk;
-        else defaultMapping[h] = '__new__';
+        if (sug && byKey.has(sug)) { defaultMapping[h] = sug; continue; }
+        const match = byNorm.get(norm(h)) || byKey.get(sanitize(h));
+        defaultMapping[h] = match ? match.key : '__new__';
       }
       setImportDialog({ fileUrl: file_url, headers, defaultMapping, total: data.total || 0 });
     } catch (e) {
