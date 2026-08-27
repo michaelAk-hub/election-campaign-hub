@@ -53,7 +53,10 @@ create table if not exists public."AppUser" (
   "is_active" boolean default false,
   "password_changed_at" timestamptz,
   "session_version" integer default 1,
-  "created_by_admin_id" text
+  "created_by_admin_id" text,
+  "mfa_method" text not null default 'sms',
+  "totp_secret" text,
+  "totp_enrolled" boolean not null default false
 );
 create unique index if not exists "ux_AppUser_email_lower" on public."AppUser" (lower("email"));
 

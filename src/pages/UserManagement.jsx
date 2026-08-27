@@ -79,7 +79,9 @@ export default function UserManagement() {
                 email: user.email || '-',
                 phone: user.phone || '-',
                 is_active: user.is_active !== false,
-                created_date: user.created_date
+                created_date: user.created_date,
+                mfa_method: user.mfa_method || 'sms',
+                totp_enrolled: user.totp_enrolled === true,
             }));
         },
         enabled: !!currentUser
@@ -173,6 +175,28 @@ export default function UserManagement() {
         },
         onError: (error) => {
             toast.error(error.response?.data?.error || 'Σφάλμα αλλαγής κατάστασης');
+        }
+    });
+
+    const mfaMethodMutation = useMutation({
+        mutationFn: async ({ userId, method }) => {
+            const sessionToken = localStorage.getItem('app_session_token');
+            const { data } = await base44.functions.invoke('mfaAdminSetMethod', {
+                session_token: sessionToken,
+                target_user_id: userId,
+                method,
+            });
+            if (data?.error) throw new Error(data.error);
+            return data;
+        },
+        onSuccess: (_d, vars) => {
+            queryClient.invalidateQueries({ queryKey: ['adminOrganotikiUsers'] });
+            toast.success(vars.method === 'totp'
+                ? 'Ορίστηκε Authenticator — ο χρήστης θα σαρώσει QR στην επόμενη σύνδεση'
+                : 'Ορίστηκε SMS');
+        },
+        onError: (error) => {
+            toast.error(error.message || 'Σφάλμα αλλαγής μεθόδου 2FA');
         }
     });
 
@@ -504,6 +528,37 @@ export default function UserManagement() {
                                                             )}
                                                         </div>
                                                     )}
+                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                        <Badge variant="outline" className="text-xs font-normal">
+                                                            2FA: {user.mfa_method === 'totp'
+                                                                ? (user.totp_enrolled ? 'Authenticator' : 'Authenticator (εκκρεμεί)')
+                                                                : 'SMS'}
+                                                        </Badge>
+                                                        {isAdmin && (
+                                                            <Select
+                                                                value={user.mfa_method}
+                                                                onValueChange={(v) => mfaMethodMutation.mutate({ userId: user.id, method: v })}
+                                                            >
+                                                                <SelectTrigger className="h-6 w-[132px] text-xs"><SelectValue /></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="sms">SMS</SelectItem>
+                                                                    <SelectItem value="totp">Authenticator</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {isAdmin && user.mfa_method === 'totp' && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-6 px-1.5 text-xs"
+                                                                title="Επαναφορά — νέο QR στην επόμενη σύνδεση"
+                                                                onClick={() => mfaMethodMutation.mutate({ userId: user.id, method: 'totp' })}
+                                                                disabled={mfaMethodMutation.isPending}
+                                                            >
+                                                                Επαναφορά
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">

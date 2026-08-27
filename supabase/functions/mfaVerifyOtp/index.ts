@@ -2,6 +2,7 @@
 import { getServiceClient } from "../_shared/client.ts";
 import { preflight, json } from "../_shared/http.ts";
 import { normalizePhone } from "../_shared/appSession.ts";
+import { verifyTotp } from "../_shared/totp.ts";
 
 function twilioAuth() {
   return `Basic ${btoa(`${Deno.env.get("TWILIO_ACCOUNT_SID")}:${Deno.env.get("TWILIO_AUTH_TOKEN")}`)}`;
@@ -27,23 +28,34 @@ Deno.serve(async (req) => {
 
     const { data: users } = await supabase.from("AppUser").select("*").eq("id", challenge.user_id);
     const user = users?.[0];
-    if (!user?.phone) return json({ error: "Δεν υπάρχει αριθμός τηλεφώνου" }, 400);
-    const phone = normalizePhone(user.phone);
+    if (!user) return json({ error: "Ο χρήστης δεν βρέθηκε" }, 404);
 
-    const body = new URLSearchParams({ To: phone, Code: String(code) });
-    const res = await fetch(
-      `https://verify.twilio.com/v2/Services/${Deno.env.get("TWILIO_VERIFY_SERVICE_SID")}/VerificationCheck`,
-      { method: "POST", headers: { Authorization: twilioAuth(), "Content-Type": "application/x-www-form-urlencoded" }, body },
-    );
-    const result = await res.json();
-    if (!res.ok) return json({ error: `Twilio error: ${res.status} ${JSON.stringify(result)}` }, 500);
-
-    if (String(result.status).toLowerCase() !== "approved") {
-      await supabase.from("MfaChallenge").update({ attempts: attempts + 1 }).eq("id", challenge.id);
-      return json({ error: "Λάθος κωδικός OTP" }, 401);
+    if (user.mfa_method === "totp") {
+      // Authenticator app: verify the code locally (no Twilio).
+      const ok = user.totp_secret && await verifyTotp(user.totp_secret, String(code));
+      if (!ok) {
+        await supabase.from("MfaChallenge").update({ attempts: attempts + 1 }).eq("id", challenge.id);
+        return json({ error: "Λάθος κωδικός" }, 401);
+      }
+      await supabase.from("MfaChallenge").update({ is_used: true }).eq("id", challenge.id);
+      if (!user.totp_enrolled) await supabase.from("AppUser").update({ totp_enrolled: true }).eq("id", user.id);
+    } else {
+      // SMS via Twilio Verify.
+      if (!user.phone) return json({ error: "Δεν υπάρχει αριθμός τηλεφώνου" }, 400);
+      const phone = normalizePhone(user.phone);
+      const body = new URLSearchParams({ To: phone, Code: String(code) });
+      const res = await fetch(
+        `https://verify.twilio.com/v2/Services/${Deno.env.get("TWILIO_VERIFY_SERVICE_SID")}/VerificationCheck`,
+        { method: "POST", headers: { Authorization: twilioAuth(), "Content-Type": "application/x-www-form-urlencoded" }, body },
+      );
+      const result = await res.json();
+      if (!res.ok) return json({ error: `Twilio error: ${res.status} ${JSON.stringify(result)}` }, 500);
+      if (String(result.status).toLowerCase() !== "approved") {
+        await supabase.from("MfaChallenge").update({ attempts: attempts + 1 }).eq("id", challenge.id);
+        return json({ error: "Λάθος κωδικός OTP" }, 401);
+      }
+      await supabase.from("MfaChallenge").update({ is_used: true }).eq("id", challenge.id);
     }
-
-    await supabase.from("MfaChallenge").update({ is_used: true }).eq("id", challenge.id);
 
     const sessionToken = crypto.randomUUID();
     const expiresAt = new Date();

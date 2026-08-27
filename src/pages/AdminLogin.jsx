@@ -48,6 +48,12 @@ export default function AdminLogin() {
 
             if (data.success && data.mfaRequired) {
                 sessionStorage.setItem('mfa_preauth_token', data.preauthToken);
+                sessionStorage.setItem('mfa_method', data.mfaMethod || 'sms');
+                if (data.mfaMethod === 'totp' && data.enroll) {
+                    sessionStorage.setItem('mfa_enroll', JSON.stringify({ secret: data.secret, otpauthUri: data.otpauthUri }));
+                } else {
+                    sessionStorage.removeItem('mfa_enroll');
+                }
                 window.location.href = createPageUrl('MfaVerify');
             } else if (data.success) {
                 localStorage.setItem('app_session_token', data.session_token);

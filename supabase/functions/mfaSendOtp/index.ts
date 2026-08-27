@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
 
     const { data: users } = await supabase.from("AppUser").select("*").eq("id", challenge.user_id);
     const user = users?.[0];
+    if (user?.mfa_method === "totp") return json({ error: "Ο χρήστης χρησιμοποιεί εφαρμογή authenticator" }, 400);
     if (!user?.phone) return json({ error: "Δεν υπάρχει αριθμός τηλεφώνου για αυτόν τον χρήστη" }, 400);
     const phone = normalizePhone(user.phone);
 

@@ -4,6 +4,7 @@ import { preflight, json } from "../_shared/http.ts";
 import { fetchAll } from "../_shared/db.ts";
 import { sha256Hex } from "../_shared/appSession.ts";
 import { throttleRetryAfter, recordLoginFailure, clearLoginThrottle, lockedMessage } from "../_shared/throttle.ts";
+import { generateTotpSecret, otpauthUri } from "../_shared/totp.ts";
 
 Deno.serve(async (req) => {
   const pf = preflight(req);
@@ -42,7 +43,27 @@ Deno.serve(async (req) => {
       user_id: user.id, preauth_token: preauthToken, expires_at: expiresAt,
       is_used: false, send_count: 0, attempts: 0,
     });
-    return json({ success: true, mfaRequired: true, preauthToken });
+
+    // Authenticator-app (TOTP) users: no SMS. First time, hand back a QR to enroll.
+    if (user.mfa_method === "totp") {
+      let secret = user.totp_secret;
+      if (!secret) {
+        secret = generateTotpSecret();
+        await supabase.from("AppUser").update({ totp_secret: secret, totp_enrolled: false }).eq("id", user.id);
+      }
+      const enroll = !user.totp_enrolled;
+      const resp: any = { success: true, mfaRequired: true, preauthToken, mfaMethod: "totp", enroll };
+      if (enroll) {
+        // The frontend fetches the QR image separately (mfaEnrollQr); we hand
+        // back the secret + otpauth URI so manual entry always works too.
+        resp.otpauthUri = otpauthUri(secret, user.email || user.id);
+        resp.secret = secret;
+      }
+      return json(resp);
+    }
+
+    // Default: SMS (unchanged).
+    return json({ success: true, mfaRequired: true, preauthToken, mfaMethod: "sms" });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }
