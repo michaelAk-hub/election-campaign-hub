@@ -62,7 +62,9 @@ export default function MergeDialog({ open, onOpenChange, scratchDatasetId, scra
         conflict: { primary },
       });
       if (data?.error) throw new Error(data.error);
-      toast.success(`Συγχώνευση: ${data.inserted} νέες, ${data.merged} ενημερώθηκαν`);
+      const base = `Συγχώνευση: ${data.inserted} νέες, ${data.merged} ενημερώθηκαν`;
+      if (data.failed) toast.warning(`${base} · ${data.failed} απέτυχαν${data.first_error ? ` (${data.first_error})` : ''}`);
+      else toast.success(base);
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
       queryClient.invalidateQueries({ queryKey: ['people'] });
       queryClient.invalidateQueries({ queryKey: ['columnDefs', 'live'] });

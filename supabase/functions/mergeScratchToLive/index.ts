@@ -20,6 +20,7 @@ const INSERT_BATCH = 500;
 const sanitize = (h: string) => String(h).trim().replace(/[^\p{L}\p{N}]+/gu, "_");
 const isBlank = (v: any) => v === null || v === undefined || v === "" || (typeof v === "string" && v.trim() === "");
 const isPhysical = (key: string) => KNOWN_FIELDS.has(key);
+const toBool = (v: any) => ["ναι", "nai", "yes", "true", "1", "y"].includes(String(v ?? "").trim().toLowerCase());
 
 const readField = (row: any, key: string) => (isPhysical(key) ? row?.[key] : row?.custom_data?.[key]);
 function writeField(row: any, key: string, value: any) {
@@ -79,7 +80,15 @@ Deno.serve(async (req) => {
       for (const [scol, tgt] of Object.entries(mapping)) {
         if (!tgt || tgt === "__skip__") continue;
         const liveKey = tgt === "__new__" ? sanitize(scol) : tgt;
-        writeField(live, liveKey, readField(srow, scol));
+        const val = readField(srow, scol);
+        // Coerce typed physical columns so a text value can't fail the insert.
+        if (liveKey === "voted") { live.voted = toBool(val); continue; }
+        if (liveKey === "voted_at") {
+          const t = !isBlank(val) && !isNaN(Date.parse(String(val))) ? new Date(String(val)).toISOString() : null;
+          if (t) live.voted_at = t;
+          continue;
+        }
+        writeField(live, liveKey, val);
       }
       if (isBlank(live.person_id)) live.person_id = srow.person_id;
       if (live.custom_data && Object.keys(live.custom_data).length === 0) delete live.custom_data;
@@ -92,7 +101,8 @@ Deno.serve(async (req) => {
     const byPid = new Map<string, any>();
     for (const r of existing) byPid.set(String(r.person_id), r);
 
-    let inserted = 0, mergedCount = 0;
+    let inserted = 0, mergedCount = 0, failed = 0;
+    let firstError: string | null = null;
     const toInsert: any[] = [];
 
     for (const srow of scratchRows) {
@@ -125,14 +135,22 @@ Deno.serve(async (req) => {
         if (k === "custom_data" || k === "row_version") continue;
         if (result[k] !== undefined) patch[k] = result[k];
       }
-      await supabase.from("Person").update(patch).eq("id", hit.id);
-      mergedCount++;
+      const { error: upErr } = await supabase.from("Person").update(patch).eq("id", hit.id);
+      if (upErr) { failed++; firstError = firstError || upErr.message; }
+      else mergedCount++;
     }
 
+    // Insert new rows; on a batch error fall back to per-row so one bad row
+    // doesn't drop the whole batch, and surface the first error.
     for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
       const chunk = toInsert.slice(i, i + INSERT_BATCH);
       const { error } = await supabase.from("Person").insert(chunk);
-      if (!error) inserted += chunk.length;
+      if (!error) { inserted += chunk.length; continue; }
+      for (const row of chunk) {
+        const { error: e2 } = await supabase.from("Person").insert(row);
+        if (e2) { failed++; firstError = firstError || e2.message; }
+        else inserted++;
+      }
     }
 
     // Optionally activate a newly-created dataset.
@@ -148,7 +166,11 @@ Deno.serve(async (req) => {
     const { count } = await supabase.from("Person").select("*", { count: "exact", head: true }).eq("dataset_id", targetDatasetId);
     await supabase.from("Dataset").update({ total_records: count ?? 0 }).eq("id", targetDatasetId);
 
-    return json({ success: true, target_dataset_id: targetDatasetId, inserted, merged: mergedCount, scratch_rows: scratchRows.length });
+    return json({
+      success: true, target_dataset_id: targetDatasetId,
+      inserted, merged: mergedCount, failed, scratch_rows: scratchRows.length,
+      ...(firstError ? { first_error: firstError } : {}),
+    });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }
