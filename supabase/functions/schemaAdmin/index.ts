@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 
     if (op === "addField") {
       const rawKey = String(body.key ?? "").trim();
-      const key = rawKey.replace(/[^\w]/g, "_");
+      const key = rawKey.replace(/[^\p{L}\p{N}]+/gu, "_");
       const type = String(body.type ?? "text");
       if (!key) return json({ error: "Το όνομα πεδίου είναι υποχρεωτικό" }, 400);
       if (!VALID_TYPES.has(type)) return json({ error: `Μη έγκυρος τύπος: ${type}` }, 400);

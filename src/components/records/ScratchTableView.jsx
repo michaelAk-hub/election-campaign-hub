@@ -9,7 +9,7 @@ import RecordsAgGrid from './RecordsAgGrid';
 import ImportMappingDialog from './ImportMappingDialog';
 import MergeDialog from './MergeDialog';
 
-const sanitize = (h) => String(h).trim().replace(/[^\w]/g, '_');
+const sanitize = (h) => String(h).trim().replace(/[^\p{L}\p{N}]+/gu, '_');
 
 // Self-contained editable view for one scratch table. Deliberately separate
 // from the live Records grid so the live path is untouched. Reads/writes only

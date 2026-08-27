@@ -6,7 +6,7 @@ import { getServiceClient } from "../_shared/client.ts";
 import { preflight, json, cors } from "../_shared/http.ts";
 import { fetchAll } from "../_shared/db.ts";
 import { strictAuth } from "../_shared/appSession.ts";
-import { buildXlsx } from "../_shared/personIO.ts";
+import { buildXlsx, buildXlsxDynamic } from "../_shared/personIO.ts";
 
 Deno.serve(async (req) => {
   const pf = preflight(req);
@@ -22,7 +22,15 @@ Deno.serve(async (req) => {
 
     const all = await fetchAll(supabase, "PersonScratch");
     const rows = all.filter((p) => p.scratch_dataset_id === id);
-    const bytes = buildXlsx(rows);
+
+    // Export this scratch table's OWN columns (free-form) from its ColumnDef
+    // registry, reading physical columns or custom_data as appropriate. Falls
+    // back to the standard live layout if the table has no column defs.
+    const { data: cols } = await supabase.from("ColumnDef").select("key,label,physical,type,sort_order")
+      .eq("table_key", id).order("sort_order", { ascending: true });
+    const bytes = (cols && cols.length)
+      ? buildXlsxDynamic(cols, rows)
+      : buildXlsx(rows);
 
     const { data: ds } = await supabase.from("ScratchDataset").select("name").eq("id", id).maybeSingle();
     const safeName = String(ds?.name ?? "scratch").replace(/[^\w.-]+/g, "_");

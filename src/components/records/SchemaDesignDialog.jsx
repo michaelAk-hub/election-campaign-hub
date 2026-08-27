@@ -98,7 +98,7 @@ export default function SchemaDesignDialog({ open, onOpenChange, onSchemaChanged
     if (!newKey.trim() && !newLabel.trim()) return;
     setAdding(true);
     try {
-      const key = (newKey.trim() || newLabel.trim()).replace(/[^\w]/g, '_');
+      const key = (newKey.trim() || newLabel.trim()).replace(/[^\p{L}\p{N}]+/gu, '_');
       const created = await call('addField', { table_key: tableKey, key, label: newLabel.trim() || key, type: newType });
       setFields(f => [...f, created]);
       setNewLabel(''); setNewKey(''); setNewType('text');

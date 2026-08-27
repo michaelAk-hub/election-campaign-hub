@@ -152,3 +152,26 @@ export function buildXlsx(rows: Record<string, any>[]): Uint8Array {
   XLSX.utils.book_append_sheet(wb, ws, "Εγγραφές");
   return XLSX.write(wb, { type: "array", bookType: "xlsx" });
 }
+
+// Export rows using an arbitrary column set (label + key + physical), reading
+// physical columns directly and non-physical ones from custom_data. Used for
+// free-form scratch tables whose columns come from the ColumnDef registry.
+export function buildXlsxDynamic(
+  columns: { key: string; label: string; physical: boolean; type?: string }[],
+  rows: Record<string, any>[],
+): Uint8Array {
+  const data = rows.map((r) => {
+    const o: Record<string, string> = {};
+    for (const c of columns) {
+      let v = c.physical ? r[c.key] : r?.custom_data?.[c.key];
+      if (c.key === "voted") v = v ? "ΝΑΙ" : "ΟΧΙ";
+      o[c.label] = v === null || v === undefined ? "" : String(v);
+    }
+    return o;
+  });
+  const header = columns.map((c) => c.label);
+  const ws = XLSX.utils.json_to_sheet(data, { header });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Εγγραφές");
+  return XLSX.write(wb, { type: "array", bookType: "xlsx" });
+}

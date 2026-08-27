@@ -12,7 +12,7 @@ import { parseFile, buildHeaderMap, mapRow, EXPORT_COLUMNS, KNOWN_FIELDS } from 
 const INSERT_BATCH = 500;
 const norm = (k: unknown) => String(k).trim().toLowerCase();
 const LABELS: Record<string, string> = Object.fromEntries(EXPORT_COLUMNS.map((c) => [c.key, c.label]));
-const sanitize = (h: string) => String(h).trim().replace(/[^\w]/g, "_");
+const sanitize = (h: string) => String(h).trim().replace(/[^\p{L}\p{N}]+/gu, "_");
 const toBool = (v: any) => ["ναι", "nai", "yes", "true", "1", "y"].includes(String(v ?? "").trim().toLowerCase());
 const colType = (key: string) => (key === "voted" ? "boolean" : key === "voted_at" ? "date" : "text");
 

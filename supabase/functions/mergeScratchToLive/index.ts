@@ -17,7 +17,7 @@ import { strictAuth } from "../_shared/appSession.ts";
 import { KNOWN_FIELDS } from "../_shared/personIO.ts";
 
 const INSERT_BATCH = 500;
-const sanitize = (h: string) => String(h).trim().replace(/[^\w]/g, "_");
+const sanitize = (h: string) => String(h).trim().replace(/[^\p{L}\p{N}]+/gu, "_");
 const isBlank = (v: any) => v === null || v === undefined || v === "" || (typeof v === "string" && v.trim() === "");
 const isPhysical = (key: string) => KNOWN_FIELDS.has(key);
 
