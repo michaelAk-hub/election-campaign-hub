@@ -18,7 +18,8 @@ Deno.serve(async (req) => {
     const expected = Number(body.expected_row_version);
     let value = body.value;
     if (!person_id || !field || Number.isNaN(expected)) return json({ error: "Invalid payload" }, 400);
-    if (NON_EDITABLE.has(field)) return json({ error: `Field not editable: ${field}` }, 400);
+    const isCustom = field.startsWith("custom:");
+    if (!isCustom && NON_EDITABLE.has(field)) return json({ error: `Field not editable: ${field}` }, 400);
     if (field !== "voted") value = normalizeText(value);
 
     const { data: current } = await supabase.from("Person").select("*").eq("id", person_id).maybeSingle();
@@ -26,7 +27,12 @@ Deno.serve(async (req) => {
     if (Number(current.row_version) !== expected) return json({ error: "Conflict", current_row: current }, 409);
 
     const patch: any = { row_version: Number(current.row_version || 1) + 1 };
-    if (field === "voted") {
+    if (isCustom) {
+      const key = field.slice(7);
+      const custom = { ...(current.custom_data || {}) };
+      custom[key] = value;
+      patch.custom_data = custom;
+    } else if (field === "voted") {
       const newV = Boolean(value), oldV = Boolean(current.voted);
       patch.voted = newV;
       if (!oldV && newV) patch.voted_at = new Date().toISOString();

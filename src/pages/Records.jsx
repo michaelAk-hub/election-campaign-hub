@@ -599,10 +599,48 @@ export default function Records() {
     handleColumnOrderChange(filtered);
   }, [handleColumnOrderChange]);
 
+  // ── Live custom fields (added via the Design View) ─────────────────────────
+  const { data: liveCustomCols = [] } = useQuery({
+    queryKey: ['columnDefs', 'live'],
+    queryFn: async () => {
+      const rows = await base44.entities.ColumnDef.filter({ table_key: 'live', physical: false }, 'sort_order', 1000, 0);
+      return (rows || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const customAgDefs = useMemo(() => {
+    const truthy = (v) => v === true || ['true', 'ναι', 'nai', 'yes', '1', 'y'].includes(String(v ?? '').trim().toLowerCase());
+    return liveCustomCols.map((cd) => {
+      const key = cd.key;
+      const col = {
+        colId: `custom:${key}`,
+        headerName: cd.label || key,
+        valueGetter: (p) => p.data?.custom_data?.[key] ?? '',
+        editable: true,
+        sortable: false,
+        filter: false,
+        resizable: true,
+        minWidth: 90,
+      };
+      if (cd.type === 'number') col.cellEditor = 'agNumberCellEditor';
+      else if (cd.type === 'date') col.cellEditor = 'agDateStringCellEditor';
+      else if (cd.type === 'select') { col.cellEditor = 'agSelectCellEditor'; col.cellEditorParams = { values: Array.isArray(cd.options) ? cd.options : [] }; }
+      else if (cd.type === 'boolean') {
+        col.valueGetter = (p) => truthy(p.data?.custom_data?.[key]);
+        col.cellRenderer = (p) => (p.value ? '✓' : '');
+        col.cellEditor = 'agCheckboxCellEditor';
+        col.cellDataType = 'boolean';
+      }
+      return col;
+    });
+  }, [liveCustomCols]);
+
   // ── AG Grid column defs ────────────────────────────────────────────────────
   const agColumnDefs = useMemo(() => {
     if (!columnOrder) return [];
     const defs = buildAgColumnDefs(COLUMNS, columnOrder, sortModel);
+    if (customAgDefs.length) defs.push(...customAgDefs);
     // Append actions column
     defs.push({
       colId: '__actions__',
@@ -618,7 +656,7 @@ export default function Records() {
       cellRenderer: RowActionsCellRenderer,
     });
     return defs;
-  }, [columnOrder, sortModel]);
+  }, [columnOrder, sortModel, customAgDefs]);
 
   // ── AG Grid context ────────────────────────────────────────────────────────
   const agGridContext = useMemo(() => ({

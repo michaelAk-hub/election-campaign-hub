@@ -16,7 +16,7 @@ here changes the running system, so it can wait until there is breathing room.
   `scratchDatasetDelete`. Live grid only renders on the ★ tab. _Basic import (auto
   header-map, unknown cols → custom_data); the map-on-import UI and typed editing come
   with Step 4._
-- [~] **Step 4 (in progress):**
+- [x] **Step 4 (complete):**
   - [x] `schemaAdmin` Edge Function (list/addField/updateField/validateType/
     countFieldData/deleteField/reorder) — mandatory fields protected, type-change
     validated (blocks + reports offending rows), delete clears custom_data across
@@ -33,9 +33,11 @@ here changes the running system, so it can wait until there is breathing room.
     returns headers + auto-map suggestions; `ImportMappingDialog` maps each file column
     to an existing column / new field / skip; import applies the mapping and appends new
     columns after existing ones).
-  - [ ] Wire the LIVE grid to render registry-defined custom fields (currently the
-    Design View governs scratch tables fully; the live grid still uses its fixed columns).
-- [ ] Step 5 (later): `mergeScratchToLive`
+  - [x] Wire the LIVE grid to render registry-defined custom fields: live custom
+    ColumnDefs (`table_key='live'`, `physical=false`) are appended as typed, editable
+    columns on the live grid (colId `custom:<key>`); `personGridUpdateCell` now writes
+    `custom:` fields into `Person.custom_data`. Zero-impact when no custom fields exist.
+- [ ] Step 5 (later): `mergeScratchToLive` (mapping popup; scratch tables persist)
 
 This document captures a design agreed in discussion. It is the reference to pick up
 from when implementation starts. No code has been written for it yet.
