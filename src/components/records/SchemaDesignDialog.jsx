@@ -20,7 +20,7 @@ const call = async (op, extra = {}) => {
 
 // MS-Access-style Design View for the shared column schema (ColumnDef).
 // Governs all tables (live + scratch). Mandatory fields are locked.
-export default function SchemaDesignDialog({ open, onOpenChange, onSchemaChanged }) {
+export default function SchemaDesignDialog({ open, onOpenChange, onSchemaChanged, tableKey = 'live', tableName }) {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -32,10 +32,10 @@ export default function SchemaDesignDialog({ open, onOpenChange, onSchemaChanged
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setFields(await call('list')); }
+    try { setFields(await call('list', { table_key: tableKey })); }
     catch (e) { toast.error(e.message); }
     finally { setLoading(false); }
-  }, []);
+  }, [tableKey]);
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
@@ -99,7 +99,7 @@ export default function SchemaDesignDialog({ open, onOpenChange, onSchemaChanged
     setAdding(true);
     try {
       const key = (newKey.trim() || newLabel.trim()).replace(/[^\w]/g, '_');
-      const created = await call('addField', { key, label: newLabel.trim() || key, type: newType });
+      const created = await call('addField', { table_key: tableKey, key, label: newLabel.trim() || key, type: newType });
       setFields(f => [...f, created]);
       setNewLabel(''); setNewKey(''); setNewType('text');
       notifyChanged();
@@ -113,12 +113,13 @@ export default function SchemaDesignDialog({ open, onOpenChange, onSchemaChanged
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Σχεδίαση Πινάκων — Πεδία & Τύποι</DialogTitle>
+            <DialogTitle>Σχεδίαση Στηλών — {tableName || (tableKey === 'live' ? 'Ζωντανός Πίνακας' : 'Πρόχειρος Πίνακας')}</DialogTitle>
           </DialogHeader>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 -mt-2 mb-2">
-            Ισχύει για όλους τους πίνακες (ζωντανό + πρόχειρους). Τα υποχρεωτικά πεδία
-            <Lock className="inline h-3 w-3 mx-1" />είναι κλειδωμένα.
+            {tableKey === 'live'
+              ? <>Στήλες του ζωντανού πίνακα. Τα υποχρεωτικά πεδία <Lock className="inline h-3 w-3 mx-1" />είναι κλειδωμένα.</>
+              : <>Στήλες αυτού του πρόχειρου πίνακα — προσθέστε, μετονομάστε, αλλάξτε τύπο ή διαγράψτε ελεύθερα.</>}
           </p>
 
           {loading ? (

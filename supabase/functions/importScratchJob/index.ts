@@ -6,9 +6,33 @@
 import { getServiceClient } from "../_shared/client.ts";
 import { preflight, json } from "../_shared/http.ts";
 import { strictAuth } from "../_shared/appSession.ts";
-import { parseFile, buildHeaderMap, mapRow } from "../_shared/personIO.ts";
+import { parseFile, buildHeaderMap, mapRow, EXPORT_COLUMNS } from "../_shared/personIO.ts";
 
 const INSERT_BATCH = 500;
+const norm = (k: unknown) => String(k).trim().toLowerCase();
+const LABELS: Record<string, string> = Object.fromEntries(EXPORT_COLUMNS.map((c) => [c.key, c.label]));
+
+// Build this scratch table's ColumnDef rows from the file's headers, in order.
+// Free-form: nothing is mandatory; unmapped headers become custom (JSONB) fields.
+function columnDefsFromHeaders(tableKey: string, headers: string[], headerMap: Record<string, string>) {
+  const seen = new Set<string>();
+  const defs: any[] = [];
+  let order = 10;
+  for (const h of headers) {
+    const canonical = headerMap[norm(h)] || headerMap[h] || null;
+    const physical = !!canonical;
+    const key = canonical || h;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const type = key === "voted" ? "boolean" : key === "voted_at" ? "date" : "text";
+    defs.push({
+      table_key: tableKey, key, label: LABELS[key] || key, type,
+      mandatory: false, physical, sort_order: order,
+    });
+    order += 10;
+  }
+  return defs;
+}
 
 Deno.serve(async (req) => {
   const pf = preflight(req);
@@ -68,6 +92,13 @@ Deno.serve(async (req) => {
       } else {
         processed += chunk.length;
       }
+    }
+
+    // Define this table's columns from the file headers (idempotent — re-import
+    // won't duplicate). New headers on a re-import are added as extra columns.
+    const defs = columnDefsFromHeaders(scratchDatasetId, headers, headerMap);
+    if (defs.length) {
+      await supabase.from("ColumnDef").upsert(defs, { onConflict: "table_key,key", ignoreDuplicates: true });
     }
 
     // Keep the registry's row_count in sync.

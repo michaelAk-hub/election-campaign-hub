@@ -24,13 +24,13 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
 
   // Shared schema → column defs (ordered). Physical fields map to a real column;
   // non-physical fields live in custom_data.
-  const { data: columnDefsRegistry = [] } = useQuery({
-    queryKey: ['columnDefs'],
+  const { data: columnDefsRegistry = [], isLoading: schemaLoading } = useQuery({
+    queryKey: ['columnDefs', scratchDatasetId],
     queryFn: async () => {
-      const rows = await base44.entities.ColumnDef.list('sort_order', 1000, 0);
+      const rows = await base44.entities.ColumnDef.filter({ table_key: scratchDatasetId }, 'sort_order', 1000, 0);
       return (rows || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 
   const physicalKeys = useMemo(
@@ -204,9 +204,14 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
         </div>
       </div>
 
-      {columnDefs.length === 0 ? (
+      {schemaLoading ? (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center text-slate-600 dark:text-slate-400">
-          Φόρτωση σχήματος...
+          <Loader2 className="h-5 w-5 animate-spin inline" />
+        </div>
+      ) : columnDefs.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center text-slate-600 dark:text-slate-400">
+          Αυτός ο πίνακας δεν έχει στήλες ακόμη. Κάντε <strong>Εισαγωγή</strong> ενός αρχείου για να οριστούν οι στήλες,
+          ή προσθέστε στήλες από τη <strong>Σχεδίαση</strong>.
         </div>
       ) : (
         <RecordsAgGrid

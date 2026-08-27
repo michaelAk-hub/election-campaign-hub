@@ -25,9 +25,13 @@ here changes the running system, so it can wait until there is breathing room.
     add/edit-label/retype/delete/reorder fields; locked mandatory rows; destructive-delete
     confirm ("erases N rows"); type-change block dialog with offending rows + force.
   - [x] Typed cell editors in the scratch grid (number/date/select/boolean checkbox).
+  - [x] **Per-table schemas** (`table_key` on `ColumnDef`; `scratch_schema_v2.sql`):
+    scratch tables have no mandatory fields; import defines a table's columns from its
+    headers; the Design View opens for the currently-selected tab; delete-scratch-table
+    removes its column defs.
   - [ ] Map-on-import step (map file columns → fields, "create as new field").
   - [ ] Wire the LIVE grid to render registry-defined custom fields (currently the
-    Design View governs scratch tables; the live grid still uses its fixed columns).
+    Design View governs scratch tables fully; the live grid still uses its fixed columns).
 - [ ] Step 5 (later): `mergeScratchToLive`
 
 This document captures a design agreed in discussion. It is the reference to pick up
@@ -82,9 +86,16 @@ auditing required.
   `created_at`, `updated_at`. Server-side, so **all admins see the same tabs and they
   survive logout**.
 
-### 3.3 Shared schema registry
-- `ColumnDef` — **one shared schema for every table (live + all scratch).** One row per
-  field:
+### 3.3 Per-table schema registry
+> **REVISION (2026-08-27):** schemas are now **per-table**, not one shared schema.
+> `ColumnDef` has a `table_key`: `'live'` for the live roll, or a scratch dataset id for a
+> scratch table. **Scratch tables have NO mandatory fields** — they're free-form: their
+> columns are created from the import (in file order), and the per-table Design View can
+> add/rename/retype/delete any of them. Mandatory fields exist only on `'live'`. Uniqueness
+> is per `(table_key, key)`. Schema reconciliation between a scratch table and the live roll
+> is deferred to a **mapping popup at merge time** (§8).
+
+- `ColumnDef` — one row per field **per table** (`table_key` + `key`):
   - `key` (stable internal name), `label` (display), `type`
     (`text | number | date | boolean | select`), `mandatory` (bool),
     `physical` (bool — true = backed by a real column, i.e. the seeded fields;
@@ -164,8 +175,10 @@ same as the live grid today:
 ## 8. Merge scratch → live (later phase)
 
 `mergeScratchToLive`: pick some/all scratch datasets → copy their rows into `Person` as a
-new `Dataset` → dedupe → activate. Trivial because the shared schema means all tables have
-identical columns. **Deferred** — the import/edit half stands alone; build merge when the
+new `Dataset` → dedupe → activate. **First step is a mapping popup** where the user matches
+each scratch table's columns to the live roll's fields (since schemas are now per-table and
+need not line up). **Scratch tables are NOT consumed** by the merge — they continue to exist
+as their own copies. **Deferred** — the import/edit half stands alone; build merge when the
 roll is actually being assembled.
 
 ---

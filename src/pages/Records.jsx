@@ -1196,6 +1196,8 @@ export default function Records() {
         <SchemaDesignDialog
           open={schemaDialogOpen}
           onOpenChange={setSchemaDialogOpen}
+          tableKey={activeTab === 'live' ? 'live' : activeTab}
+          tableName={activeTab === 'live' ? 'Ζωντανός Πίνακας' : (activeScratch?.name || 'Πρόχειρος Πίνακας')}
           onSchemaChanged={() => queryClient.invalidateQueries({ queryKey: ['columnDefs'] })}
         />
 

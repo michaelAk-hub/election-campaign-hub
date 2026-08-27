@@ -606,7 +606,8 @@ create table if not exists public."ColumnDef" (
   "created_date" timestamptz not null default now(),
   "updated_date" timestamptz not null default now(),
   "created_by" text,
-  "key" text not null unique,
+  "table_key" text not null default 'live',  -- 'live' or a scratch dataset id
+  "key" text not null,
   "label" text,
   "type" text not null default 'text',
   "mandatory" boolean not null default false,
@@ -614,6 +615,8 @@ create table if not exists public."ColumnDef" (
   "sort_order" integer not null default 0,
   "options" jsonb
 );
+create unique index if not exists "ux_ColumnDef_table_key" on public."ColumnDef" ("table_key", "key");
+create index if not exists "ix_ColumnDef_table" on public."ColumnDef" ("table_key");
 create index if not exists "ix_ColumnDef_order" on public."ColumnDef" ("sort_order");
 
 create table if not exists public."ScratchDataset" (

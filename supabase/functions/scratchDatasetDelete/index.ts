@@ -19,6 +19,8 @@ Deno.serve(async (req) => {
 
     const delRows = await supabase.from("PersonScratch").delete().eq("scratch_dataset_id", id);
     if (delRows.error) return json({ error: delRows.error.message }, 500);
+    // Remove this table's column definitions too.
+    await supabase.from("ColumnDef").delete().eq("table_key", id);
     const delDs = await supabase.from("ScratchDataset").delete().eq("id", id);
     if (delDs.error) return json({ error: delDs.error.message }, 500);
 

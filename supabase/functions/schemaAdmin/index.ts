@@ -28,24 +28,29 @@ function convertsTo(value: any, type: string): boolean {
 const readField = (row: any, key: string, physical: boolean) =>
   physical ? row[key] : row?.custom_data?.[key];
 
-// Scan Person + PersonScratch for values of one field; return offending rows for a type.
-async function scanField(supabase: any, key: string, physical: boolean, type: string) {
-  const tables = ["Person", "PersonScratch"];
+// Rows belonging to one table_key: the live roll → Person; a scratch table →
+// that scratch dataset's PersonScratch rows.
+async function rowsForTable(supabase: any, tableKey: string): Promise<any[]> {
+  if (tableKey === "live") return await fetchAll(supabase, "Person");
+  const all = await fetchAll(supabase, "PersonScratch");
+  return all.filter((r) => r.scratch_dataset_id === tableKey);
+}
+
+// Scan one field's values within its own table; return offending rows for a type.
+async function scanField(supabase: any, field: any, type: string) {
+  const rows = await rowsForTable(supabase, field.table_key);
   let withValue = 0;
   const offending: any[] = [];
-  for (const t of tables) {
-    const rows = await fetchAll(supabase, t);
-    for (const r of rows) {
-      const v = readField(r, key, physical);
-      if (!isBlank(v)) withValue++;
-      if (type && !convertsTo(v, type)) {
-        if (offending.length < SAMPLE_LIMIT) {
-          offending.push({ table: t, id: r.id, person_id: r.person_id, first_name: r.first_name, last_name: r.last_name, value: v });
-        }
+  for (const r of rows) {
+    const v = readField(r, field.key, field.physical);
+    if (!isBlank(v)) withValue++;
+    if (type && !convertsTo(v, type)) {
+      if (offending.length < SAMPLE_LIMIT) {
+        offending.push({ id: r.id, person_id: r.person_id, first_name: r.first_name, last_name: r.last_name, value: v });
       }
     }
   }
-  return { withValue, offending, offendingTotalAtLeast: offending.length };
+  return { withValue, offending };
 }
 
 Deno.serve(async (req) => {
@@ -60,8 +65,11 @@ Deno.serve(async (req) => {
 
     const op = String(body.op ?? "");
 
+    const tableKey = String(body.table_key ?? "live");
+
     if (op === "list") {
-      const { data } = await supabase.from("ColumnDef").select("*").order("sort_order", { ascending: true });
+      const { data } = await supabase.from("ColumnDef").select("*")
+        .eq("table_key", tableKey).order("sort_order", { ascending: true });
       return json({ result: data ?? [] });
     }
 
@@ -71,12 +79,14 @@ Deno.serve(async (req) => {
       const type = String(body.type ?? "text");
       if (!key) return json({ error: "Το όνομα πεδίου είναι υποχρεωτικό" }, 400);
       if (!VALID_TYPES.has(type)) return json({ error: `Μη έγκυρος τύπος: ${type}` }, 400);
-      const { data: existing } = await supabase.from("ColumnDef").select("id").eq("key", key).maybeSingle();
+      const { data: existing } = await supabase.from("ColumnDef").select("id")
+        .eq("table_key", tableKey).eq("key", key).maybeSingle();
       if (existing) return json({ error: `Υπάρχει ήδη πεδίο «${key}»` }, 400);
-      const { data: maxRow } = await supabase.from("ColumnDef").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+      const { data: maxRow } = await supabase.from("ColumnDef").select("sort_order")
+        .eq("table_key", tableKey).order("sort_order", { ascending: false }).limit(1).maybeSingle();
       const nextOrder = (Number(maxRow?.sort_order) || 0) + 10;
       const { data, error } = await supabase.from("ColumnDef").insert({
-        key, label: String(body.label ?? key), type,
+        table_key: tableKey, key, label: String(body.label ?? key), type,
         mandatory: false, physical: false, sort_order: nextOrder,
         options: Array.isArray(body.options) ? body.options : null,
       }).select().single();
@@ -87,7 +97,7 @@ Deno.serve(async (req) => {
     if (op === "countFieldData") {
       const { data: field } = await supabase.from("ColumnDef").select("*").eq("id", body.id).maybeSingle();
       if (!field) return json({ error: "Το πεδίο δεν βρέθηκε" }, 404);
-      const { withValue } = await scanField(supabase, field.key, field.physical, "");
+      const { withValue } = await scanField(supabase, field, "");
       return json({ result: { withValue } });
     }
 
@@ -95,7 +105,7 @@ Deno.serve(async (req) => {
       const { data: field } = await supabase.from("ColumnDef").select("*").eq("id", body.id).maybeSingle();
       if (!field) return json({ error: "Το πεδίο δεν βρέθηκε" }, 404);
       const type = String(body.type ?? field.type);
-      const { offending } = await scanField(supabase, field.key, field.physical, type);
+      const { offending } = await scanField(supabase, field, type);
       return json({ result: { ok: offending.length === 0, offending } });
     }
 
@@ -110,7 +120,7 @@ Deno.serve(async (req) => {
       if (body.type !== undefined && body.type !== field.type) {
         if (field.mandatory) return json({ error: "Δεν επιτρέπεται αλλαγή τύπου σε υποχρεωτικό πεδίο" }, 400);
         if (!VALID_TYPES.has(String(body.type))) return json({ error: "Μη έγκυρος τύπος" }, 400);
-        const { offending } = await scanField(supabase, field.key, field.physical, String(body.type));
+        const { offending } = await scanField(supabase, field, String(body.type));
         if (offending.length > 0 && !body.force) {
           return json({ result: { blocked: true, offending } });
         }
@@ -129,18 +139,17 @@ Deno.serve(async (req) => {
       if (!field) return json({ error: "Το πεδίο δεν βρέθηκε" }, 404);
       if (field.mandatory) return json({ error: "Δεν επιτρέπεται διαγραφή υποχρεωτικού πεδίου" }, 400);
 
-      // Clean the data. For custom (JSONB) fields, strip the key from every row's
-      // custom_data across both tables. For physical seeded columns we leave the
-      // column in place (dropping DDL at runtime is risky) and just unsurface it.
+      // Clean the data within this field's OWN table. For custom (JSONB) fields,
+      // strip the key from each row's custom_data. Physical seeded columns are
+      // left in place (runtime DDL is risky) and just unsurfaced.
       if (!field.physical) {
-        for (const t of ["Person", "PersonScratch"]) {
-          const rows = await fetchAll(supabase, t);
-          for (const r of rows) {
-            if (r.custom_data && Object.prototype.hasOwnProperty.call(r.custom_data, field.key)) {
-              const cd = { ...r.custom_data };
-              delete cd[field.key];
-              await supabase.from(t).update({ custom_data: cd }).eq("id", r.id);
-            }
+        const targetTable = field.table_key === "live" ? "Person" : "PersonScratch";
+        const rows = await rowsForTable(supabase, field.table_key);
+        for (const r of rows) {
+          if (r.custom_data && Object.prototype.hasOwnProperty.call(r.custom_data, field.key)) {
+            const cd = { ...r.custom_data };
+            delete cd[field.key];
+            await supabase.from(targetTable).update({ custom_data: cd }).eq("id", r.id);
           }
         }
       }
