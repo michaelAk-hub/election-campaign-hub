@@ -1,0 +1,26 @@
+name: Daily Backup to Google Drive
+
+# Runs once a day and triggers the backupToDrive Edge Function, which exports
+# every table to .xlsx and uploads them to backup/<month>/<date>/ in Drive.
+# The anon key below is public (it's the same one shipped in the frontend and
+# is powerless without a valid session; the backup call is gated by the
+# cron_secret). Requires ONE repo secret: BACKUP_CRON_SECRET.
+on:
+  schedule:
+    - cron: '0 1 * * *'   # 01:00 UTC daily (~03:00–04:00 Cyprus time)
+  workflow_dispatch: {}    # allow manual runs from the Actions tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger backupToDrive
+        env:
+          ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzemVhZmdlYXZzdXB3ZWNwa2hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0OTk4OTgsImV4cCI6MjEwMzA3NTg5OH0.-L-uBOmxdCkT6rdKYI7r0cUXpUv5xNrgZbnon1uBfv0
+        run: |
+          curl -fsS --retry 3 -X POST \
+            "https://tszeafgeavsupwecpkhc.supabase.co/functions/v1/backupToDrive" \
+            -H "Authorization: Bearer ${ANON}" \
+            -H "apikey: ${ANON}" \
+            -H "Content-Type: application/json" \
+            -d "{\"cron_secret\":\"${{ secrets.BACKUP_CRON_SECRET }}\"}"

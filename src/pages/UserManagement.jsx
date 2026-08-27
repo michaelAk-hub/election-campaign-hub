@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2, Circle, RefreshCw, Lock, Unlock } from 'lucide-react';
+import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2, Circle, RefreshCw, Lock, Unlock, Cloud } from 'lucide-react';
 import { createPageUrl } from '../utils';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'sonner';
@@ -198,6 +198,21 @@ export default function UserManagement() {
         onError: (error) => {
             toast.error(error.message || 'Σφάλμα αλλαγής μεθόδου 2FA');
         }
+    });
+
+    const backupMutation = useMutation({
+        mutationFn: async () => {
+            const { data } = await base44.functions.invoke('backupToDrive', {
+                session_token: localStorage.getItem('app_session_token'),
+            });
+            if (data?.error) throw new Error(data.error);
+            return data;
+        },
+        onSuccess: (data) => {
+            if (data.failed) toast.warning(`Αντίγραφο: ${data.uploaded}/${data.tables} πίνακες (${data.failed} απέτυχαν) → ${data.path}`);
+            else toast.success(`Αντίγραφο ασφαλείας ολοκληρώθηκε: ${data.uploaded} πίνακες → ${data.path}`);
+        },
+        onError: (e) => toast.error('Αποτυχία backup: ' + (e.message || '')),
     });
 
     const deleteOrganotikiMutation = useMutation({
@@ -395,6 +410,19 @@ export default function UserManagement() {
                                 <RefreshCw className="h-4 w-4 mr-2" />
                                 Ανανέωση
                             </Button>
+                            {isAdmin && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => backupMutation.mutate()}
+                                    disabled={backupMutation.isPending}
+                                    title="Αντίγραφο ασφαλείας όλων των πινάκων στο Google Drive"
+                                >
+                                    {backupMutation.isPending
+                                        ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        : <Cloud className="h-4 w-4 mr-2" />}
+                                    Backup
+                                </Button>
+                            )}
                             {isAdmin && (
                                 <Button
                                     onClick={() => setShowCreateDialog(true)}
