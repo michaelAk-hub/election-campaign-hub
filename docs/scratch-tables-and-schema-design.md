@@ -37,7 +37,12 @@ here changes the running system, so it can wait until there is breathing room.
     ColumnDefs (`table_key='live'`, `physical=false`) are appended as typed, editable
     columns on the live grid (colId `custom:<key>`); `personGridUpdateCell` now writes
     `custom:` fields into `Person.custom_data`. Zero-impact when no custom fields exist.
-- [ ] Step 5 (later): `mergeScratchToLive` (mapping popup; scratch tables persist)
+- [x] **Step 5 (complete):** `mergeScratchToLive` + `MergeDialog` (Συγχώνευση button on a
+  scratch table). Target = new live dataset (optional activate) or append to the active
+  roll; column mapping (scratch → live field / new / skip); conflict rule for existing ΑΤ
+  (person_id): keep the chosen **primary** row, fill only its empty cells from the
+  **secondary** (both empty → stays empty); new person_ids inserted. **Scratch tables are
+  not consumed** — they persist as their own copies.
 
 This document captures a design agreed in discussion. It is the reference to pick up
 from when implementation starts. No code has been written for it yet.

@@ -4,9 +4,10 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Upload, Download, Trash2, Loader2, Search } from 'lucide-react';
+import { Upload, Download, Trash2, Loader2, Search, GitMerge } from 'lucide-react';
 import RecordsAgGrid from './RecordsAgGrid';
 import ImportMappingDialog from './ImportMappingDialog';
+import MergeDialog from './MergeDialog';
 
 const sanitize = (h) => String(h).trim().replace(/[^\w]/g, '_');
 
@@ -25,6 +26,7 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
   const [deleting, setDeleting] = useState(false);
   const [importDialog, setImportDialog] = useState(null); // { fileUrl, headers, defaultMapping, total }
   const [importBusy, setImportBusy] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   const sessionToken = () => localStorage.getItem('app_session_token');
 
@@ -252,6 +254,10 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
             <Download className="h-4 w-4 sm:mr-1.5" />
             <span className="hidden sm:inline">Εξαγωγή</span>
           </Button>
+          <Button variant="default" size="sm" className="h-8 shrink-0" onClick={() => setMergeOpen(true)}>
+            <GitMerge className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">Συγχώνευση</span>
+          </Button>
           <Button variant="destructive" size="sm" className="h-8 shrink-0" disabled={deleting} onClick={handleDeleteTable}>
             <Trash2 className="h-4 w-4 sm:mr-1.5" />
             <span className="hidden sm:inline">Διαγραφή Πίνακα</span>
@@ -292,6 +298,15 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
         total={importDialog?.total || 0}
         busy={importBusy}
         onConfirm={runImport}
+      />
+
+      <MergeDialog
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        scratchDatasetId={scratchDatasetId}
+        scratchName={name}
+        scratchColumns={columnDefsRegistry}
+        onDone={() => onChanged?.()}
       />
     </div>
   );
