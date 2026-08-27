@@ -636,9 +636,10 @@ export default function Records() {
       else if (cd.type === 'select') { col.cellEditor = 'agSelectCellEditor'; col.cellEditorParams = { values: Array.isArray(cd.options) ? cd.options : [] }; }
       else if (cd.type === 'boolean') {
         col.valueGetter = (p) => truthy(p.data?.custom_data?.[key]);
-        col.cellRenderer = (p) => (p.value ? '✓' : '');
+        col.cellRenderer = 'agCheckboxCellRenderer';
         col.cellEditor = 'agCheckboxCellEditor';
         col.cellDataType = 'boolean';
+        col.singleClickEdit = true;
       }
       return col;
     });

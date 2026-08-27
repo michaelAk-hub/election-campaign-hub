@@ -75,9 +75,10 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
         col.cellEditorParams = { values: Array.isArray(cd.options) ? cd.options : [] };
       } else if (cd.type === 'boolean') {
         col.valueGetter = (p) => truthy(raw(p));
-        col.cellRenderer = (p) => (p.value ? '✓' : '');
+        col.cellRenderer = 'agCheckboxCellRenderer';
         col.cellEditor = 'agCheckboxCellEditor';
         col.cellDataType = 'boolean';
+        col.singleClickEdit = true;
       }
       return col;
     });
