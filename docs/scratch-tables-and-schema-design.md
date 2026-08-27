@@ -8,7 +8,8 @@ here changes the running system, so it can wait until there is breathing room.
 - [x] **Step 1 (foundation):** `ColumnDef` / `ScratchDataset` / `PersonScratch` tables +
   seeded shared schema — `supabase/scratch_schema.sql` (run once) and mirrored into
   `schema.sql`. Added to `entityGateway` allowlist. _Additive; live path untouched._
-- [x] **Step 2+3 (usable slice):** tab strip in Records (live ★ + scratch tabs + New);
+- [x] **Step 2+3 (usable slice) — tested & confirmed working end-to-end
+  (create→import→edit→export→delete):** tab strip in Records (live ★ + scratch tabs + New);
   self-contained `ScratchTableView` (columns from the `ColumnDef` registry, inline edit,
   total footer); Edge Functions `scratchGridFetch`, `scratchGridUpdateCell`,
   `importScratchJob`, `exportScratchJob` (inline .xlsx, matches live format),
