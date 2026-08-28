@@ -81,18 +81,29 @@ Deno.serve(async (req) => {
     if (auth.user.role !== "ADMIN") return json({ error: "Unauthorized" }, 401);
 
     const { file_url, name, person_id_col, preview, mapping } = body;
+    // Large files are parsed in the BROWSER and their rows sent here in batches
+    // (server-side parsing of big sheets exceeds the Edge Function limits). When
+    // `rows` is provided we use it directly; `row_offset` keeps the auto-assigned
+    // person_id unique across batches.
+    const providedRows = Array.isArray(body.rows) ? body.rows : null;
+    const rowOffset = Number(body.row_offset) || 0;
     let scratchDatasetId = body.scratch_dataset_id;
-    if (!file_url) return json({ error: "file_url is required" }, 400);
+    if (!file_url && !providedRows) return json({ error: "file_url or rows required" }, 400);
 
-    // Parse the file.
     let rawRows: Record<string, any>[];
-    try {
-      rawRows = await parseFile(file_url);
-    } catch (e) {
-      return json({ error: `File parse error: ${(e as Error).message}` }, 400);
+    if (providedRows) {
+      rawRows = providedRows;
+    } else {
+      try {
+        rawRows = await parseFile(file_url);
+      } catch (e) {
+        return json({ error: `File parse error: ${(e as Error).message}` }, 400);
+      }
     }
     const total = rawRows.length;
-    const headers = rawRows.length ? Object.keys(rawRows[0]) : [];
+    const headers = Array.isArray(body.headers) && body.headers.length
+      ? body.headers
+      : (rawRows.length ? Object.keys(rawRows[0]) : []);
 
     // Preview: return headers (+ auto-map hints) so the frontend can build the mapping UI.
     if (preview) {
@@ -108,7 +119,7 @@ Deno.serve(async (req) => {
     const mapped = rawRows.map((r, i) => {
       const row = useMapping ? rowFromMapping(r, mapping) : mapRow(r, headerMap);
       if (!row.person_id || String(row.person_id).trim() === "") {
-        row.person_id = person_id_col && r[person_id_col] ? String(r[person_id_col]).trim() : String(i + 1);
+        row.person_id = person_id_col && r[person_id_col] ? String(r[person_id_col]).trim() : String(rowOffset + i + 1);
       }
       return row;
     });

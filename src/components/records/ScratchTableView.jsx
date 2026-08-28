@@ -11,6 +11,22 @@ import MergeDialog from './MergeDialog';
 
 const sanitize = (h) => String(h).trim().replace(/[^\p{L}\p{N}]+/gu, '_');
 
+// Parse a CSV/XLSX file to rows IN THE BROWSER (no server-side parse limits).
+async function parseFileClient(file) {
+  const name = (file?.name ?? '').toLowerCase();
+  if (name.endsWith('.csv')) {
+    const Papa = (await import('papaparse')).default;
+    const text = await file.text();
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
+    return parsed.data || [];
+  }
+  const XLSX = await import('xlsx');
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(sheet, { defval: '' }) || [];
+}
+
 // Self-contained editable view for one scratch table. Deliberately separate
 // from the live Records grid so the live path is untouched. Reads/writes only
 // PersonScratch via the scratch* Edge Functions.
@@ -24,7 +40,7 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
   const [filterModel, setFilterModel] = useState({});
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [importDialog, setImportDialog] = useState(null); // { fileUrl, headers, defaultMapping, total }
+  const [importDialog, setImportDialog] = useState(null); // { rows, headers, defaultMapping, total }
   const [importBusy, setImportBusy] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
 
@@ -116,20 +132,13 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
     setSortModel({ field, dir });
   }, []);
 
-  // Phase 1: upload + read headers, then open the mapping dialog.
+  // Phase 1: parse the file IN THE BROWSER, then open the mapping dialog.
   const onFileChosen = async (file) => {
     if (!file) return;
     setImporting(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const { data } = await base44.functions.invoke('importScratchJob', {
-        session_token: sessionToken(),
-        file_url,
-        preview: true,
-      });
-      if (data?.error) throw new Error(data.error);
-      const headers = data.headers || [];
-      const suggestions = data.suggestions || {};
+      const rows = await parseFileClient(file);
+      const headers = rows.length ? Object.keys(rows[0]) : [];
       // Match a file header to an existing column by its key OR label, case-insensitively.
       const norm = (s) => String(s ?? '').trim().toLowerCase();
       const byKey = new Map(columnDefsRegistry.map(c => [c.key, c]));
@@ -140,12 +149,10 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
       }
       const defaultMapping = {};
       for (const h of headers) {
-        const sug = suggestions[h];
-        if (sug && byKey.has(sug)) { defaultMapping[h] = sug; continue; }
         const match = byNorm.get(norm(h)) || byKey.get(sanitize(h));
         defaultMapping[h] = match ? match.key : '__new__';
       }
-      setImportDialog({ fileUrl: file_url, headers, defaultMapping, total: data.total || 0 });
+      setImportDialog({ rows, headers, defaultMapping, total: rows.length });
     } catch (e) {
       toast.error('Αποτυχία ανάγνωσης αρχείου: ' + (e.message || ''));
     } finally {
@@ -154,19 +161,30 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
     }
   };
 
-  // Phase 2: import applying the chosen mapping.
+  // Phase 2: send the parsed rows to the server in batches with the mapping.
   const runImport = async (mapping) => {
     if (!importDialog) return;
     setImportBusy(true);
     try {
-      const { data } = await base44.functions.invoke('importScratchJob', {
-        session_token: sessionToken(),
-        scratch_dataset_id: scratchDatasetId,
-        file_url: importDialog.fileUrl,
-        mapping,
-      });
-      if (data?.error) throw new Error(data.error);
-      toast.success(`Εισήχθησαν ${data.processed} εγγραφές${data.failed ? ` (${data.failed} απέτυχαν)` : ''}`);
+      const rows = importDialog.rows || [];
+      const headers = importDialog.headers || [];
+      const BATCH = 500;
+      let processed = 0, failed = 0;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const chunk = rows.slice(i, i + BATCH);
+        const { data } = await base44.functions.invoke('importScratchJob', {
+          session_token: sessionToken(),
+          scratch_dataset_id: scratchDatasetId,
+          mapping,
+          headers,
+          rows: chunk,
+          row_offset: i,
+        });
+        if (data?.error) throw new Error(data.error);
+        processed += data.processed || 0;
+        failed += data.failed || 0;
+      }
+      toast.success(`Εισήχθησαν ${processed} εγγραφές${failed ? ` (${failed} απέτυχαν)` : ''}`);
       await queryClient.invalidateQueries({ queryKey: ['columnDefs', scratchDatasetId] });
       gridRef.current?.api?.purgeInfiniteCache?.();
       onChanged?.();
