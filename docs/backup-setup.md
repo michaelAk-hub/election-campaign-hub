@@ -12,11 +12,9 @@ backup / <YYYY-MM> / <YYYY-MM-DD> / scratch-<YYYY-MM-DD>.xlsx   (PersonScratch, 
 - **Manual:** UserManagement → **Backup** button (ADMIN only).
 - **Automatic:** the `Daily Backup to Google Drive` GitHub Action runs once a day.
 
-Backs up only the live roll and scratch tables, per request (this also keeps the job well within the Edge Function limits).
-ChreosiAccount, KanaliAccount, ChreosiCheckmark, AppUser, SavedQuery,
-PredictionScenario, PredictionVoteFlowConfig, KanaliSubmission, NotFoundVoter,
-SmsLog, Notification, NotificationPreference. (Nested values like `custom_data`
-are stored as JSON text in a single cell, so nothing is lost.)
+Backs up only the live roll and the scratch tables, per request (this also keeps
+the job well within the Edge Function limits). Nested values like `custom_data`
+are stored as JSON text in a single cell, so nothing is lost.
 
 ---
 
