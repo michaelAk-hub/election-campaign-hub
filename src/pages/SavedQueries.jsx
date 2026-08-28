@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../components/common/PageHeader';
@@ -79,7 +79,9 @@ function normalizeVoted(v) {
 
 function getPersonField(person, field) {
   if (field === 'voted') return normalizeVoted(person?.voted);
-  return person?.[field] ?? '';
+  // Physical column if present; otherwise a custom field (scratch/live custom_data).
+  if (person && person[field] !== undefined) return person[field];
+  return person?.custom_data?.[field] ?? '';
 }
 
 function evalCond(person, cond) {
@@ -270,7 +272,7 @@ function compileManualExpression(text) {
 
 // ─── DEFAULT TREE ──────────────────────────────────────────────────────────────
 
-const DEFAULT_TREE = () => ({ type: 'group', op: 'AND', children: [newCond(AVAILABLE_COLUMNS)] });
+const DEFAULT_TREE = (cols = AVAILABLE_COLUMNS) => ({ type: 'group', op: 'AND', children: [newCond(cols.length ? cols : AVAILABLE_COLUMNS)] });
 
 // ─── PAGE COMPONENT ────────────────────────────────────────────────────────────
 
@@ -283,8 +285,11 @@ export default function SavedQueries() {
   const [formData, setFormData] = useState({
     name: '', description: '',
     columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'],
-    filters: {}, logicalExpression: ''
+    filters: {}, logicalExpression: '', table_key: 'live'
   });
+  // Cache of each scratch table's columns (from its Design-View schema).
+  const [scratchColsCache, setScratchColsCache] = useState({}); // { [scratchId]: [{key,label,type}] }
+  const [runLoading, setRunLoading] = useState(false);
   const [ruleTree, setRuleTree] = useState(DEFAULT_TREE());
   const [useVisualBuilder, setUseVisualBuilder] = useState(true);
   const [exprError, setExprError] = useState('');
@@ -322,6 +327,46 @@ export default function SavedQueries() {
   const people = peopleData.rows;
   const peoplePartial = peopleData.partial;
 
+  // Scratch tables available as query targets.
+  const { data: scratchTables = [] } = useQuery({
+    queryKey: ['scratchDatasets'],
+    queryFn: async () => (await base44.entities.ScratchDataset.list('-created_date', 1000, 0)) || [],
+  });
+
+  // Load (and cache) a scratch table's columns from its Design-View schema.
+  // Returns the columns (from cache if already loaded).
+  const loadScratchCols = useCallback(async (tableKey) => {
+    if (tableKey === 'live') return AVAILABLE_COLUMNS;
+    if (scratchColsCache[tableKey]) return scratchColsCache[tableKey];
+    const rows = await base44.entities.ColumnDef.filter({ table_key: tableKey }, 'sort_order', 1000, 0);
+    const cols = (rows || [])
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+      .map(c => ({ key: c.key, label: c.label || c.key, type: c.type || 'text' }));
+    setScratchColsCache(prev => ({ ...prev, [tableKey]: cols }));
+    return cols;
+  }, [scratchColsCache]);
+
+  // The column set for a table_key ('live' → fixed schema; scratch → its schema).
+  const columnsFor = useCallback(
+    (tableKey) => (!tableKey || tableKey === 'live') ? AVAILABLE_COLUMNS : (scratchColsCache[tableKey] || []),
+    [scratchColsCache]
+  );
+  const tableLabel = useCallback(
+    (tableKey) => (!tableKey || tableKey === 'live')
+      ? 'Ζωντανός Πίνακας'
+      : (scratchTables.find(s => s.id === tableKey)?.name || 'Πρόχειρος'),
+    [scratchTables]
+  );
+
+  // Columns of the table currently being built in the dialog.
+  const activeColumns = columnsFor(formData.table_key);
+
+  // Fetch the rows a query runs against: preloaded live people, or a scratch table.
+  const rowsForQuery = useCallback(async (query) => {
+    if (!query.table_key || query.table_key === 'live') return people;
+    return (await base44.entities.PersonScratch.filter({ scratch_dataset_id: query.table_key }, '-created_date')) || [];
+  }, [people]);
+
   useEffect(() => {
     const validIds = new Set(savedQueries.map(q => q.id));
     setSelectedQueryIds(prev => prev.filter(id => validIds.has(id)));
@@ -346,14 +391,26 @@ export default function SavedQueries() {
 
   const resetDialog = () => {
     setEditingId(null);
-    setFormData({ name: '', description: '', columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'], filters: {}, logicalExpression: '' });
+    setFormData({ name: '', description: '', columns: ['person_id', 'last_name', 'first_name', 'department', 'voted'], filters: {}, logicalExpression: '', table_key: 'live' });
     setRuleTree(DEFAULT_TREE());
     setUseVisualBuilder(true);
     setExprError('');
   };
 
-  // ── Live preview count ──
+  // Switch which table a (new) query targets: load its columns, reset the builder.
+  const changeQueryTable = async (tableKey) => {
+    const cols = await loadScratchCols(tableKey);
+    const defaultCols = cols.slice(0, 5).map(c => c.key);
+    setFormData(prev => ({ ...prev, table_key: tableKey, columns: defaultCols, logicalExpression: '' }));
+    setRuleTree(DEFAULT_TREE(cols));
+    setUseVisualBuilder(true);
+    setExprError('');
+  };
+
+  // ── Live preview count ── (only meaningful for the live roll; scratch counts
+  // require loading the table's rows, which we do on Run instead)
   const previewCount = useMemo(() => {
+    if (formData.table_key && formData.table_key !== 'live') return null;
     if (!people.length) return 0;
 
     if (useVisualBuilder) {
@@ -371,7 +428,7 @@ export default function SavedQueries() {
       return 0;
     }
     return people.filter(p => matchesRuleTree(p, ast)).length;
-  }, [people, useVisualBuilder, ruleTree, formData.logicalExpression]);
+  }, [people, useVisualBuilder, ruleTree, formData.logicalExpression, formData.table_key]);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.SavedQuery.create(data),
@@ -401,12 +458,15 @@ export default function SavedQueries() {
   // Load an existing query into the builder dialog for editing.
   const openEditDialog = (query) => {
     setEditingId(query.id);
+    const tk = query.table_key || 'live';
+    if (tk !== 'live') loadScratchCols(tk); // populate the column cache for this table
     setFormData({
       name: query.name || '',
       description: query.description || '',
       columns: query.columns || ['person_id', 'last_name', 'first_name', 'department', 'voted'],
       filters: query.filters || {},
       logicalExpression: query.logicalExpression || '',
+      table_key: tk,
     });
     if (query.rule_tree?.type) {
       setRuleTree(query.rule_tree);
@@ -425,8 +485,19 @@ export default function SavedQueries() {
     setCreateDialog(true);
   };
 
-  const runQuery = (query) => {
-    let results = [...people];
+  const runQuery = async (query) => {
+    setRunLoading(true);
+    let sourceRows;
+    try {
+      if (query.table_key && query.table_key !== 'live') await loadScratchCols(query.table_key);
+      sourceRows = await rowsForQuery(query);
+    } catch (e) {
+      toast.error('Αποτυχία φόρτωσης πίνακα: ' + (e.message || ''));
+      setRunLoading(false);
+      return;
+    }
+    setRunLoading(false);
+    let results = [...sourceRows];
 
     if (query.rule_tree?.type) {
       results = results.filter(p => matchesRuleTree(p, query.rule_tree));
@@ -459,13 +530,14 @@ export default function SavedQueries() {
 
   const exportResults = () => {
     if (!runDialog.query || queryResults.length === 0) return;
-    const cols = runDialog.query.columns || AVAILABLE_COLUMNS.map(c => c.key);
-    const headers = cols.map(k => AVAILABLE_COLUMNS.find(c => c.key === k)?.label || k).join(',');
+    const qCols = columnsFor(runDialog.query.table_key);
+    const cols = runDialog.query.columns || qCols.map(c => c.key);
+    const headers = cols.map(k => qCols.find(c => c.key === k)?.label || k).join(',');
     const rows = queryResults.map(p =>
       cols.map(k => {
-        let val = p[k];
+        let val = getPersonField(p, k);
         if (k === 'voted') val = val ? 'ΝΑΙ' : 'ΟΧΙ';
-        return `"${String(val || '').replace(/"/g, '""')}"`;
+        return `"${String(val ?? '').replace(/"/g, '""')}"`;
       }).join(',')
     ).join('\n');
     const csv = '\uFEFF' + headers + '\n' + rows;
@@ -478,7 +550,7 @@ export default function SavedQueries() {
     toast.success('Εξαγωγή ολοκληρώθηκε');
   };
 
-  const colLabel = (k) => AVAILABLE_COLUMNS.find(c => c.key === k)?.label || k;
+  const colLabel = (k) => columnsFor(runDialog.query?.table_key).find(c => c.key === k)?.label || k;
 
   const escHtml = (val) => {
     const s = String(val ?? '');
@@ -488,7 +560,7 @@ export default function SavedQueries() {
   const openPrintSettings = () => {
     const q = runDialog.query;
     if (!q) return;
-    const fallbackCols = (q.columns?.length ? q.columns : AVAILABLE_COLUMNS.map(c => c.key));
+    const fallbackCols = (q.columns?.length ? q.columns : columnsFor(q.table_key).map(c => c.key));
     const saved = q.print_settings || {};
     const cols = (Array.isArray(saved.columns) && saved.columns.length) ? saved.columns : fallbackCols;
     setPrintSettings({
@@ -521,8 +593,8 @@ export default function SavedQueries() {
     });
   };
 
-  const computeResultsForQuery = (query) => {
-    let results = [...people];
+  const computeResultsForQuery = (query, rows) => {
+    let results = [...(rows || people)];
     if (query.rule_tree?.type) {
       results = results.filter(p => matchesRuleTree(p, query.rule_tree));
       return { results };
@@ -553,15 +625,17 @@ export default function SavedQueries() {
   };
 
   const safeColsForQuery = (query) => {
-    const allowed = new Set(AVAILABLE_COLUMNS.map(c => c.key));
+    const tableCols = columnsFor(query.table_key);
+    const allowed = new Set(tableCols.map(c => c.key));
     const psCols = query.print_settings?.columns;
     const qCols = query.columns;
     const cols =
       (Array.isArray(psCols) && psCols.length ? psCols :
-       (Array.isArray(qCols) && qCols.length ? qCols : AVAILABLE_COLUMNS.map(c => c.key)))
+       (Array.isArray(qCols) && qCols.length ? qCols : tableCols.map(c => c.key)))
       .filter(k => allowed.has(k));
-    return cols.length ? cols : AVAILABLE_COLUMNS.map(c => c.key);
+    return cols.length ? cols : tableCols.map(c => c.key);
   };
+  const labelForQuery = (query, k) => columnsFor(query.table_key).find(c => c.key === k)?.label || k;
 
   const rowsPerPageForQuery = (query) => {
     const v = Number(query.print_settings?.rowsPerPage);
@@ -589,12 +663,12 @@ export default function SavedQueries() {
       for (let page = 1; page <= totalPages; page++) {
         const start = (page - 1) * rowsPerPage;
         const slice = results.slice(start, Math.min(totalRows, start + rowsPerPage));
-        const thead = cols.map(k => `<th>${escHtml(colLabel(k))}</th>`).join('');
+        const thead = cols.map(k => `<th>${escHtml(labelForQuery(q, k))}</th>`).join('');
         const tbody = slice.length
           ? slice.map(p => {
               const tds = cols.map(k => {
-                let v = p[k];
-                if (k === 'voted') v = p[k] ? 'ΝΑΙ' : 'ΟΧΙ';
+                let v = getPersonField(p, k);
+                if (k === 'voted') v = v ? 'ΝΑΙ' : 'ΟΧΙ';
                 if (v === null || v === undefined || v === '') v = '-';
                 return `<td>${escHtml(v)}</td>`;
               }).join('');
@@ -642,15 +716,22 @@ th{background:#f3f4f6;font-weight:700}
 </style></head><body>${htmlPages}<script>window.onload=()=>{window.focus();window.print();};</script></body></html>`;
   };
 
-  const handlePrintSelected = () => {
+  const handlePrintSelected = async () => {
     if (selectedQueryIds.length === 0) { toast.info('Δεν έχεις επιλέξει ερωτήματα.'); return; }
-    if (!people.length) { toast.error('Δεν έχουν φορτωθεί τα δεδομένα Person.'); return; }
 
     const selected = savedQueries.filter(q => selectedQueryIds.includes(q.id));
-    const computed = selected.map(q => {
-      const { results, error } = computeResultsForQuery(q);
-      return { query: q, results: results || [], error };
-    });
+    let computed;
+    try {
+      computed = await Promise.all(selected.map(async (q) => {
+        if (q.table_key && q.table_key !== 'live') await loadScratchCols(q.table_key);
+        const rows = await rowsForQuery(q);
+        const { results, error } = computeResultsForQuery(q, rows);
+        return { query: q, results: results || [], error };
+      }));
+    } catch (e) {
+      toast.error('Αποτυχία φόρτωσης: ' + (e.message || ''));
+      return;
+    }
 
     const errors = computed.filter(x => x.error);
     const okItems = computed.filter(x => !x.error);
@@ -705,8 +786,8 @@ th{background:#f3f4f6;font-weight:700}
       const thead = cols.map(k => `<th>${escHtml(colLabel(k))}</th>`).join('');
       const tbody = slice.map(p => {
         const tds = cols.map(k => {
-          let v = p[k];
-          if (k === 'voted') v = p[k] ? 'ΝΑΙ' : 'ΟΧΙ';
+          let v = getPersonField(p, k);
+          if (k === 'voted') v = v ? 'ΝΑΙ' : 'ΟΧΙ';
           if (v === null || v === undefined || v === '') v = '-';
           return `<td>${escHtml(v)}</td>`;
         }).join('');
@@ -871,6 +952,11 @@ th{background:#f3f4f6;font-weight:700}
               <CardContent>
                 {query.description && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{query.description}</p>}
                 <div className="text-xs text-slate-400 dark:text-slate-500 mb-4">
+                  <div className="mb-1">
+                    <Badge variant="outline" className="font-normal">
+                      {(!query.table_key || query.table_key === 'live') ? '★ Ζωντανός' : tableLabel(query.table_key)}
+                    </Badge>
+                  </div>
                   <div>{(query.columns || []).length} στήλες</div>
                   {query.logicalExpression && (
                     <div className="mt-1 font-mono text-[10px] text-blue-600 truncate" title={query.logicalExpression}>
@@ -908,6 +994,21 @@ th{background:#f3f4f6;font-weight:700}
           <div className="space-y-4 py-2 max-h-[65vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-1 gap-3">
               <div className="space-y-1">
+                <Label>Πίνακας</Label>
+                <Select value={formData.table_key || 'live'} onValueChange={changeQueryTable}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="live">★ Ζωντανός Πίνακας</SelectItem>
+                    {scratchTables.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name || 'Πρόχειρος'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Το ερώτημα εκτελείται σε αυτόν τον πίνακα. Αλλαγή πίνακα μηδενίζει τα φίλτρα/στήλες.
+                </p>
+              </div>
+              <div className="space-y-1">
                 <Label>Όνομα *</Label>
                 <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Όνομα ερωτήματος" />
               </div>
@@ -921,7 +1022,7 @@ th{background:#f3f4f6;font-weight:700}
             <div className="space-y-2">
               <Label>Στήλες αποτελεσμάτων</Label>
               <div className="grid grid-cols-2 gap-2 border rounded-lg p-3 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-                {AVAILABLE_COLUMNS.map(col => (
+                {activeColumns.map(col => (
                   <div key={col.key} className="flex items-center gap-2">
                     <Checkbox
                       id={col.key}
@@ -960,7 +1061,7 @@ th{background:#f3f4f6;font-weight:700}
                   <RuleTreeBuilder
                     tree={ruleTree}
                     setTree={setRuleTree}
-                    availableColumns={AVAILABLE_COLUMNS}
+                    availableColumns={activeColumns}
                     operatorsByType={OPERATORS}
                   />
 
@@ -1002,7 +1103,9 @@ th{background:#f3f4f6;font-weight:700}
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Αποτελέσματα:</span>
                 </div>
                 <Badge variant="default" className="text-base px-3 py-1">
-                  {previewCount.toLocaleString()} / {people.length.toLocaleString()}
+                  {previewCount == null
+                    ? 'Εκτέλεση για μέτρηση'
+                    : `${previewCount.toLocaleString()} / ${people.length.toLocaleString()}`}
                 </Badge>
               </div>
             </div>
@@ -1011,7 +1114,7 @@ th{background:#f3f4f6;font-weight:700}
           <DialogFooter>
             <Button variant="outline" onClick={() => { resetDialog(); setCreateDialog(false); }}>Ακύρωση</Button>
             <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending || !!exprError}>
-              {editingId ? 'Ενημέρωση' : 'Αποθήκευση'} ({previewCount} εγγραφές)
+              {editingId ? 'Ενημέρωση' : 'Αποθήκευση'}{previewCount == null ? '' : ` (${previewCount} εγγραφές)`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1053,7 +1156,7 @@ th{background:#f3f4f6;font-weight:700}
                 <tr>
                   {(runDialog.query?.columns || []).map(k => (
                     <th key={k} className="text-left p-3 font-semibold">
-                      {AVAILABLE_COLUMNS.find(c => c.key === k)?.label || k}
+                      {columnsFor(runDialog.query?.table_key).find(c => c.key === k)?.label || k}
                     </th>
                   ))}
                 </tr>
@@ -1063,7 +1166,7 @@ th{background:#f3f4f6;font-weight:700}
                   <tr key={idx} className="border-t dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">
                     {(runDialog.query?.columns || []).map(k => (
                       <td key={k} className="p-3">
-                        {k === 'voted' ? (row[k] ? 'ΝΑΙ' : 'ΟΧΙ') : (row[k] || '-')}
+                        {k === 'voted' ? (getPersonField(row, k) ? 'ΝΑΙ' : 'ΟΧΙ') : (getPersonField(row, k) || '-')}
                       </td>
                     ))}
                   </tr>
@@ -1114,7 +1217,7 @@ th{background:#f3f4f6;font-weight:700}
               </p>
 
               <div className="border rounded-lg p-3 space-y-2 max-h-72 overflow-y-auto dark:border-slate-700">
-                {AVAILABLE_COLUMNS.map((c) => {
+                {columnsFor(runDialog.query?.table_key).map((c) => {
                   const checked = printSettings.columns.includes(c.key);
                   const idx = printSettings.columns.indexOf(c.key);
                   return (

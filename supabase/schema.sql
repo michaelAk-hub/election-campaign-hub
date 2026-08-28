@@ -458,7 +458,8 @@ create table if not exists public."SavedQuery" (
   "logicalExpression" text,
   "conditions" jsonb,
   "rule_tree" jsonb,
-  "print_settings" jsonb
+  "print_settings" jsonb,
+  "table_key" text not null default 'live'
 );
 
 create table if not exists public."GridPreference" (
