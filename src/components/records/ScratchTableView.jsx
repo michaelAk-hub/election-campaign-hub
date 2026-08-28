@@ -121,7 +121,20 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
     if (!file) return;
     setImporting(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      // Big .xlsx files are too heavy to parse server-side (546). Convert to CSV
+      // in the browser first; the server then parses cheaply. Same rows either way.
+      let uploadObj = file;
+      const nm = (file.name || '').toLowerCase();
+      if (nm.endsWith('.xlsx') || nm.endsWith('.xls')) {
+        const XLSX = await import('xlsx');
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        const base = file.name.replace(/\.(xlsx|xls)$/i, '') || 'import';
+        uploadObj = new File([csv], `${base}.csv`, { type: 'text/csv' });
+      }
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadObj });
       const { data } = await base44.functions.invoke('importScratchJob', {
         session_token: sessionToken(),
         file_url,
