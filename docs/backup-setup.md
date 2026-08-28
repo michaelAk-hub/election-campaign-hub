@@ -1,10 +1,11 @@
 # Backups to Google Drive — setup
 
-The `backupToDrive` Edge Function exports every important table to `.xlsx`
-(Greek-safe) and uploads them to your Google Drive under:
+The `backupToDrive` Edge Function exports every important table into a single
+Greek-safe `.xlsx` workbook (one sheet per table) and uploads it to your Google
+Drive under:
 
 ```
-backup / <YYYY-MM> / <YYYY-MM-DD> / <Table>.xlsx
+backup / <YYYY-MM> / <YYYY-MM-DD> / backup-<YYYY-MM-DD>.xlsx
 ```
 
 - **Manual:** UserManagement → **Backup** button (ADMIN only).
@@ -71,10 +72,10 @@ That’s it. The anon key and project URL are already in the workflow (both are 
 4. To test the schedule immediately: GitHub → **Actions → Daily Backup → Run workflow**.
 
 ## Notes
-- Running a backup twice on the same day creates a second set of files in the
-  same dated folder (Drive keeps both) — harmless.
-- To restore a table: download its `.xlsx` and re-import it (scratch import for
-  a working copy, then merge to live; JSON-text cells like `custom_data` can be
-  re-expanded if needed).
+- Running a backup twice on the same day creates a second `backup-<date>.xlsx`
+  in the same dated folder (Drive keeps both) — harmless.
+- To restore a table: open the workbook, copy the table's sheet to its own file,
+  and re-import it (scratch import for a working copy, then merge to live;
+  JSON-text cells like `custom_data` can be re-expanded if needed).
 - The daily time is 01:00 UTC; change the `cron:` line in
   `.github/workflows/daily-backup.yml` to adjust.

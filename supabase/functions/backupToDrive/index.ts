@@ -19,9 +19,9 @@ const TABLES = [
   "Notification", "NotificationPreference",
 ];
 
-// One table → .xlsx bytes. Nested values (e.g. custom_data) are JSON-stringified
-// into a single cell so nothing is lost.
-function tableToXlsx(rows: any[]): Uint8Array {
+// Flatten a table's rows: nested values (e.g. custom_data) → JSON text so nothing
+// is lost. Returns a worksheet ready to append to a workbook.
+function tableToSheet(rows: any[]) {
   const flat = rows.map((r) => {
     const o: Record<string, any> = {};
     for (const [k, v] of Object.entries(r)) {
@@ -29,10 +29,7 @@ function tableToXlsx(rows: any[]): Uint8Array {
     }
     return o;
   });
-  const ws = XLSX.utils.json_to_sheet(flat);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-  return XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  return XLSX.utils.json_to_sheet(flat);
 }
 
 Deno.serve(async (req) => {
@@ -61,22 +58,30 @@ Deno.serve(async (req) => {
     const token = await getAccessToken();
     const folderId = await ensureBackupPath(token, month, date);
 
+    // Build ONE workbook with a sheet per table (one write, one upload — far
+    // lighter on CPU/memory than 17 separate .xlsx files).
+    const wb = XLSX.utils.book_new();
     const results: { table: string; rows: number; ok: boolean; error?: string }[] = [];
     for (const table of TABLES) {
       try {
         const rows = await fetchAll(supabase, table);
-        const bytes = tableToXlsx(rows);
-        await uploadFile(token, folderId, `${table}.xlsx`, bytes, XLSX_MIME);
+        const ws = tableToSheet(rows);
+        // Sheet names are capped at 31 chars and can't contain []:*?/\.
+        const sheetName = table.replace(/[\[\]:*?/\\]/g, "_").slice(0, 31);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
         results.push({ table, rows: rows.length, ok: true });
       } catch (e) {
         results.push({ table, rows: 0, ok: false, error: (e as Error).message });
       }
     }
 
+    const bytes = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    await uploadFile(token, folderId, `backup-${date}.xlsx`, bytes, XLSX_MIME);
+
     const failed = results.filter((r) => !r.ok);
     return json({
       success: failed.length === 0,
-      path: `backup/${month}/${date}`,
+      path: `backup/${month}/${date}/backup-${date}.xlsx`,
       tables: results.length,
       uploaded: results.length - failed.length,
       failed: failed.length,
