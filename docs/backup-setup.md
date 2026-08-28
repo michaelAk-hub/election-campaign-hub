@@ -1,17 +1,18 @@
 # Backups to Google Drive — setup
 
-The `backupToDrive` Edge Function exports every important table into a single
-Greek-safe `.xlsx` workbook (one sheet per table) and uploads it to your Google
-Drive under:
+The `backupToDrive` Edge Function exports the live roll and the scratch tables
+into Greek-safe `.xlsx` workbooks (one sheet per table) and uploads them to your
+Google Drive under:
 
 ```
-backup / <YYYY-MM> / <YYYY-MM-DD> / backup-<YYYY-MM-DD>.xlsx
+backup / <YYYY-MM> / <YYYY-MM-DD> / live-<YYYY-MM-DD>.xlsx      (Person, Dataset)
+backup / <YYYY-MM> / <YYYY-MM-DD> / scratch-<YYYY-MM-DD>.xlsx   (PersonScratch, ScratchDataset, ColumnDef)
 ```
 
 - **Manual:** UserManagement → **Backup** button (ADMIN only).
 - **Automatic:** the `Daily Backup to Google Drive` GitHub Action runs once a day.
 
-Tables backed up: Person, Dataset, ColumnDef, ScratchDataset, PersonScratch,
+Backs up only the live roll and scratch tables, per request (this also keeps the job well within the Edge Function limits).
 ChreosiAccount, KanaliAccount, ChreosiCheckmark, AppUser, SavedQuery,
 PredictionScenario, PredictionVoteFlowConfig, KanaliSubmission, NotFoundVoter,
 SmsLog, Notification, NotificationPreference. (Nested values like `custom_data`

@@ -10,14 +10,11 @@ import * as XLSX from "npm:xlsx@0.18.5";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-// Tables worth backing up (data, not transient sessions/challenges/throttle).
-const TABLES = [
-  "Person", "Dataset", "ColumnDef", "ScratchDataset", "PersonScratch",
-  "ChreosiAccount", "KanaliAccount", "ChreosiCheckmark",
-  "AppUser", "SavedQuery", "PredictionScenario", "PredictionVoteFlowConfig",
-  "KanaliSubmission", "NotFoundVoter", "SmsLog",
-  "Notification", "NotificationPreference",
-];
+// Backed up (per request: live roll + scratch tables only — also keeps the job
+// within the Edge Function's limits):
+//   live-<date>.xlsx    → Person (live roll), Dataset (roll metadata)
+//   scratch-<date>.xlsx → PersonScratch (rows), ScratchDataset (registry),
+//                         ColumnDef (per-table column schemas)
 
 // Flatten a table's rows: nested values (e.g. custom_data) → JSON text so nothing
 // is lost. Returns a worksheet ready to append to a workbook.
@@ -58,30 +55,37 @@ Deno.serve(async (req) => {
     const token = await getAccessToken();
     const folderId = await ensureBackupPath(token, month, date);
 
-    // Build ONE workbook with a sheet per table (one write, one upload — far
-    // lighter on CPU/memory than 17 separate .xlsx files).
-    const wb = XLSX.utils.book_new();
     const results: { table: string; rows: number; ok: boolean; error?: string }[] = [];
-    for (const table of TABLES) {
-      try {
-        const rows = await fetchAll(supabase, table);
-        const ws = tableToSheet(rows);
-        // Sheet names are capped at 31 chars and can't contain []:*?/\.
-        const sheetName = table.replace(/[\[\]:*?/\\]/g, "_").slice(0, 31);
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
-        results.push({ table, rows: rows.length, ok: true });
-      } catch (e) {
-        results.push({ table, rows: 0, ok: false, error: (e as Error).message });
-      }
-    }
 
-    const bytes = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-    await uploadFile(token, folderId, `backup-${date}.xlsx`, bytes, XLSX_MIME);
+    // Build one workbook (a sheet per table) from a set of tables, then upload it.
+    // Splitting live vs scratch keeps each XLSX.write small so we stay within the
+    // Edge Function's CPU/memory limits even with large rolls.
+    const backupGroup = async (fileName: string, tables: string[]) => {
+      const wb = XLSX.utils.book_new();
+      let any = false;
+      for (const table of tables) {
+        try {
+          const rows = await fetchAll(supabase, table);
+          const sheetName = table.replace(/[\[\]:*?/\\]/g, "_").slice(0, 31);
+          XLSX.utils.book_append_sheet(wb, tableToSheet(rows), sheetName);
+          any = true;
+          results.push({ table, rows: rows.length, ok: true });
+        } catch (e) {
+          results.push({ table, rows: 0, ok: false, error: (e as Error).message });
+        }
+      }
+      if (!any) return;
+      const bytes = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      await uploadFile(token, folderId, fileName, bytes, XLSX_MIME);
+    };
+
+    await backupGroup(`live-${date}.xlsx`, ["Person", "Dataset"]);
+    await backupGroup(`scratch-${date}.xlsx`, ["PersonScratch", "ScratchDataset", "ColumnDef"]);
 
     const failed = results.filter((r) => !r.ok);
     return json({
       success: failed.length === 0,
-      path: `backup/${month}/${date}/backup-${date}.xlsx`,
+      path: `backup/${month}/${date}/`,
       tables: results.length,
       uploaded: results.length - failed.length,
       failed: failed.length,
