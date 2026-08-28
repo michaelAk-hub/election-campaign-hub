@@ -26,6 +26,7 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
   const [deleting, setDeleting] = useState(false);
   const [importDialog, setImportDialog] = useState(null); // { fileUrl, headers, defaultMapping, total }
   const [importBusy, setImportBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
 
   const sessionToken = () => localStorage.getItem('app_session_token');
@@ -191,12 +192,49 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
     }
   };
 
+  // Export in the browser: page all rows via scratchGridFetch (cheap) and build
+  // the .xlsx client-side, so the server never generates a big workbook (546).
   const handleExport = async () => {
+    setExporting(true);
     try {
-      const blob = await base44.functions.invokeBlob('exportScratchJob', {
-        session_token: sessionToken(),
-        scratch_dataset_id: scratchDatasetId,
+      const cols = columnDefsRegistry;
+      if (!cols.length) { toast.message('Ο πίνακας δεν έχει στήλες'); return; }
+
+      const all = [];
+      const PAGE = 1000;
+      for (let start = 0; ; start += PAGE) {
+        const { data } = await base44.functions.invoke('scratchGridFetch', {
+          session_token: sessionToken(),
+          scratchDatasetId,
+          startRow: start,
+          endRow: start + PAGE,
+          sortField: 'created_date',
+          sortDirection: 'desc',
+        });
+        if (data?.error) throw new Error(data.error);
+        const rows = data?.rows || [];
+        all.push(...rows);
+        const total = typeof data?.total === 'number' ? data.total : null;
+        if (rows.length < PAGE || (total !== null && all.length >= total)) break;
+      }
+
+      const truthy = (v) => v === true || ['true', 'ναι', 'nai', 'yes', '1', 'y'].includes(String(v ?? '').trim().toLowerCase());
+      const sheetRows = all.map((r) => {
+        const o = {};
+        for (const c of cols) {
+          let v = c.physical ? r[c.key] : r?.custom_data?.[c.key];
+          if (c.type === 'boolean') v = truthy(v) ? 'ΝΑΙ' : 'ΟΧΙ';
+          o[c.label || c.key] = v === null || v === undefined ? '' : String(v);
+        }
+        return o;
       });
+
+      const XLSX = await import('xlsx');
+      const ws = XLSX.utils.json_to_sheet(sheetRows, { header: cols.map((c) => c.label || c.key) });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -207,6 +245,8 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
       URL.revokeObjectURL(url);
     } catch (e) {
       toast.error('Αποτυχία εξαγωγής: ' + (e.message || ''));
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -263,8 +303,8 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
             {importing ? <Loader2 className="h-4 w-4 sm:mr-1.5 animate-spin" /> : <Upload className="h-4 w-4 sm:mr-1.5" />}
             <span className="hidden sm:inline">Εισαγωγή</span>
           </Button>
-          <Button variant="outline" size="sm" className="h-8 shrink-0" onClick={handleExport}>
-            <Download className="h-4 w-4 sm:mr-1.5" />
+          <Button variant="outline" size="sm" className="h-8 shrink-0" disabled={exporting} onClick={handleExport}>
+            {exporting ? <Loader2 className="h-4 w-4 sm:mr-1.5 animate-spin" /> : <Download className="h-4 w-4 sm:mr-1.5" />}
             <span className="hidden sm:inline">Εξαγωγή</span>
           </Button>
           <Button variant="default" size="sm" className="h-8 shrink-0" onClick={() => setMergeOpen(true)}>
