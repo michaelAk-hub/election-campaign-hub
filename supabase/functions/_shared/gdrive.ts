@@ -52,8 +52,11 @@ export async function ensureBackupPath(token: string, month: string, date: strin
 
 // Upload one binary file into a folder (multipart). Returns the new file id.
 export async function uploadFile(
-  token: string, folderId: string, name: string, bytes: Uint8Array, mime: string,
+  token: string, folderId: string, name: string, bytes: Uint8Array | ArrayBuffer, mime: string,
 ): Promise<string> {
+  // XLSX.write({type:"array"}) may return an ArrayBuffer; normalize to Uint8Array
+  // so the byte-length math and .set() offsets are correct.
+  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const boundary = "b" + crypto.randomUUID().replace(/-/g, "");
   const meta = JSON.stringify({ name, parents: [folderId] });
   const enc = new TextEncoder();
@@ -62,8 +65,8 @@ export async function uploadFile(
     `--${boundary}\r\nContent-Type: ${mime}\r\n\r\n`,
   );
   const tail = enc.encode(`\r\n--${boundary}--`);
-  const payload = new Uint8Array(head.length + bytes.length + tail.length);
-  payload.set(head, 0); payload.set(bytes, head.length); payload.set(tail, head.length + bytes.length);
+  const payload = new Uint8Array(head.length + data.length + tail.length);
+  payload.set(head, 0); payload.set(data, head.length); payload.set(tail, head.length + data.length);
 
   const res = await fetch(`${UPLOAD_URL}&fields=id`, {
     method: "POST",
