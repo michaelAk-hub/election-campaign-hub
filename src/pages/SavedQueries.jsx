@@ -399,7 +399,13 @@ export default function SavedQueries() {
 
   // Switch which table a (new) query targets: load its columns, reset the builder.
   const changeQueryTable = async (tableKey) => {
-    const cols = await loadScratchCols(tableKey);
+    let cols = AVAILABLE_COLUMNS;
+    try {
+      cols = await loadScratchCols(tableKey);
+    } catch (e) {
+      toast.error('Αποτυχία φόρτωσης στηλών: ' + (e.message || ''));
+      cols = tableKey === 'live' ? AVAILABLE_COLUMNS : [];
+    }
     const defaultCols = cols.slice(0, 5).map(c => c.key);
     setFormData(prev => ({ ...prev, table_key: tableKey, columns: defaultCols, logicalExpression: '' }));
     setRuleTree(DEFAULT_TREE(cols));
