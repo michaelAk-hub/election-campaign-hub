@@ -24,18 +24,14 @@ async function fetchAllRows(entity) {
   return all;
 }
 
-function buildCsv(rows) {
-  const keySet = new Set();
-  for (const r of rows) for (const k of Object.keys(r)) keySet.add(k);
-  const keys = Array.from(keySet);
-  const esc = (v) => {
-    let s = v === null || v === undefined ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
-    if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
-    return s;
-  };
-  const lines = [keys.join(',')];
-  for (const r of rows) lines.push(keys.map(k => esc(r[k])).join(','));
-  return '﻿' + lines.join('\r\n'); // BOM → Greek-safe, opens in Excel
+// Flatten a table's rows into a worksheet (nested values → JSON text).
+function tableToSheet(XLSX, rows) {
+  const flat = rows.map((r) => {
+    const o = {};
+    for (const [k, v] of Object.entries(r)) o[k] = (v !== null && typeof v === 'object') ? JSON.stringify(v) : v;
+    return o;
+  });
+  return XLSX.utils.json_to_sheet(flat);
 }
 
 async function findOrCreateFolder(token, name, parentId) {
@@ -56,13 +52,14 @@ async function findOrCreateFolder(token, name, parentId) {
   return cj.id;
 }
 
-async function uploadCsv(token, folderId, name, text) {
+async function uploadBinary(token, folderId, name, bytes, mime) {
   const boundary = 'b' + Math.random().toString(16).slice(2) + Date.now().toString(16);
   const meta = JSON.stringify({ name, parents: [folderId] });
-  const body =
+  const pre =
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n` +
-    `--${boundary}\r\nContent-Type: text/csv; charset=UTF-8\r\n\r\n${text}\r\n` +
-    `--${boundary}--`;
+    `--${boundary}\r\nContent-Type: ${mime}\r\n\r\n`;
+  const post = `\r\n--${boundary}--`;
+  const body = new Blob([pre, bytes, post]); // strings + binary in one multipart body
   const res = await fetch(DRIVE_UPLOAD, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
@@ -89,12 +86,21 @@ export async function runDriveBackup(onStep = () => {}) {
   const monthFolder = await findOrCreateFolder(token, month, backupFolder);
   const dateFolder = await findOrCreateFolder(token, date, monthFolder);
 
+  // Build ONE .xlsx workbook with a sheet per table (in the browser).
+  const XLSX = await import('xlsx');
+  const wb = XLSX.utils.book_new();
   const results = [];
   for (const table of TABLES) {
-    onStep(`Αντίγραφο: ${table}...`);
+    onStep(`Ανάγνωση: ${table}...`);
     const rows = await fetchAllRows(table);
-    await uploadCsv(token, dateFolder, `${table}.csv`, buildCsv(rows));
+    XLSX.utils.book_append_sheet(wb, tableToSheet(XLSX, rows), table.slice(0, 31));
     results.push({ table, rows: rows.length });
   }
-  return { path: `backup/${month}/${date}/`, results };
+  onStep('Δημιουργία αρχείου Excel...');
+  const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  onStep('Μεταφόρτωση στο Drive...');
+  await uploadBinary(token, dateFolder, `backup-${date}.xlsx`, bytes,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+  return { path: `backup/${month}/${date}/backup-${date}.xlsx`, results };
 }
