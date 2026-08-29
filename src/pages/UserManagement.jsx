@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Users, Search, CheckCircle, XCircle, Loader2, UserPlus, Eye, EyeOff, Trash2, Circle, RefreshCw, Lock, Unlock, Cloud } from 'lucide-react';
+import { runDriveBackup } from '@/lib/driveBackup';
 import { createPageUrl } from '../utils';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'sonner';
@@ -201,16 +202,12 @@ export default function UserManagement() {
     });
 
     const backupMutation = useMutation({
-        mutationFn: async () => {
-            const { data } = await base44.functions.invoke('backupToDrive', {
-                session_token: localStorage.getItem('app_session_token'),
-            });
-            if (data?.error) throw new Error(data.error);
-            return data;
-        },
+        // Client-side: build each table's CSV in the browser and upload straight
+        // to Drive (no heavy server work → no Edge Function limit).
+        mutationFn: () => runDriveBackup((msg) => toast.message(msg)),
         onSuccess: (data) => {
-            if (data.failed) toast.warning(`Αντίγραφο: ${data.uploaded}/${data.tables} πίνακες (${data.failed} απέτυχαν) → ${data.path}`);
-            else toast.success(`Αντίγραφο ασφαλείας ολοκληρώθηκε: ${data.uploaded} πίνακες → ${data.path}`);
+            const total = data.results.reduce((n, r) => n + r.rows, 0);
+            toast.success(`Αντίγραφο ασφαλείας ολοκληρώθηκε: ${data.results.length} πίνακες, ${total.toLocaleString()} εγγραφές → ${data.path}`);
         },
         onError: (e) => toast.error('Αποτυχία backup: ' + (e.message || '')),
     });

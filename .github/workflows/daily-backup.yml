@@ -6,9 +6,12 @@ name: Daily Backup to Google Drive
 # is powerless without a valid session; the backup call is gated by the
 # cron_secret). Requires ONE repo secret: BACKUP_CRON_SECRET.
 on:
-  schedule:
-    - cron: '0 1 * * *'   # 01:00 UTC daily (~03:00–04:00 Cyprus time)
-  workflow_dispatch: {}    # allow manual runs from the Actions tab
+  # NOTE: the scheduled (headless) run builds the backup server-side, which
+  # exceeds the Edge Function limits on large tables. Disabled for now — the
+  # reliable path is the in-app "Backup" button (builds files in the browser).
+  # schedule:
+  #   - cron: '0 1 * * *'
+  workflow_dispatch: {}    # manual runs from the Actions tab only
 
 jobs:
   backup:
