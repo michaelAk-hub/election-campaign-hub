@@ -92,6 +92,18 @@ export default function RecordsAgGrid({
     setSelectedCount(0);
   }, [datasource, gridRef]);
 
+  // Header components read the filter model from grid context, and AG Grid does
+  // not re-render them when context changes (only when a column is virtualized
+  // back into view). Push the fresh context and force a header refresh so the
+  // filter icon reflects the active filter immediately instead of only after
+  // scrolling out and back.
+  useEffect(() => {
+    const api = gridRef?.current?.api;
+    if (!api) return;
+    if (context) api.setGridOption('context', context);
+    api.refreshHeader();
+  }, [JSON.stringify(filterModel), context, gridRef]);
+
   const onGridReady = useCallback((params) => {
     if (datasource) {
       params.api.setGridOption('datasource', datasource);
