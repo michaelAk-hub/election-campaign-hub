@@ -1,32 +1,34 @@
-// backupToDrive — export every important table to .xlsx and upload to Google
-// Drive under backup/<YYYY-MM>/<YYYY-MM-DD>/. Greek is preserved (xlsx is UTF-8).
+// backupToDrive — export the live roll + scratch tables to CSV and upload to
+// Google Drive under backup/<YYYY-MM>/<YYYY-MM-DD>/. CSV is built with plain
+// string concatenation (cheap — no SheetJS), so it stays within the Edge
+// Function's CPU/memory limits at any table size. UTF-8 BOM keeps Greek intact
+// and lets the files open directly in Excel.
 // Auth: an ADMIN session (manual button) OR a matching cron_secret (daily job).
 import { getServiceClient } from "../_shared/client.ts";
 import { preflight, json } from "../_shared/http.ts";
 import { fetchAll } from "../_shared/db.ts";
 import { strictAuth } from "../_shared/appSession.ts";
 import { getAccessToken, ensureBackupPath, uploadFile } from "../_shared/gdrive.ts";
-import * as XLSX from "npm:xlsx@0.18.5";
 
-const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const CSV_MIME = "text/csv; charset=utf-8";
 
-// Backed up (per request: live roll + scratch tables only — also keeps the job
-// within the Edge Function's limits):
-//   live-<date>.xlsx    → Person (live roll), Dataset (roll metadata)
-//   scratch-<date>.xlsx → PersonScratch (rows), ScratchDataset (registry),
-//                         ColumnDef (per-table column schemas)
+// Live roll + scratch tables (per request). One CSV per table.
+const TABLES = ["Person", "Dataset", "PersonScratch", "ScratchDataset", "ColumnDef"];
 
-// Flatten a table's rows: nested values (e.g. custom_data) → JSON text so nothing
-// is lost. Returns a worksheet ready to append to a workbook.
-function tableToSheet(rows: any[]) {
-  const flat = rows.map((r) => {
-    const o: Record<string, any> = {};
-    for (const [k, v] of Object.entries(r)) {
-      o[k] = v !== null && typeof v === "object" ? JSON.stringify(v) : v;
-    }
-    return o;
-  });
-  return XLSX.utils.json_to_sheet(flat);
+// One table → CSV bytes (UTF-8 with BOM). Nested values (e.g. custom_data) are
+// JSON-stringified into a single cell so nothing is lost.
+function tableToCsv(rows: any[]): Uint8Array {
+  const keySet = new Set<string>();
+  for (const r of rows) for (const k of Object.keys(r)) keySet.add(k);
+  const keys = Array.from(keySet);
+  const esc = (v: any): string => {
+    let s = v === null || v === undefined ? "" : (typeof v === "object" ? JSON.stringify(v) : String(v));
+    if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  const lines: string[] = [keys.join(",")];
+  for (const r of rows) lines.push(keys.map((k) => esc(r[k])).join(","));
+  return new TextEncoder().encode("﻿" + lines.join("\r\n"));
 }
 
 Deno.serve(async (req) => {
@@ -56,31 +58,16 @@ Deno.serve(async (req) => {
     const folderId = await ensureBackupPath(token, month, date);
 
     const results: { table: string; rows: number; ok: boolean; error?: string }[] = [];
-
-    // Build one workbook (a sheet per table) from a set of tables, then upload it.
-    // Splitting live vs scratch keeps each XLSX.write small so we stay within the
-    // Edge Function's CPU/memory limits even with large rolls.
-    const backupGroup = async (fileName: string, tables: string[]) => {
-      const wb = XLSX.utils.book_new();
-      let any = false;
-      for (const table of tables) {
-        try {
-          const rows = await fetchAll(supabase, table);
-          const sheetName = table.replace(/[\[\]:*?/\\]/g, "_").slice(0, 31);
-          XLSX.utils.book_append_sheet(wb, tableToSheet(rows), sheetName);
-          any = true;
-          results.push({ table, rows: rows.length, ok: true });
-        } catch (e) {
-          results.push({ table, rows: 0, ok: false, error: (e as Error).message });
-        }
+    for (const table of TABLES) {
+      try {
+        const rows = await fetchAll(supabase, table);
+        const bytes = tableToCsv(rows);
+        await uploadFile(token, folderId, `${table}.csv`, bytes, CSV_MIME);
+        results.push({ table, rows: rows.length, ok: true });
+      } catch (e) {
+        results.push({ table, rows: 0, ok: false, error: (e as Error).message });
       }
-      if (!any) return;
-      const bytes = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-      await uploadFile(token, folderId, fileName, bytes, XLSX_MIME);
-    };
-
-    await backupGroup(`live-${date}.xlsx`, ["Person", "Dataset"]);
-    await backupGroup(`scratch-${date}.xlsx`, ["PersonScratch", "ScratchDataset", "ColumnDef"]);
+    }
 
     const failed = results.filter((r) => !r.ok);
     return json({

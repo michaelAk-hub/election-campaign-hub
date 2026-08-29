@@ -1,13 +1,22 @@
 # Backups to Google Drive — setup
 
 The `backupToDrive` Edge Function exports the live roll and the scratch tables
-into Greek-safe `.xlsx` workbooks (one sheet per table) and uploads them to your
-Google Drive under:
+as Greek-safe **CSV** files (one per table) and uploads them to your Google Drive
+under:
 
 ```
-backup / <YYYY-MM> / <YYYY-MM-DD> / live-<YYYY-MM-DD>.xlsx      (Person, Dataset)
-backup / <YYYY-MM> / <YYYY-MM-DD> / scratch-<YYYY-MM-DD>.xlsx   (PersonScratch, ScratchDataset, ColumnDef)
+backup / <YYYY-MM> / <YYYY-MM-DD> / Person.csv
+                                    Dataset.csv
+                                    PersonScratch.csv
+                                    ScratchDataset.csv
+                                    ColumnDef.csv
 ```
+
+CSV (not .xlsx) is used because the backup runs on the server — including the
+headless daily job — and building a large .xlsx server-side exceeds the Edge
+Function's limits. CSV is built with plain string concatenation, so it stays
+within limits at any table size. A UTF-8 BOM keeps Greek intact and the files
+open directly in Excel (double-click).
 
 - **Manual:** UserManagement → **Backup** button (ADMIN only).
 - **Automatic:** the `Daily Backup to Google Drive` GitHub Action runs once a day.
@@ -73,7 +82,7 @@ That’s it. The anon key and project URL are already in the workflow (both are 
 ## Notes
 - Running a backup twice on the same day creates a second `backup-<date>.xlsx`
   in the same dated folder (Drive keeps both) — harmless.
-- To restore a table: open the workbook, copy the table's sheet to its own file,
+- To restore a table: the per-table CSV opens in Excel and re-imports directly
   and re-import it (scratch import for a working copy, then merge to live;
   JSON-text cells like `custom_data` can be re-expanded if needed).
 - The daily time is 01:00 UTC; change the `cron:` line in
