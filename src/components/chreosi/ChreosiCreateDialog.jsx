@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, AlertTriangle, CheckCircle2, Loader2, RefreshCw, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { PERSON_FIELDS } from '../../lib/personFields';
 
 const STORAGE_KEY = 'chreosi_create_settings';
 const VOTED_STATUS_OPTIONS = [
@@ -47,6 +48,7 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
   const [analysis, setAnalysis] = useState(null);
   const [selectedSymbols, setSelectedSymbols] = useState([]);
   const [selectedVoted, setSelectedVoted] = useState([]);
+  const [selectedFields, setSelectedFields] = useState([]);
   const [availableSymbols, setAvailableSymbols] = useState([]);
   const [jobId, setJobId] = useState(null);
   const [jobProgress, setJobProgress] = useState(null);
@@ -59,6 +61,7 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
       const saved = loadLastSettings();
       setSelectedSymbols(saved.symbols || []);
       setSelectedVoted(saved.voted || []);
+      setSelectedFields(saved.fields || []);
       setAnalysis(null);
       setAnalyzeError('');
       setStep('idle');
@@ -183,12 +186,13 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
   }, [step, jobId]);
 
   const handleStartJob = async () => {
-    saveLastSettings({ symbols: selectedSymbols, voted: selectedVoted });
+    saveLastSettings({ symbols: selectedSymbols, voted: selectedVoted, fields: selectedFields });
     try {
       const res = await base44.functions.invoke('chreosiStartCreateJob', {
         session_token: sessionToken,
         allowed_prediction_symbols: selectedSymbols,
         allowed_voted_statuses: selectedVoted,
+        visible_fields: selectedFields,
       });
       const d = res.data;
       if (!d?.ok) throw new Error(d?.error || 'Failed to start job');
@@ -335,6 +339,33 @@ export default function ChreosiCreateDialog({ open, onClose, onDone, sessionToke
                         onChange={() => toggleVoted(opt.value)}
                       />
                       <span className="text-sm">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Visible portal fields */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Ορατά Πεδία στο Portal</label>
+                  <div className="flex gap-2">
+                    <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setSelectedFields(PERSON_FIELDS.map(f => f.key))}>Όλα</button>
+                    <button type="button" className="text-xs text-slate-500 hover:underline" onClick={() => setSelectedFields([])}>Κανένα</button>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                  Ποια πεδία θα βλέπουν οι χρήστες. Αν δεν επιλεγεί κανένα, ισχύει η προεπιλογή. Επεξεργάσιμο παραμένει μόνο το «Σημειώσεις».
+                </p>
+                <div className="border dark:border-slate-700 rounded-md p-3 grid grid-cols-2 gap-x-4 gap-y-1 max-h-48 overflow-y-auto">
+                  {PERSON_FIELDS.map(f => (
+                    <label key={f.key} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedFields.includes(f.key)}
+                        onChange={e => setSelectedFields(prev => e.target.checked ? [...prev, f.key] : prev.filter(k => k !== f.key))}
+                        className="rounded"
+                      />
+                      <span className="text-sm truncate" title={f.label}>{f.label}</span>
                     </label>
                   ))}
                 </div>

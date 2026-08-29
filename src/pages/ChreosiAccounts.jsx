@@ -162,6 +162,8 @@ export default function ChreosiAccounts() {
   const [bulkSymbolDialog, setBulkSymbolDialog] = useState(false);
   const [bulkSymbols, setBulkSymbols] = useState([]);
   const [bulkVoted, setBulkVoted] = useState([]);
+  const [bulkFields, setBulkFields] = useState([]);
+  const [bulkSetFields, setBulkSetFields] = useState(false); // apply visible-fields in bulk?
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [smsDialog, setSmsDialog] = useState({ open: false, username: null });
   const [smsTitle, setSmsTitle] = useState('Στοιχεία πρόσβασης');
@@ -368,6 +370,7 @@ export default function ChreosiAccounts() {
         data: {
           allowed_prediction_symbols: bulkSymbols,
           allowed_voted_statuses: bulkVoted,
+          ...(bulkSetFields ? { visible_fields: bulkFields } : {}),
         },
       });
       if (!res.data?.ok) throw new Error(res.data?.error || 'Bulk update failed');
@@ -511,7 +514,7 @@ export default function ChreosiAccounts() {
             <Button variant="outline" size="sm" onClick={() => handleBulkActivate(false)}>
               <UserX className="h-4 w-4 mr-2" />Απενεργ.
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { setBulkSymbols([]); setBulkVoted([]); setBulkSymbolDialog(true); }}>
+            <Button variant="outline" size="sm" onClick={() => { setBulkSymbols([]); setBulkVoted([]); setBulkFields([]); setBulkSetFields(false); setBulkSymbolDialog(true); }}>
               <Pencil className="h-4 w-4 mr-2" />Ρυθμίσεις
             </Button>
             <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
@@ -741,6 +744,36 @@ export default function ChreosiAccounts() {
                 <AlertDescription>Ο χρήστης δεν θα βλέπει καμία εγγραφή.</AlertDescription>
               </Alert>
             )}
+            <div className="border-t pt-4 space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={bulkSetFields} onChange={e => setBulkSetFields(e.target.checked)} className="rounded" />
+                <span className="text-sm font-medium">Ενημέρωση ορατών πεδίων στο Portal</span>
+              </label>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Αν δεν επιλεγεί, τα ορατά πεδία των λογαριασμών παραμένουν ως έχουν.
+              </p>
+              {bulkSetFields && (
+                <>
+                  <div className="flex gap-2">
+                    <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setBulkFields(PERSON_FIELDS.map(f => f.key))}>Όλα</button>
+                    <button type="button" className="text-xs text-slate-500 hover:underline" onClick={() => setBulkFields([])}>Κανένα</button>
+                  </div>
+                  <div className="border dark:border-slate-700 rounded-md p-3 grid grid-cols-2 gap-x-4 gap-y-1 max-h-48 overflow-y-auto">
+                    {PERSON_FIELDS.map(f => (
+                      <label key={f.key} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={bulkFields.includes(f.key)}
+                          onChange={e => setBulkFields(e.target.checked ? [...bulkFields, f.key] : bulkFields.filter(k => k !== f.key))}
+                          className="rounded"
+                        />
+                        <span className="text-sm truncate" title={f.label}>{f.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkSymbolDialog(false)}>Ακύρωση</Button>

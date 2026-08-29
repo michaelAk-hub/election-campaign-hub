@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const auth = await strictAuth(supabase, body.session_token);
     if (auth.error) return json({ error: auth.error, ...(auth.force_logout ? { force_logout: true } : {}) }, auth.status);
 
-    const { allowed_prediction_symbols = [], allowed_voted_statuses = [] } = body;
+    const { allowed_prediction_symbols = [], allowed_voted_statuses = [], visible_fields = [] } = body;
 
     // Resume an existing running/pending job if present.
     for (const status of ["running", "pending"]) {
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const settings = { allowed_prediction_symbols, allowed_voted_statuses };
+    const settings = { allowed_prediction_symbols, allowed_voted_statuses, visible_fields };
     const { data: job } = await supabase.from("ChreosiCreateJob").insert({
       status: "pending", total: contacts.length, processed: 0,
       created_count: 0, updated_count: 0, skipped_count: 0, failed_count: 0,

@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     const contacts = JSON.parse(jobRow.contacts_json || "[]");
     const results = JSON.parse(jobRow.results_json || "[]");
     const settings = JSON.parse(jobRow.settings_json || "{}");
-    const { allowed_prediction_symbols = [], allowed_voted_statuses = [] } = settings;
+    const { allowed_prediction_symbols = [], allowed_voted_statuses = [], visible_fields = [] } = settings;
 
     let processed = jobRow.processed || 0;
     let created = jobRow.created_count || 0;
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
         try {
           if (contact.existingId) {
             const { data: existingAcc } = await AC().select("plain_password").eq("id", contact.existingId).maybeSingle();
-            await AC().update({ allowed_prediction_symbols, allowed_voted_statuses }).eq("id", contact.existingId);
+            await AC().update({ allowed_prediction_symbols, allowed_voted_statuses, visible_fields }).eq("id", contact.existingId);
             results.push({
               username: contact.existingUsername || contact.original, display_name: contact.original,
               plain_password: existingAcc?.plain_password || "", action: "updated",
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
             await AC().insert({
               username: contact.original, display_name: contact.original,
               password_hash: pw, plain_password: pw, is_active: true,
-              allowed_prediction_symbols, allowed_voted_statuses, personal_note: "",
+              allowed_prediction_symbols, allowed_voted_statuses, visible_fields, personal_note: "",
             });
             results.push({
               username: contact.original, display_name: contact.original, plain_password: pw, action: "created",

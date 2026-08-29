@@ -68,8 +68,10 @@ Deno.serve(async (req) => {
 
     if (action === "bulk_settings") {
       if (!accountIds?.length) return json({ error: "accountIds required" }, 400);
-      const { allowed_prediction_symbols = [], allowed_voted_statuses = [] } = data || {};
-      const { error } = await AC().update({ allowed_prediction_symbols, allowed_voted_statuses }).in("id", accountIds);
+      const { allowed_prediction_symbols = [], allowed_voted_statuses = [], visible_fields } = data || {};
+      const patch: Record<string, unknown> = { allowed_prediction_symbols, allowed_voted_statuses };
+      if (Array.isArray(visible_fields)) patch.visible_fields = visible_fields;
+      const { error } = await AC().update(patch).in("id", accountIds);
       if (error) return json({ ok: true, updated: 0, failed: [{ error: error.message }] });
       return json({ ok: true, updated: accountIds.length, failed: [] });
     }
