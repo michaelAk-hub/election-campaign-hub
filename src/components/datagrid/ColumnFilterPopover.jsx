@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * ColumnFilterPanel — the inner filter UI (no Popover wrapper).
  * Can be embedded directly or used inside ColumnFilterPopover.
  */
-export function ColumnFilterPanel({ columnKey, columnLabel, partition = 'all', currentModel, onApply, onClose }) {
+export function ColumnFilterPanel({ columnKey, columnLabel, partition = 'all', endpoint = 'personGridFilterValues', extraParams, currentModel, onApply, onClose }) {
   const [filterValues, setFilterValues] = useState([]);
   const [hasBlanks, setHasBlanks] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,10 +33,11 @@ export function ColumnFilterPanel({ columnKey, columnLabel, partition = 'all', c
   const loadFilterValues = async (search = '') => {
     setLoading(true);
     try {
-      const { data } = await base44.functions.invoke('personGridFilterValues', {
+      const { data } = await base44.functions.invoke(endpoint || 'personGridFilterValues', {
         columnKey,
         searchText: search,
         partition,
+        ...(extraParams || {}),
         session_token: localStorage.getItem('app_session_token'),
       });
       setFilterValues(data.values || []);

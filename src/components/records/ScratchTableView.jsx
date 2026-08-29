@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Upload, Download, Trash2, Loader2, Search, GitMerge } from 'lucide-react';
 import RecordsAgGrid from './RecordsAgGrid';
+import GridColumnHeader from './GridColumnHeader';
 import ImportMappingDialog from './ImportMappingDialog';
 import MergeDialog from './MergeDialog';
 
@@ -69,9 +70,10 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
         minWidth: 90,
         resizable: true,
         sortable: true,
-        filter: 'agTextColumnFilter',
-        // Apply-button filter (like the live grid) so it re-fetches only on Apply.
-        filterParams: { buttons: ['apply', 'reset', 'clear'], closeOnApply: true },
+        filter: false,
+        // Reuse the live grid's header: sort + Excel-style set-filter driven
+        // through grid context (see agGridContext below).
+        headerComponent: GridColumnHeader,
       };
       if (cd.type === 'number') {
         col.cellEditor = 'agNumberCellEditor';
@@ -124,6 +126,18 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
   const handleFilterModelChange = useCallback((model) => {
     setFilterModel(model || {});
   }, []);
+
+  // Grid context feeding the shared header (sort + set-filter). The header reads
+  // `columns` for the label + filter button and calls `onFilterChange` on Apply;
+  // filter values come from scratchGridFilterValues scoped to this table.
+  const agGridContext = useMemo(() => ({
+    columns: columnDefsRegistry.map((cd) => ({ key: cd.key, label: cd.label || cd.key })),
+    filterModel,
+    onFilterChange: handleFilterModelChange,
+    partition: 'all',
+    filterEndpoint: 'scratchGridFilterValues',
+    filterExtraParams: { scratchDatasetId },
+  }), [columnDefsRegistry, filterModel, handleFilterModelChange, scratchDatasetId]);
 
   // Phase 1: upload + read headers, then open the mapping dialog.
   const onFileChosen = async (file) => {
@@ -343,9 +357,9 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
           filterModel={filterModel}
           sortModel={sortModel}
           columnDefs={columnDefs}
+          context={agGridContext}
           onCellValueChanged={handleCellValueChanged}
           onSortModelChange={handleSortModelChange}
-          onFilterModelChange={handleFilterModelChange}
           gridRef={gridRef}
           height="calc(100vh - 130px)"
         />
