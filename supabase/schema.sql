@@ -121,6 +121,7 @@ create table if not exists public."ChreosiAccount" (
   "is_active" boolean default true,
   "allowed_prediction_symbols" jsonb default '[]'::jsonb,
   "allowed_voted_statuses" jsonb default '[]'::jsonb,
+  "visible_fields" jsonb default '[]'::jsonb,
   "personal_note" text default ''
 );
 create index if not exists "ix_ChreosiAccount_username_lower" on public."ChreosiAccount" (lower("username"));

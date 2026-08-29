@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
         is_active: data.is_active,
         allowed_prediction_symbols: data.allowed_prediction_symbols || [],
         allowed_voted_statuses: data.allowed_voted_statuses || [],
+        visible_fields: Array.isArray(data.visible_fields) ? data.visible_fields : [],
         personal_note: data.personal_note,
       }).eq("id", accountId);
       return json({ ok: true });

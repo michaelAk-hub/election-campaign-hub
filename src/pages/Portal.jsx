@@ -34,7 +34,20 @@ import {
 } from 'lucide-react';
 import NotificationCenter from '../components/notifications/NotificationCenter';
 import PullToRefresh from '../components/common/PullToRefresh';
+import { DEFAULT_PORTAL_FIELDS, PERSON_FIELD_BY_KEY } from '../lib/personFields';
 import { toast } from 'sonner';
+
+// Format a Person field value for read-only display in the portal card.
+function formatFieldValue(key, val) {
+  if (val === null || val === undefined || val === '') return '';
+  const f = PERSON_FIELD_BY_KEY[key];
+  if (f?.type === 'boolean' || key === 'voted') return (val === true || val === 'true') ? 'ΝΑΙ' : 'ΟΧΙ';
+  return String(val);
+}
+
+// Fields with bespoke rendering (name → heading, phone → call button,
+// notes → editable box); everything else shows as a read-only badge.
+const SPECIAL_FIELD_KEYS = new Set(['last_name', 'first_name', 'mobile_phone', 'phone', 'notes']);
 
 function normalizeUsername(str) {
   return str?.trim().replace(/\s+/g, ' ') || '';
@@ -158,6 +171,18 @@ function ChreosiPortal({ username }) {
 
   const noAccess = account && (!account.allowed_prediction_symbols?.length || !account.allowed_voted_statuses?.length);
 
+  // Which live fields this account may see. Empty => historical fixed layout.
+  const visibleFields = (account?.visible_fields?.length ? account.visible_fields : DEFAULT_PORTAL_FIELDS);
+  const visSet = new Set(visibleFields);
+  const showNotes = visSet.has('notes');
+  const personHeading = (p) => {
+    const parts = [];
+    if (visSet.has('last_name')) parts.push(p.last_name);
+    if (visSet.has('first_name')) parts.push(p.first_name);
+    const name = parts.filter(Boolean).join(' ');
+    return name || (p.person_id ? `#${p.person_id}` : 'Εγγραφή');
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -245,7 +270,11 @@ function ChreosiPortal({ username }) {
       </div>
 
       <div className="space-y-3">
-        {people.map(person => (
+        {people.map(person => {
+          const phoneKey = (visSet.has('mobile_phone') && person.mobile_phone) ? 'mobile_phone'
+            : (visSet.has('phone') && person.phone) ? 'phone' : null;
+          const phoneVal = phoneKey ? person[phoneKey] : null;
+          return (
           <Card key={person.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <div className="flex items-start gap-4">
@@ -258,41 +287,54 @@ function ChreosiPortal({ username }) {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-                        {person.last_name} {person.first_name}
+                        {personHeading(person)}
                       </h3>
                       <div className="flex flex-wrap gap-2 mt-1">
-                        <Badge variant="outline">{person.department}</Badge>
-                        <Badge variant="outline">{person.admission_year}</Badge>
-                        {person.ElectoralTown && <Badge variant="outline">{person.ElectoralTown}</Badge>}
-                        {person.ElectoralDistrict && <Badge variant="outline">{person.ElectoralDistrict}</Badge>}
-                        {person.voted && <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Ψήφισε</Badge>}
+                        {visibleFields.filter(k => !SPECIAL_FIELD_KEYS.has(k)).map(k => {
+                          if (k === 'voted') {
+                            return person.voted
+                              ? <Badge key={k} className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Ψήφισε</Badge>
+                              : <Badge key={k} variant="outline">Δεν ψήφισε</Badge>;
+                          }
+                          const v = formatFieldValue(k, person[k]);
+                          if (!v) return null;
+                          const label = PERSON_FIELD_BY_KEY[k]?.label || k;
+                          return (
+                            <Badge key={k} variant="outline">
+                              <span className="text-slate-400 dark:text-slate-500 mr-1">{label}:</span>{v}
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </div>
-                    {person.mobile_phone && (
+                    {phoneVal && (
                       <a
-                        href={`tel:${person.mobile_phone}`}
+                        href={`tel:${phoneVal}`}
                         className="flex items-center gap-1 px-3 py-2 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors"
                       >
                         <Phone className="h-4 w-4" />
-                        <span className="text-sm">{person.mobile_phone}</span>
+                        <span className="text-sm">{phoneVal}</span>
                       </a>
                     )}
                   </div>
-                  <div className="mt-3">
-                    <div
-                      className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg -ml-2"
-                      onClick={() => { setEditingNotes(person); setNotesValue(person.notes || ''); }}
-                    >
-                      {person.notes
-                        ? <p className="dark:text-slate-300">{person.notes}</p>
-                        : <p className="text-slate-400 dark:text-slate-500 italic">Κλικ για προσθήκη σημειώσεων...</p>}
+                  {showNotes && (
+                    <div className="mt-3">
+                      <div
+                        className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg -ml-2"
+                        onClick={() => { setEditingNotes(person); setNotesValue(person.notes || ''); }}
+                      >
+                        {person.notes
+                          ? <p className="dark:text-slate-300">{person.notes}</p>
+                          : <p className="text-slate-400 dark:text-slate-500 italic">Κλικ για προσθήκη σημειώσεων...</p>}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
 
         {people.length === 0 && (
           <div className="text-center py-12 text-slate-500 dark:text-slate-400">
@@ -306,7 +348,7 @@ function ChreosiPortal({ username }) {
       <Dialog open={!!editingNotes} onOpenChange={() => setEditingNotes(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Σημειώσεις - {editingNotes?.last_name} {editingNotes?.first_name}</DialogTitle>
+            <DialogTitle>Σημειώσεις{editingNotes ? ` - ${personHeading(editingNotes)}` : ''}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <Textarea value={notesValue} onChange={(e) => setNotesValue(e.target.value)} placeholder="Γράψτε σημειώσεις..." rows={5} />

@@ -24,6 +24,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, GitMerge, Loader2, CheckSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PERSON_FIELDS } from '../lib/personFields';
 
 const VOTED_STATUS_OPTIONS = [
   { value: 'false', label: 'Δεν Ψήφισαν' },
@@ -285,6 +286,7 @@ export default function ChreosiAccounts() {
           is_active: formData.is_active,
           allowed_prediction_symbols: formData.allowed_prediction_symbols || [],
           allowed_voted_statuses: formData.allowed_voted_statuses || [],
+          visible_fields: formData.visible_fields || [],
           personal_note: formData.personal_note,
         },
       });
@@ -794,6 +796,45 @@ export default function ChreosiAccounts() {
               {noRecordsWarning(formData.allowed_prediction_symbols || [], formData.allowed_voted_statuses || []) && (
                 <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>Ο χρήστης δεν θα βλέπει καμία εγγραφή.</AlertDescription></Alert>
               )}
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Ορατά Πεδία στο Portal</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-xs text-blue-600 hover:underline"
+                    onClick={() => setFormData({ ...formData, visible_fields: PERSON_FIELDS.map(f => f.key) })}
+                  >Όλα</button>
+                  <button
+                    type="button"
+                    className="text-xs text-slate-500 hover:underline"
+                    onClick={() => setFormData({ ...formData, visible_fields: [] })}
+                  >Κανένα</button>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Επιλέξτε ποια πεδία της ζωντανής καρτέλας θα βλέπει ο χρήστης. Αν δεν επιλεγεί κανένα, ισχύει η προεπιλογή. Επεξεργάσιμο παραμένει μόνο το πεδίο «Σημειώσεις».
+              </p>
+              <div className="border dark:border-slate-700 rounded-md p-3 grid grid-cols-2 gap-x-4 gap-y-1 max-h-56 overflow-y-auto">
+                {PERSON_FIELDS.map(f => {
+                  const sel = (formData.visible_fields || []).includes(f.key);
+                  return (
+                    <label key={f.key} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={sel}
+                        onChange={e => {
+                          const cur = formData.visible_fields || [];
+                          setFormData({ ...formData, visible_fields: e.target.checked ? [...cur, f.key] : cur.filter(k => k !== f.key) });
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm truncate" title={f.label}>{f.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-2"><Label>Προσωπικές Σημειώσεις</Label><Textarea value={formData.personal_note || ''} onChange={e => setFormData({...formData, personal_note: e.target.value})} rows={4} /></div>
           </div>
