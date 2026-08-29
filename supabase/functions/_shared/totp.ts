@@ -56,7 +56,7 @@ export async function verifyTotp(secret: string, code: string, stepSeconds = 30,
 }
 
 // otpauth:// URI that authenticator apps scan.
-export function otpauthUri(secret: string, account: string, issuer = "VoteControl"): string {
+export function otpauthUri(secret: string, account: string, issuer = "V-O-T-E"): string {
   const label = encodeURIComponent(`${issuer}:${account}`);
   const params = new URLSearchParams({ secret, issuer, algorithm: "SHA1", digits: "6", period: "30" });
   return `otpauth://totp/${label}?${params.toString()}`;
