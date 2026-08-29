@@ -15,8 +15,12 @@ const SEARCH_FIELDS = [
 ];
 
 const isBlank = (v: any) => v === null || v === undefined || v === "" || (typeof v === "string" && v.trim() === "");
-const getField = (p: any, rawField: string) =>
-  rawField.startsWith("custom:") ? p.custom_data?.[rawField.slice(7)] : p[rawField];
+// A column key resolves to a physical column when present, else a custom_data key
+// (scratch tables keep free-form columns in custom_data).
+const getField = (p: any, rawField: string) => {
+  if (rawField.startsWith("custom:")) return p.custom_data?.[rawField.slice(7)];
+  return p[rawField] !== undefined ? p[rawField] : p.custom_data?.[rawField];
+};
 
 function matchesSearch(p: any, s: string): boolean {
   const q = s.toLowerCase();
@@ -79,7 +83,7 @@ Deno.serve(async (req) => {
 
     const dir = sortDirection === "asc" ? 1 : -1;
     rows.sort((a, b) => {
-      const av = a[sortField], bv = b[sortField];
+      const av = getField(a, sortField), bv = getField(b, sortField);
       if (av == null && bv == null) return 0;
       if (av == null) return 1;
       if (bv == null) return -1;

@@ -68,6 +68,10 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
         editable: true,
         minWidth: 90,
         resizable: true,
+        sortable: true,
+        filter: 'agTextColumnFilter',
+        // Apply-button filter (like the live grid) so it re-fetches only on Apply.
+        filterParams: { buttons: ['apply', 'reset', 'clear'], closeOnApply: true },
       };
       if (cd.type === 'number') {
         col.cellEditor = 'agNumberCellEditor';
@@ -115,6 +119,10 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
 
   const handleSortModelChange = useCallback((field, dir) => {
     setSortModel({ field, dir });
+  }, []);
+
+  const handleFilterModelChange = useCallback((model) => {
+    setFilterModel(model || {});
   }, []);
 
   // Phase 1: upload + read headers, then open the mapping dialog.
@@ -337,6 +345,7 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
           columnDefs={columnDefs}
           onCellValueChanged={handleCellValueChanged}
           onSortModelChange={handleSortModelChange}
+          onFilterModelChange={handleFilterModelChange}
           gridRef={gridRef}
           height="calc(100vh - 130px)"
         />

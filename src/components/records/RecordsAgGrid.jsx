@@ -41,6 +41,7 @@ export default function RecordsAgGrid({
   onCellValueChanged,
   onSortModelChange,
   onColumnOrderChange,
+  onFilterModelChange,
   onRowDoubleClick,
   gridRef,
   height = '70vh',
@@ -108,8 +109,17 @@ export default function RecordsAgGrid({
     const sorted = colState.find(c => c.sort);
     if (sorted) {
       onSortModelChange?.(sorted.colId, sorted.sort);
+    } else {
+      onSortModelChange?.('created_date', 'desc'); // sort cleared → default
     }
   }, [onSortModelChange]);
+
+  // AG built-in column filters (used by the scratch grid) → push the model up so
+  // the datasource re-fetches. Harmless for the live grid (its columns set
+  // filter:false, so AG never produces a filter model here).
+  const onFilterChanged = useCallback((params) => {
+    onFilterModelChange?.(params.api.getFilterModel() || {});
+  }, [onFilterModelChange]);
 
   const onDragStopped = useCallback((params) => {
     const colState = params.api.getColumnState();
@@ -139,6 +149,7 @@ export default function RecordsAgGrid({
           onCellValueChanged={onCellValueChanged}
           onSelectionChanged={onSelectionChanged}
           onSortChanged={onSortChanged}
+          onFilterChanged={onFilterChanged}
           onDragStopped={onDragStopped}
           onRowDoubleClicked={onRowDoubleClick}
           enableCellEditingOnBackspace={true}
