@@ -86,21 +86,18 @@ export async function runDriveBackup(onStep = () => {}) {
   const monthFolder = await findOrCreateFolder(token, month, backupFolder);
   const dateFolder = await findOrCreateFolder(token, date, monthFolder);
 
-  // Build ONE .xlsx workbook with a sheet per table (in the browser).
+  // One .xlsx file per table, named after the table (built in the browser).
   const XLSX = await import('xlsx');
-  const wb = XLSX.utils.book_new();
+  const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   const results = [];
   for (const table of TABLES) {
-    onStep(`Ανάγνωση: ${table}...`);
+    onStep(`Αντίγραφο: ${table}...`);
     const rows = await fetchAllRows(table);
+    const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, tableToSheet(XLSX, rows), table.slice(0, 31));
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    await uploadBinary(token, dateFolder, `${table}.xlsx`, bytes, XLSX_MIME);
     results.push({ table, rows: rows.length });
   }
-  onStep('Δημιουργία αρχείου Excel...');
-  const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-  onStep('Μεταφόρτωση στο Drive...');
-  await uploadBinary(token, dateFolder, `backup-${date}.xlsx`, bytes,
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-
-  return { path: `backup/${month}/${date}/backup-${date}.xlsx`, results };
+  return { path: `backup/${month}/${date}/`, results };
 }
