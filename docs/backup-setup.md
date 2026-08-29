@@ -76,14 +76,14 @@ That’s it. The anon key and project URL are already in the workflow (both are 
 ## Test it
 1. After deploying, open **UserManagement** → click **Backup**.
 2. You should get a toast like *“Αντίγραφο ασφαλείας ολοκληρώθηκε: N πίνακες → backup/2026-08/2026-08-27”*.
-3. Check your Google Drive → `backup/2026-08/2026-08-27/` → the `.xlsx` files.
+3. Check your Google Drive → `backup/2026-08/2026-08-27/` → the `.csv` files.
 4. To test the schedule immediately: GitHub → **Actions → Daily Backup → Run workflow**.
 
 ## Notes
-- Running a backup twice on the same day creates a second `backup-<date>.xlsx`
-  in the same dated folder (Drive keeps both) — harmless.
-- To restore a table: the per-table CSV opens in Excel and re-imports directly
-  and re-import it (scratch import for a working copy, then merge to live;
-  JSON-text cells like `custom_data` can be re-expanded if needed).
+- Running a backup twice on the same day overwrites nothing new is added beyond
+  fresh copies; Drive keeps duplicate-named files if any — harmless.
+- To restore a table: the per-table `.csv` opens directly in Excel and can be
+  re-imported (scratch import for a working copy, then merge to live; JSON-text
+  cells like `custom_data` can be re-expanded if needed).
 - The daily time is 01:00 UTC; change the `cron:` line in
   `.github/workflows/daily-backup.yml` to adjust.
