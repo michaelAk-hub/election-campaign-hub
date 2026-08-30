@@ -230,8 +230,10 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
           scratchDatasetId,
           startRow: start,
           endRow: start + PAGE,
-          sortField: 'created_date',
-          sortDirection: 'desc',
+          sortField: sortModel.field,
+          sortDirection: sortModel.dir,
+          filters: Object.keys(filterModel).length > 0 ? filterModel : null,
+          search: serverSearchTerm || undefined,
         });
         if (data?.error) throw new Error(data.error);
         const rows = data?.rows || [];
