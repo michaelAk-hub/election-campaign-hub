@@ -482,6 +482,115 @@ function KanaliTypeAPortal({ username }) {
   );
 }
 
+// Kanali Type B Portal — fills in the shared form and submits it for later
+// identification. The operator never sees matches or vote status.
+function KanaliTypeBPortal({ username }) {
+  const sessionToken = localStorage.getItem('portal_session') || '';
+  const [values, setValues] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['kanali-b-form', username],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('kanaliBFormGet', { username, sessionToken });
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    enabled: !!sessionToken && !!username,
+  });
+  const fields = data?.fields || [];
+
+  const setVal = (k, v) => setValues((prev) => ({ ...prev, [k]: v }));
+
+  const renderInput = (f) => {
+    const v = values[f.field_key] ?? '';
+    if (f.input_type === 'dropdown') {
+      return (
+        <Select value={String(v)} onValueChange={(val) => setVal(f.field_key, val)}>
+          <SelectTrigger><SelectValue placeholder="Επιλέξτε..." /></SelectTrigger>
+          <SelectContent>
+            {(f.options || []).map((opt) => <SelectItem key={String(opt)} value={String(opt)}>{String(opt)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      );
+    }
+    if (f.input_type === 'yesno') {
+      return (
+        <Select value={String(v)} onValueChange={(val) => setVal(f.field_key, val)}>
+          <SelectTrigger><SelectValue placeholder="Επιλέξτε..." /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ΝΑΙ">Ναι</SelectItem>
+            <SelectItem value="ΟΧΙ">Όχι</SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    }
+    const type = f.input_type === 'number' ? 'number' : f.input_type === 'date' ? 'date' : 'text';
+    return (
+      <Input
+        type={type}
+        inputMode={f.input_type === 'number' ? 'numeric' : undefined}
+        value={v}
+        onChange={(e) => setVal(f.field_key, e.target.value)}
+      />
+    );
+  };
+
+  const submit = async () => {
+    const missing = fields.filter((f) => f.required && !String(values[f.field_key] ?? '').trim()).map((f) => f.label || f.field_key);
+    if (missing.length) { toast.error('Συμπληρώστε: ' + missing.join(', ')); return; }
+    if (!Object.values(values).some((v) => String(v ?? '').trim())) { toast.error('Συμπληρώστε τουλάχιστον ένα πεδίο'); return; }
+    setSubmitting(true);
+    try {
+      const res = await base44.functions.invoke('submitKanaliBForm', { username, sessionToken, values });
+      if (res.data?.error) throw new Error(res.data.error);
+      toast.success('Καταχωρήθηκε');
+      setValues({}); // clear for the next submission
+    } catch (e) {
+      toast.error('Σφάλμα: ' + (e.message || ''));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>;
+  }
+  if (fields.length === 0) {
+    return (
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>Η φόρμα δεν έχει ρυθμιστεί ακόμη. Επικοινωνήστε με τον διαχειριστή.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto">
+      <Card>
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          </div>
+          <CardTitle>Καταχώρηση Στοιχείων</CardTitle>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">Συμπληρώστε όσα στοιχεία γνωρίζετε</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {fields.map((f) => (
+            <div key={f.field_key} className="space-y-1.5">
+              <Label>{f.label}{f.required && <span className="text-red-500"> *</span>}</Label>
+              {renderInput(f)}
+            </div>
+          ))}
+          <Button className="w-full" onClick={submit} disabled={submitting}>
+            {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Καταχώρηση...</> : <><CheckCircle2 className="h-4 w-4 mr-2" />Καταχώρηση</>}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // Main Portal Component
 export default function Portal() {
   const navigate = useNavigate();
@@ -657,6 +766,8 @@ export default function Portal() {
             <ChreosiPortal username={session.username} />
           ) : session.kanaliType === 'A' ? (
             <KanaliTypeAPortal username={session.username} />
+          ) : session.kanaliType === 'B' ? (
+            <KanaliTypeBPortal username={session.username} />
           ) : (
            <div className="text-center py-12">
              <p className="text-slate-500 dark:text-slate-400">Ο τύπος B θα είναι διαθέσιμος σύντομα.</p>
