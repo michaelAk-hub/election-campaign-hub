@@ -31,13 +31,19 @@ create table if not exists public."KanaliBSubmission" (
 create index if not exists "ix_KanaliBSubmission_status" on public."KanaliBSubmission" ("status");
 
 -- updated_date trigger (mirrors the other tables). The function set_updated_date
--- is created in schema.sql.
+-- is created in schema.sql. Created only if missing (no DROP) so the SQL editor
+-- doesn't flag this as a destructive query.
 do $$
 begin
   if exists (select 1 from pg_proc where proname = 'set_updated_date') then
-    execute 'drop trigger if exists "trg_updated_KanaliBFormField" on public."KanaliBFormField"';
-    execute 'create trigger "trg_updated_KanaliBFormField" before update on public."KanaliBFormField" for each row execute function public.set_updated_date()';
-    execute 'drop trigger if exists "trg_updated_KanaliBSubmission" on public."KanaliBSubmission"';
-    execute 'create trigger "trg_updated_KanaliBSubmission" before update on public."KanaliBSubmission" for each row execute function public.set_updated_date()';
+    if not exists (select 1 from pg_trigger where tgname = 'trg_updated_KanaliBFormField') then
+      execute 'create trigger "trg_updated_KanaliBFormField" before update on public."KanaliBFormField" for each row execute function public.set_updated_date()';
+    end if;
+    if not exists (select 1 from pg_trigger where tgname = 'trg_updated_KanaliBSubmission') then
+      execute 'create trigger "trg_updated_KanaliBSubmission" before update on public."KanaliBSubmission" for each row execute function public.set_updated_date()';
+    end if;
   end if;
 end $$;
+
+-- Make the new tables visible to the PostgREST API immediately.
+notify pgrst, 'reload schema';
