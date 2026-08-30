@@ -764,9 +764,9 @@ export default function Portal() {
         <PullToRefresh onRefresh={async () => { window.location.reload(); }}>
           {session.portalType === 'chreosi' ? (
             <ChreosiPortal username={session.username} />
-          ) : session.kanaliType === 'A' ? (
+          ) : String(session.kanaliType).toUpperCase() === 'A' ? (
             <KanaliTypeAPortal username={session.username} />
-          ) : session.kanaliType === 'B' ? (
+          ) : String(session.kanaliType).toUpperCase() === 'B' ? (
             <KanaliTypeBPortal username={session.username} />
           ) : (
            <div className="text-center py-12">

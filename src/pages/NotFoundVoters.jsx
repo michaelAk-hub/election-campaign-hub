@@ -15,15 +15,19 @@ import {
   DialogDescription, 
   DialogFooter 
 } from "@/components/ui/dialog";
-import { FileSpreadsheet, Download, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { FileSpreadsheet, Download, RefreshCw, Trash2, AlertTriangle, ChevronDown, ChevronRight, Vote } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
+import KanaliBSubmissionsSection from '../components/kanali/KanaliBSubmissionsSection';
 
 export default function NotFoundVoters() {
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [typeACollapsed, setTypeACollapsed] = useState(false);
+  const sessionToken = localStorage.getItem('app_session_token') || '';
 
   const { data: notFoundVoters = [], isLoading, refetch } = useQuery({
     queryKey: ['not-found-voters'],
@@ -177,12 +181,30 @@ export default function NotFoundVoters() {
         }
       />
 
-      <DataGrid
-        data={notFoundVoters}
-        columns={columns}
-        pageSize={25}
-        emptyMessage="Δεν υπάρχουν αποτυχημένες καταχωρήσεις"
-      />
+      {/* Τύπος A — μοναδικός αριθμός που δεν βρέθηκε */}
+      <Card>
+        <CardHeader className="py-3">
+          <button onClick={() => setTypeACollapsed((c) => !c)} className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-100">
+            {typeACollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <Vote className="h-4 w-4 text-blue-600" />
+            Τύπος A — Δεν βρέθηκαν
+            <Badge variant="outline" className="ml-1">{notFoundVoters.length}</Badge>
+          </button>
+        </CardHeader>
+        {!typeACollapsed && (
+          <CardContent className="pt-0">
+            <DataGrid
+              data={notFoundVoters}
+              columns={columns}
+              pageSize={25}
+              emptyMessage="Δεν υπάρχουν αποτυχημένες καταχωρήσεις"
+            />
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Τύπος B — υποβολές φόρμας */}
+      <KanaliBSubmissionsSection sessionToken={sessionToken} />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
