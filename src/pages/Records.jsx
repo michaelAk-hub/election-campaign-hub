@@ -23,6 +23,7 @@ import {
   CheckCircle2, Phone, Upload, FileSpreadsheet, Loader2, Search, X, ChevronDown, Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { safeFileName } from '@/lib/utils';
 import GridColumnHeader from '../components/records/GridColumnHeader';
 import RecordsAgGrid from '../components/records/RecordsAgGrid';
 import ScratchTableView from '../components/records/ScratchTableView';
@@ -143,6 +144,11 @@ const COLUMNS = [
 ];
 
 const LABEL_TO_KEY = Object.fromEntries(COLUMNS.map(c => [c.label, c.key]));
+
+// The live table's display name in the interface (the ★ tab). Used both for the
+// tab and the export filename so they stay in sync.
+const LIVE_TABLE_LABEL = 'Ζωντανός Πίνακας';
+
 
 // ─── Search input (AG Grid) ───────────────────────────────────────────────────
 function AgGridSearchInput({ value, onCommit }) {
@@ -858,7 +864,7 @@ export default function Records() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${(activeDataset?.name || 'export').replace(/[^\w.-]+/g, '_')}.xlsx`;
+      a.download = `${safeFileName(LIVE_TABLE_LABEL)}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1143,7 +1149,7 @@ export default function Records() {
             onClick={() => setActiveTab('live')}
             className={`h-8 px-3 rounded-t text-sm font-medium shrink-0 whitespace-nowrap ${activeTab === 'live' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
           >
-            ★ Ζωντανός Πίνακας
+            ★ {LIVE_TABLE_LABEL}
           </button>
           {scratchDatasets.map(s => (
             <button

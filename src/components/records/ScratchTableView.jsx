@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Upload, Download, Trash2, Loader2, Search, GitMerge } from 'lucide-react';
 import RecordsAgGrid from './RecordsAgGrid';
 import GridColumnHeader from './GridColumnHeader';
+import { safeFileName } from '@/lib/utils';
 import ImportMappingDialog from './ImportMappingDialog';
 import MergeDialog from './MergeDialog';
 
@@ -262,7 +263,7 @@ export default function ScratchTableView({ scratchDatasetId, name, onDeleted, on
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${(name || 'scratch').replace(/[^\w.-]+/g, '_')}.xlsx`;
+      a.download = `${safeFileName(name, 'scratch')}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
