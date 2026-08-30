@@ -28,7 +28,6 @@ import RecordsAgGrid from '../components/records/RecordsAgGrid';
 import ScratchTableView from '../components/records/ScratchTableView';
 import SchemaDesignDialog from '../components/records/SchemaDesignDialog';
 import ImportProgressModal from '../components/records/ImportProgressModal';
-import ExportProgressModal from '../components/records/ExportProgressModal';
 import DeleteProgressModal from '../components/records/DeleteProgressModal';
 import PullToRefresh from '../components/common/PullToRefresh';
 
@@ -366,7 +365,7 @@ export default function Records() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteJobId, setDeleteJobId] = useState(null);
   const [importJobId, setImportJobId] = useState(null);
-  const [exportJobId, setExportJobId] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const [partition, setPartition] = useState('all');
   const [showDatasets, setShowDatasets] = useState(false); // collapsible datasets panel (compact by default)
   const [activeTab, setActiveTab] = useState('live'); // 'live' | <scratch dataset id>
@@ -809,27 +808,66 @@ export default function Records() {
   });
 
   // ── Export ─────────────────────────────────────────────────────────────────
+  // Built in the browser: page the (filtered/sorted) rows via personGridFetch —
+  // which is cheap server-side — and assemble the .xlsx here. This avoids the
+  // Edge Function CPU/memory limit (HTTP 546) that a big server-side workbook
+  // hits, exactly like the scratch-table export.
   const handleExport = async () => {
     if (!activeDatasetId) return toast.error('Δεν υπάρχει ενεργό dataset');
+    setExporting(true);
     try {
       const sessionToken = localStorage.getItem('app_session_token');
-      const { data } = await base44.functions.invoke('exportPersonsJob', {
-        session_token: sessionToken,
-        datasetId: activeDatasetId,
-        datasetName: activeDataset?.name,
-        partition,
-        filters: Object.keys(filterModel).length > 0 ? filterModel : null,
-        sortField: sortModel.field,
-        sortDirection: sortModel.dir,
-        search: serverSearchTerm || undefined,
-      });
-      if (data?.job_id) {
-        setExportJobId(data.job_id);
-      } else {
-        toast.error(data?.error || 'Σφάλμα εξαγωγής');
+      const all = [];
+      const PAGE = 1000;
+      for (let start = 0; ; start += PAGE) {
+        const { data } = await base44.functions.invoke('personGridFetch', {
+          session_token: sessionToken,
+          datasetId: activeDatasetId,
+          partition,
+          startRow: start,
+          endRow: start + PAGE,
+          sortField: sortModel.field,
+          sortDirection: sortModel.dir,
+          filters: Object.keys(filterModel).length > 0 ? filterModel : null,
+          search: serverSearchTerm || undefined,
+        });
+        if (data?.error) throw new Error(data.error);
+        const rows = data?.rows || [];
+        all.push(...rows);
+        const total = typeof data?.total === 'number' ? data.total : null;
+        if (rows.length < PAGE || (total !== null && all.length >= total)) break;
       }
+
+      // Same columns/labels/order and voted formatting as the previous export.
+      const sheetRows = all.map((r) => {
+        const o = {};
+        for (const c of COLUMNS) {
+          let v = r[c.key];
+          if (c.key === 'voted') v = v ? 'ΝΑΙ' : 'ΟΧΙ';
+          o[c.label] = v === null || v === undefined ? '' : String(v);
+        }
+        return o;
+      });
+
+      const XLSX = await import('xlsx');
+      const ws = XLSX.utils.json_to_sheet(sheetRows, { header: COLUMNS.map(c => c.label) });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Εγγραφές');
+      const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(activeDataset?.name || 'export').replace(/[^\w.-]+/g, '_')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Εξήχθησαν ${all.length.toLocaleString('el-GR')} εγγραφές`);
     } catch (e) {
-      toast.error('Σφάλμα εξαγωγής: ' + e.message);
+      toast.error('Σφάλμα εξαγωγής: ' + (e.message || ''));
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -1182,8 +1220,8 @@ export default function Records() {
               <Upload className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">Εισαγωγή</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={!activeDatasetId} className="h-8 shrink-0">
-              <Download className="h-4 w-4 sm:mr-1.5" />
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={!activeDatasetId || exporting} className="h-8 shrink-0">
+              {exporting ? <Loader2 className="h-4 w-4 sm:mr-1.5 animate-spin" /> : <Download className="h-4 w-4 sm:mr-1.5" />}
               <span className="hidden sm:inline">Εξαγωγή</span>
             </Button>
             <Button size="sm" disabled={!activeDatasetId} onClick={() => { if (!activeDatasetId) return; setFormData({}); setAddDialog(true); }} className="h-8 shrink-0">
@@ -1521,7 +1559,6 @@ export default function Records() {
         {/* ── Progress Modals ───────────────────────────────────────────────── */}
         {deleteJobId && <DeleteProgressModal jobId={deleteJobId} onClose={handleDeleteJobClose} />}
         {importJobId && <ImportProgressModal jobId={importJobId} onClose={handleImportJobClose} />}
-        {exportJobId && <ExportProgressModal jobId={exportJobId} datasetName={activeDataset?.name} onClose={() => setExportJobId(null)} />}
         </>
         )}
       </div>
