@@ -326,6 +326,37 @@ create table if not exists public."NotFoundVoter" (
 );
 create index if not exists "ix_NotFoundVoter_submitted" on public."NotFoundVoter" ("submitted_id");
 
+-- Kanali Τύπος B: one shared form (a set of Person fields with matching config)
+-- and the operator submissions collected against it.
+create table if not exists public."KanaliBFormField" (
+  "id" text primary key default gen_random_uuid()::text,
+  "created_date" timestamptz not null default now(),
+  "updated_date" timestamptz not null default now(),
+  "created_by" text,
+  "field_key" text,                 -- Person column key
+  "label" text,                     -- custom label shown on the form
+  "input_type" text default 'text', -- text | number | date | dropdown | yesno
+  "required" boolean default false,
+  "weight" integer default 1,       -- priority weight (shareable across fields)
+  "match_role" text default 'fuzzy',-- hard | fuzzy
+  "options" jsonb default '[]'::jsonb, -- dropdown options snapshot
+  "sort_order" integer default 0
+);
+
+create table if not exists public."KanaliBSubmission" (
+  "id" text primary key default gen_random_uuid()::text,
+  "created_date" timestamptz not null default now(),
+  "updated_date" timestamptz not null default now(),
+  "created_by" text,
+  "kanali_username" text,
+  "values" jsonb default '{}'::jsonb, -- { field_key: value }
+  "status" text default 'pending',    -- pending | done
+  "matched_person_id" text,
+  "resolved_by" text,
+  "resolved_at" timestamptz
+);
+create index if not exists "ix_KanaliBSubmission_status" on public."KanaliBSubmission" ("status");
+
 -- ---------------------------------------------------------------------------
 -- Notifications / push messages
 -- ---------------------------------------------------------------------------
@@ -688,7 +719,7 @@ declare
     'AppUser','AppSession','PortalSession','MfaChallenge','LoginThrottle',
     'ChreosiAccount','KanaliAccount','ChreosiCheckmark','ChreosiCreateJob',
     'Dataset','Person','ImportJob','ExportJob','DeleteJob',
-    'KanaliSubmission','NotFoundVoter',
+    'KanaliSubmission','NotFoundVoter','KanaliBFormField','KanaliBSubmission',
     'Notification','NotificationPreference','PushMessage','PushMessageAck',
     'SmsLog','SmsPhoneGroup','SmsPhoneGroupMember',
     'SavedQuery','GridPreference','UserActivationLog',

@@ -39,6 +39,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import KanaliBFormDialog from '../components/kanali/KanaliBFormDialog';
 
 function generatePassword(length = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -59,7 +60,9 @@ export default function KanaliAccounts() {
   const [createdAccounts, setCreatedAccounts] = useState([]);
   const [numAccounts, setNumAccounts] = useState(5);
   const [accountType, setAccountType] = useState('A');
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const sessionToken = localStorage.getItem('app_session_token') || '';
   const [deleteDialog, setDeleteDialog] = useState({ open: false, ids: [], single: false, username: '' });
 
   const { data: accounts = [], isLoading } = useQuery({
@@ -201,12 +204,19 @@ export default function KanaliAccounts() {
         subtitle={`${accounts.length} λογαριασμοί`}
         icon={Vote}
         actions={
-          <Button onClick={() => setCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Δημιουργία Λογαριασμών
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setFormDialogOpen(true)}>
+              Φόρμα Τύπου B
+            </Button>
+            <Button onClick={() => setCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Δημιουργία Λογαριασμών
+            </Button>
+          </div>
         }
       />
+
+      <KanaliBFormDialog open={formDialogOpen} onClose={() => setFormDialogOpen(false)} sessionToken={sessionToken} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card>
