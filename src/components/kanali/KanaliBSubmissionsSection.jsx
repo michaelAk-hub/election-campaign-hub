@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronDown, ChevronRight, RefreshCw, Trash2, Loader2, ClipboardList } from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw, Trash2, Loader2, ClipboardList, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
+import KanaliBMatchDialog from './KanaliBMatchDialog';
 
 // Type B submissions on the NotFoundVoters page — a collapsible section, separate
 // from the Type A "not found" list. Each row shows a compact summary of the
@@ -19,6 +20,7 @@ export default function KanaliBSubmissionsSection({ sessionToken }) {
   const [expanded, setExpanded] = useState({});
   const [selected, setSelected] = useState([]);
   const [deleting, setDeleting] = useState(false);
+  const [matchSub, setMatchSub] = useState(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['kanali-b-subs'],
@@ -98,7 +100,7 @@ export default function KanaliBSubmissionsSection({ sessionToken }) {
                 <span className="flex-1">Στοιχεία</span>
                 <span className="w-28 hidden sm:block">Χρήστης</span>
                 <span className="w-32 hidden md:block">Ημερομηνία</span>
-                <span className="w-28">Κατάσταση</span>
+                <span className="w-36">Κατάσταση</span>
                 <span className="w-6" />
               </div>
               {submissions.map((sub) => {
@@ -132,7 +134,14 @@ export default function KanaliBSubmissionsSection({ sessionToken }) {
                       <span className="w-32 hidden md:block text-xs text-slate-500 dark:text-slate-400">
                         {sub.created_date ? format(new Date(sub.created_date), 'dd/MM/yyyy HH:mm', { locale: el }) : '-'}
                       </span>
-                      <span className="w-28"><StatusBadge status={sub.status} /></span>
+                      <div className="w-36 flex flex-col items-start gap-1">
+                        <StatusBadge status={sub.status} />
+                        {sub.status !== 'done' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setMatchSub(sub)}>
+                            <Search className="h-3.5 w-3.5 mr-1" />Αντιστοίχιση
+                          </Button>
+                        )}
+                      </div>
                       <button className="w-6 text-slate-400 hover:text-slate-600" onClick={() => setExpanded((e) => ({ ...e, [sub.id]: !e[sub.id] }))}>
                         {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </button>
@@ -144,6 +153,15 @@ export default function KanaliBSubmissionsSection({ sessionToken }) {
           )}
         </CardContent>
       )}
+
+      <KanaliBMatchDialog
+        open={!!matchSub}
+        submission={matchSub}
+        fields={fields}
+        sessionToken={sessionToken}
+        onClose={() => setMatchSub(null)}
+        onResolved={() => refetch()}
+      />
     </Card>
   );
 }

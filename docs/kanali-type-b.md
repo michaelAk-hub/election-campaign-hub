@@ -54,6 +54,18 @@ Migration: `supabase/kanali_type_b.sql` (also folded into `schema.sql`).
 ## Build phases
 
 1. **DB + form builder** ✅
-2. Portal form + submissions storage
-3. NotFoundVoters two-section UI + listing
-4. Matcher + candidate dialog + mark-voted
+2. **Portal form + submissions storage** ✅
+3. **NotFoundVoters two-section UI + listing** ✅
+4. **Matcher + candidate dialog + mark-voted** ✅
+
+## Matching internals (as built)
+
+`_shared/greek.ts` provides `hardEquals` (accent/case-insensitive, boolean-aware)
+for hard filters and `similarity` for fuzzy fields: phonetic fold (ω→ο, η/υ→ι,
+ει/οι→ι, αι→ε, ου→υ, collapse doubled letters) then a normalized Levenshtein
+ratio. `kanaliBFindMatches` filters the active-dataset Person rows by every filled
+hard field, scores the survivors as Σ(weight×similarity)/Σ(weight), keeps ≥50%
+(or the closest 5 if none clear the bar, flagged `belowThreshold`), and returns up
+to 25 ranked candidates with display fields + voted status. `kanaliBResolve` marks
+the chosen person voted with the Type-A atomic guard and flips the submission to
+`done`.
